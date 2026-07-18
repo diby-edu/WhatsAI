@@ -2,69 +2,20 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
-    ShoppingBag, Search, Filter, Eye,
+    ShoppingBag, Search, Filter,
     CheckCircle, XCircle, Clock, Truck, Package,
-    Loader2, Image as ImageIcon, Check, X,
-    CalendarCheck, Users, MapPin,
+    Loader2, CalendarCheck,
     FileText, Layers
 } from 'lucide-react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { useToast } from '@/components/ui/Toast'
-
-interface Order {
-    id: string
-    order_number: string
-    customer_name: string | null
-    customer_phone: string
-    status: string
-    total_amount: number
-    total_fcfa: number
-    payment_method: 'online' | 'cod' | 'mobile_money_direct' | null
-    payment_verification_status: string | null
-    payment_screenshot_url: string | null
-    fulfillment_mode?: 'takeaway' | 'delivery' | null
-    pickup_at?: string | null
-    deposit_required?: boolean | null
-    deposit_amount_fcfa?: number | null
-    deposit_status?: string | null
-    transaction_id?: string | null
-    created_at: string
-    items_count: number
-    items?: {
-        product_name?: string
-        product?: {
-            product_type: string
-        }
-    }[]
-}
-
-interface Booking {
-    id: string
-    customer_name: string | null
-    customer_phone: string
-    booking_type: string
-    service_name: string | null
-    status: string
-    start_time: string | null
-    party_size: number
-    location: string | null
-    notes: string | null
-    price_fcfa: number
-    created_at: string
-    booking_source?: string | null
-    fulfillment_mode?: string | null
-    payment_method?: string | null
-    deposit_required?: boolean | null
-    deposit_amount_fcfa?: number | null
-    deposit_status?: string | null
-    transaction_id?: string | null
-    provider_payment_url?: string | null
-    items_count?: number
-}
+import { OrderCard } from './components/OrderCard'
+import { BookingCard } from './components/BookingCard'
+import { ScreenshotModal } from './components/ScreenshotModal'
+import type { Order, Booking } from './types'
 
 export default function OrdersPage() {
     const t = useTranslations('Orders.List')
@@ -942,259 +893,31 @@ export default function OrdersPage() {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gap: 16 }}>
-                    {filteredOrders.map((order, i) => {
-                        const nextStatusOptions = getNextStatusOptions(order)
-                        return (
-                        <motion.div
+                    {filteredOrders.map((order, i) => (
+                        <OrderCard
                             key={order.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                            style={{
-                                background: 'rgba(30, 41, 59, 0.5)',
-                                border: order.payment_verification_status === 'awaiting_verification'
-                                    ? '2px solid rgba(245, 158, 11, 0.5)'
-                                    : '1px solid rgba(148, 163, 184, 0.1)',
-                                borderRadius: 16,
-                                padding: 20,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                                gap: 20
-                            }}
-                        >
-                            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-                                <div style={{
-                                    width: 48,
-                                    height: 48,
-                                    borderRadius: 12,
-                                    background: `${getTypeColor(getOrderType(order))}20`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: getTypeColor(getOrderType(order))
-                                }}>
-                                    {getTypeIcon(getOrderType(order))}
-                                </div>
-                                <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                                        <h3 style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>
-                                            #{order.order_number}
-                                        </h3>
-                                        {/* TYPE BADGE */}
-                                        <span style={{
-                                            padding: '4px 8px',
-                                            borderRadius: 6,
-                                            fontSize: 10,
-                                            fontWeight: 700,
-                                            textTransform: 'uppercase',
-                                            background: `${getTypeColor(getOrderType(order))}20`,
-                                            color: getTypeColor(getOrderType(order)),
-                                            border: `1px solid ${getTypeColor(getOrderType(order))}40`
-                                        }}>
-                                            {getTypeLabel(getOrderType(order))}
-                                        </span>
-
-                                        <span style={{
-                                            padding: '4px 10px',
-                                            borderRadius: 100,
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 6,
-                                            background: `${getStatusColor(order.status)}20`,
-                                            color: getStatusColor(order.status)
-                                        }}>
-                                            {getStatusIcon(order.status)}
-                                            {getStatusLabel(order.status)}
-                                        </span>
-                                        {order.fulfillment_mode && (
-                                            <span style={{
-                                                padding: '4px 10px',
-                                                borderRadius: 100,
-                                                fontSize: 11,
-                                                fontWeight: 600,
-                                                background: order.fulfillment_mode === 'takeaway' ? 'rgba(249, 115, 22, 0.18)' : 'rgba(59, 130, 246, 0.18)',
-                                                color: order.fulfillment_mode === 'takeaway' ? '#fb923c' : '#60a5fa'
-                                            }}>
-                                                {order.fulfillment_mode === 'takeaway' ? t('fulfillmentBadge.takeaway') : t('fulfillmentBadge.delivery')}
-                                            </span>
-                                        )}
-                                        {/* Mobile Money Status Badge */}
-                                        {order.payment_verification_status && (
-                                            <span style={{
-                                                padding: '4px 10px',
-                                                borderRadius: 100,
-                                                fontSize: 11,
-                                                fontWeight: 600,
-                                                background: order.payment_verification_status === 'awaiting_verification'
-                                                    ? 'rgba(245, 158, 11, 0.2)'
-                                                    : order.payment_verification_status === 'verified'
-                                                        ? 'rgba(16, 185, 129, 0.2)'
-                                                        : order.payment_verification_status === 'rejected'
-                                                            ? 'rgba(239, 68, 68, 0.2)'
-                                                            : 'rgba(148, 163, 184, 0.2)',
-                                                color: order.payment_verification_status === 'awaiting_verification'
-                                                    ? '#f59e0b'
-                                                    : order.payment_verification_status === 'verified'
-                                                        ? '#10b981'
-                                                        : order.payment_verification_status === 'rejected'
-                                                            ? '#ef4444'
-                                                            : '#94a3b8'
-                                            }}>
-                                                {order.payment_verification_status === 'awaiting_screenshot' && t('verifyBadge.awaitingScreenshot')}
-                                                {order.payment_verification_status === 'awaiting_verification' && t('verifyBadge.awaitingVerification')}
-                                                {order.payment_verification_status === 'verified' && t('verifyBadge.verified')}
-                                                {order.payment_verification_status === 'rejected' && t('verifyBadge.rejected')}
-                                                {order.payment_verification_status === 'expired' && t('verifyBadge.expired')}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p style={{ color: '#94a3b8', fontSize: 14 }}>
-                                        {order.customer_name || order.customer_phone} • {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>
-                                        {formatPrice(order.total_fcfa || order.total_amount)}
-                                    </div>
-                                    <div style={{ color: '#64748b', fontSize: 13 }}>
-                                        {t('card.itemsCountLabel', { count: order.items_count })}
-                                    </div>
-                                    <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                                        {t('card.paymentPrefix', { label: getOrderPaymentLabel(order) })}
-                                    </div>
-                                    {order.deposit_required && (
-                                        <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>
-                                            {t('card.depositPrefix', { amount: formatPrice(order.deposit_amount_fcfa || 0) })}
-                                            {order.deposit_status ? ` • ${order.deposit_status}` : ''}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Verification Buttons (Mobile Money) */}
-                                {order.payment_verification_status === 'awaiting_verification' && order.payment_screenshot_url && (
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <button
-                                            onClick={() => openScreenshotModal(order.id)}
-                                            style={{
-                                                padding: '10px 14px',
-                                                borderRadius: 10,
-                                                background: 'rgba(59, 130, 246, 0.15)',
-                                                color: '#60a5fa',
-                                                border: 'none',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 6
-                                            }}
-                                        >
-                                            <ImageIcon size={16} /> {t('card.viewButton')}
-                                        </button>
-                                        <button
-                                            onClick={() => handleVerify(order.id, 'verify')}
-                                            disabled={verifyingId === order.id}
-                                            style={{
-                                                padding: '10px 14px',
-                                                borderRadius: 10,
-                                                background: 'rgba(16, 185, 129, 0.15)',
-                                                color: '#10b981',
-                                                border: 'none',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 6,
-                                                opacity: verifyingId === order.id ? 0.5 : 1
-                                            }}
-                                        >
-                                            <Check size={16} /> {t('card.confirmButton')}
-                                        </button>
-                                        <button
-                                            onClick={() => handleVerify(order.id, 'reject')}
-                                            disabled={verifyingId === order.id}
-                                            style={{
-                                                padding: '10px 14px',
-                                                borderRadius: 10,
-                                                background: 'rgba(239, 68, 68, 0.15)',
-                                                color: '#ef4444',
-                                                border: 'none',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 6,
-                                                opacity: verifyingId === order.id ? 0.5 : 1
-                                            }}
-                                        >
-                                            <X size={16} /> {t('card.rejectButton')}
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Inline Status Buttons */}
-                                {nextStatusOptions.length > 0 && (
-                                    <div style={{ display: 'flex', gap: 6 }}>
-                                        {nextStatusOptions.map(opt => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => handleStatusChange(order.id, opt.value)}
-                                                disabled={updatingStatusId === order.id}
-                                                style={{
-                                                    padding: '10px 14px',
-                                                    borderRadius: 10,
-                                                    background: `${getStatusColor(opt.value)}20`,
-                                                    color: getStatusColor(opt.value),
-                                                    border: `1px solid ${getStatusColor(opt.value)}40`,
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 6,
-                                                    fontSize: 13,
-                                                    opacity: updatingStatusId === order.id ? 0.5 : 1,
-                                                    whiteSpace: 'nowrap'
-                                                }}
-                                            >
-                                                {updatingStatusId === order.id
-                                                    ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                                                    : getStatusIcon(opt.value)
-                                                }
-                                                {opt.label.replace(/^[^\s]+\s/, '')}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Details Button — always visible */}
-                                <button
-                                    onClick={() => router.push(`/dashboard/orders/${order.id}`)}
-                                    style={{
-                                        padding: '10px 16px',
-                                        borderRadius: 10,
-                                        background: 'rgba(59, 130, 246, 0.15)',
-                                        color: '#60a5fa',
-                                        border: 'none',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 8
-                                    }}
-                                >
-                                    <Eye size={16} />
-                                    {t('card.details')}
-                                </button>
-                            </div>
-                        </motion.div>
-                        )
-                    })}
+                            order={order}
+                            index={i}
+                            t={t}
+                            format={format}
+                            router={router}
+                            getOrderType={getOrderType}
+                            getStatusColor={getStatusColor}
+                            getStatusIcon={getStatusIcon}
+                            getStatusLabel={getStatusLabel}
+                            getTypeColor={getTypeColor}
+                            getTypeIcon={getTypeIcon}
+                            getTypeLabel={getTypeLabel}
+                            formatPrice={formatPrice}
+                            getOrderPaymentLabel={getOrderPaymentLabel}
+                            getNextStatusOptions={getNextStatusOptions}
+                            openScreenshotModal={openScreenshotModal}
+                            handleVerify={handleVerify}
+                            verifyingId={verifyingId}
+                            handleStatusChange={handleStatusChange}
+                            updatingStatusId={updatingStatusId}
+                        />
+                    ))}
                 </div>
             ))}
 
@@ -1217,220 +940,24 @@ export default function OrdersPage() {
                 ) : (
                     <div style={{ display: 'grid', gap: 16 }}>
                         {filteredBookings.map((booking, i) => (
-                            <motion.div
+                            <BookingCard
                                 key={booking.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.05 }}
-                                style={{
-                                    background: 'rgba(30, 41, 59, 0.5)',
-                                    border: booking.status === 'pending'
-                                        ? '2px solid rgba(139, 92, 246, 0.5)'
-                                        : '1px solid rgba(148, 163, 184, 0.1)',
-                                    borderRadius: 16,
-                                    padding: 20,
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    flexWrap: 'wrap',
-                                    gap: 20
-                                }}
-                            >
-                                <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-                                    <div style={{
-                                        width: 48,
-                                        height: 48,
-                                        borderRadius: 12,
-                                        background: 'rgba(139, 92, 246, 0.1)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: '#a78bfa'
-                                    }}>
-                                        <CalendarCheck size={24} />
-                                    </div>
-                                    <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                                            <h3 style={{ color: 'white', fontWeight: 600, fontSize: 16 }}>
-                                                {booking.service_name || getBookingKindLabel(booking)}
-                                            </h3>
-                                            <span style={{
-                                                padding: '4px 10px',
-                                                borderRadius: 100,
-                                                fontSize: 12,
-                                                fontWeight: 600,
-                                                background: booking.booking_source === 'restaurant'
-                                                    ? 'rgba(16, 185, 129, 0.15)'
-                                                    : 'rgba(139, 92, 246, 0.12)',
-                                                color: booking.booking_source === 'restaurant' ? '#34d399' : '#a78bfa'
-                                            }}>
-                                                {getBookingKindLabel(booking)}
-                                            </span>
-                                            <span style={{
-                                                padding: '4px 10px',
-                                                borderRadius: 100,
-                                                fontSize: 12,
-                                                fontWeight: 600,
-                                                background: booking.status === 'pending' ? 'rgba(251, 191, 36, 0.2)'
-                                                    : booking.status === 'inscription_pending' ? 'rgba(139, 92, 246, 0.2)'
-                                                    : booking.status === 'confirmed' ? 'rgba(16, 185, 129, 0.2)'
-                                                    : booking.status === 'completed' ? 'rgba(59, 130, 246, 0.2)'
-                                                    : 'rgba(239, 68, 68, 0.2)',
-                                                color: booking.status === 'pending' ? '#fbbf24'
-                                                    : booking.status === 'inscription_pending' ? '#a78bfa'
-                                                    : booking.status === 'confirmed' ? '#10b981'
-                                                    : booking.status === 'completed' ? '#60a5fa'
-                                                    : '#ef4444'
-                                            }}>
-                                                {getBookingStatusBadgeLabel(booking)}
-                                            </span>
-                                        </div>
-                                        <p style={{ color: '#94a3b8', fontSize: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <span>{booking.customer_name || booking.customer_phone}</span>
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <Users size={14} /> {booking.party_size}
-                                            </span>
-                                            {getBookingModeLabel(booking) && (
-                                                <span>🍽️ {getBookingModeLabel(booking)}</span>
-                                            )}
-                                            {booking.start_time
-                                                ? <span>📅 {format.dateTime(new Date(booking.start_time), { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                                                : <span style={{ color: '#a78bfa' }}>{t('bookingStatusBadge.inscriptionPending')}</span>
-                                            }
-                                        </p>
-                                        <div style={{ color: '#64748b', fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                                            <span>{t('card.paymentPrefix', { label: getBookingPaymentLabel(booking) })}</span>
-                                            {booking.deposit_required ? (
-                                                <span>
-                                                    {getBookingDepositLabel(booking)}
-                                                    {booking.deposit_amount_fcfa ? ` • ${formatPrice(booking.deposit_amount_fcfa)}` : ''}
-                                                </span>
-                                            ) : (
-                                                <span>{isFullBookingPayment(booking) ? t('depositLabel.noOnlinePayment') : t('depositLabel.noDeposit')}</span>
-                                            )}
-                                            {typeof booking.items_count === 'number' && booking.items_count > 0 && (
-                                                <span>{t('card.itemsPrecommande', { count: booking.items_count, plural: booking.items_count > 1 ? 's' : '' })}</span>
-                                            )}
-                                        </div>
-                                        {booking.location && (
-                                            <p style={{ color: '#64748b', fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <MapPin size={12} /> {booking.location}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                    {booking.price_fcfa > 0 && (
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>
-                                                {formatPrice(booking.price_fcfa)}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Booking Status Actions */}
-                                    {(booking.deposit_required && booking.deposit_status === 'pending') && (
-                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                            {booking.provider_payment_url && (
-                                                <button
-                                                    onClick={() => window.open(booking.provider_payment_url || '', '_blank', 'noopener,noreferrer')}
-                                                    disabled={updatingStatusId === booking.id}
-                                                    style={{
-                                                        padding: '10px 12px',
-                                                        borderRadius: 10,
-                                                        background: 'rgba(59, 130, 246, 0.15)',
-                                                        color: '#60a5fa',
-                                                        border: 'none',
-                                                        fontWeight: 600,
-                                                        cursor: 'pointer',
-                                                        opacity: updatingStatusId === booking.id ? 0.5 : 1
-                                                    }}
-                                                    title={booking.transaction_id ? t('card.openLinkTitle', { transactionId: booking.transaction_id }) : t('card.openPaymentLinkTitle')}
-                                                >
-                                                    {t('card.openLink')}
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleBookingDepositStatusChange(booking.id, 'paid')}
-                                                disabled={updatingStatusId === booking.id}
-                                                style={{
-                                                    width: 36,
-                                                    height: 36,
-                                                    borderRadius: 10,
-                                                    background: 'rgba(34, 197, 94, 0.15)',
-                                                    color: '#4ade80',
-                                                    border: 'none',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    opacity: updatingStatusId === booking.id ? 0.5 : 1
-                                                }}
-                                                title={isFullBookingPayment(booking) ? t('card.markPaidPaymentTitle') : t('card.markPaidDepositTitle')}
-                                            >
-                                                ✓
-                                            </button>
-                                            <button
-                                                onClick={() => handleBookingDepositStatusChange(booking.id, 'waived')}
-                                                disabled={updatingStatusId === booking.id}
-                                                style={{
-                                                    padding: '10px 12px',
-                                                    borderRadius: 10,
-                                                    background: 'rgba(59, 130, 246, 0.15)',
-                                                    color: '#60a5fa',
-                                                    border: 'none',
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer',
-                                                    opacity: updatingStatusId === booking.id ? 0.5 : 1
-                                                }}
-                                                title={isFullBookingPayment(booking) ? t('card.waivePaymentTitle') : t('card.waiveDepositTitle')}
-                                            >
-                                                {isFullBookingPayment(booking) ? t('card.waivedPaymentShort') : t('depositLabel.noDeposit')}
-                                            </button>
-                                            <button
-                                                onClick={() => handleBookingDepositStatusChange(booking.id, 'expired')}
-                                                disabled={updatingStatusId === booking.id}
-                                                style={{
-                                                    width: 36,
-                                                    height: 36,
-                                                    borderRadius: 10,
-                                                    background: 'rgba(251, 191, 36, 0.15)',
-                                                    color: '#fbbf24',
-                                                    border: 'none',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    opacity: updatingStatusId === booking.id ? 0.5 : 1
-                                                }}
-                                                title={isFullBookingPayment(booking) ? t('card.markExpiredPaymentTitle') : t('card.markExpiredDepositTitle')}
-                                            >
-                                                !
-                                            </button>
-                                        </div>
-                                    )}
-                                    {getBookingStatusOptions(booking).length > 0 && (
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            {getBookingStatusOptions(booking).map(option => (
-                                                <button
-                                                    key={option.value}
-                                                    onClick={() => handleBookingStatusChange(booking.id, option.value)}
-                                                    disabled={updatingStatusId === booking.id}
-                                                    style={{
-                                                        padding: '10px 14px',
-                                                        borderRadius: 10,
-                                                        background: option.value === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                                                        color: option.value === 'cancelled' ? '#ef4444' : '#10b981',
-                                                        border: 'none',
-                                                        fontWeight: 600,
-                                                        cursor: 'pointer',
-                                                        opacity: updatingStatusId === booking.id ? 0.5 : 1
-                                                    }}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </motion.div>
+                                booking={booking}
+                                index={i}
+                                t={t}
+                                format={format}
+                                getBookingKindLabel={getBookingKindLabel}
+                                getBookingStatusBadgeLabel={getBookingStatusBadgeLabel}
+                                getBookingModeLabel={getBookingModeLabel}
+                                getBookingPaymentLabel={getBookingPaymentLabel}
+                                getBookingDepositLabel={getBookingDepositLabel}
+                                isFullBookingPayment={isFullBookingPayment}
+                                formatPrice={formatPrice}
+                                updatingStatusId={updatingStatusId}
+                                handleBookingDepositStatusChange={handleBookingDepositStatusChange}
+                                handleBookingStatusChange={handleBookingStatusChange}
+                                getBookingStatusOptions={getBookingStatusOptions}
+                            />
                         ))}
                     </div>
                 )
@@ -1438,52 +965,13 @@ export default function OrdersPage() {
 
             {/* Screenshot Modal */}
             {screenshotModal && (
-                <div
-                    onClick={() => { setScreenshotModal(null); setScreenshotSignedUrl(null) }}
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.8)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1000,
-                        cursor: 'pointer'
-                    }}
-                >
-                    <div onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '90vh' }}>
-                        {screenshotLoading || !screenshotSignedUrl ? (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 300, height: 300 }}>
-                                <Loader2 style={{ width: 32, height: 32, color: '#34d399', animation: 'spin 1s linear infinite' }} />
-                            </div>
-                        ) : (
-                            <Image
-                                src={screenshotSignedUrl}
-                                width={1200}
-                                height={1600}
-                                unoptimized
-                                alt={t('screenshotAlt')}
-                                style={{ maxWidth: '100%', height: 'auto', maxHeight: '85vh', borderRadius: 12 }}
-                            />
-                        )}
-                        <div style={{ textAlign: 'center', marginTop: 16 }}>
-                            <button
-                                onClick={() => { setScreenshotModal(null); setScreenshotSignedUrl(null) }}
-                                style={{
-                                    padding: '12px 24px',
-                                    borderRadius: 10,
-                                    background: '#ef4444',
-                                    color: 'white',
-                                    border: 'none',
-                                    fontWeight: 600,
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {t('card.close')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ScreenshotModal
+                    t={t}
+                    setScreenshotModal={setScreenshotModal}
+                    screenshotSignedUrl={screenshotSignedUrl}
+                    setScreenshotSignedUrl={setScreenshotSignedUrl}
+                    screenshotLoading={screenshotLoading}
+                />
             )}
         </div>
     )
