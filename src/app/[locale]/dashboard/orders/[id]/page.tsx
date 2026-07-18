@@ -27,7 +27,7 @@ interface Order {
     order_number: string
     status: string
     payment_method: 'online' | 'cod' | 'mobile_money_direct' | null
-    total_amount: number
+    total_fcfa: number
     created_at: string
     notes: string | null
     customer_name: string | null
@@ -327,7 +327,7 @@ export default function OrderDetailsPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ color: '#94a3b8' }}>{t('items.total')}</span>
                                 <span style={{ fontSize: 20, fontWeight: 700, color: '#34d399' }}>
-                                    {formatPrice(order.total_amount)}
+                                    {formatPrice(order.total_fcfa)}
                                 </span>
                             </div>
                         </div>

@@ -40,7 +40,6 @@ export async function GET(
         const transformedOrder = {
             ...order,
             order_number: `#CMD-${order.created_at?.slice(0, 10).replace(/-/g, '')}-${order.id.substring(0, 4).toUpperCase()}`,
-            total_amount: order.total_fcfa,
             items: (order.items || []).map((item: any) => ({
                 id: item.id,
                 quantity: item.quantity,

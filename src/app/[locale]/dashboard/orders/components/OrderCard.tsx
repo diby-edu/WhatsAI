@@ -168,7 +168,7 @@ export function OrderCard({
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ textAlign: 'right' }}>
                     <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>
-                        {formatPrice(order.total_fcfa || order.total_amount)}
+                        {formatPrice(order.total_fcfa)}
                     </div>
                     <div style={{ color: '#64748b', fontSize: 13 }}>
                         {t('card.itemsCountLabel', { count: order.items_count })}

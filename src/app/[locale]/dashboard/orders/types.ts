@@ -4,7 +4,6 @@ export interface Order {
     customer_name: string | null
     customer_phone: string
     status: string
-    total_amount: number
     total_fcfa: number
     payment_method: 'online' | 'cod' | 'mobile_money_direct' | null
     payment_verification_status: string | null
