@@ -1,12 +1,5 @@
 import type { useTranslations } from 'next-intl'
-import type { NewAgentFormData } from '../types'
-
-interface Personality {
-    id: string
-    name: string
-    emoji: string
-    description: string
-}
+import type { NewAgentFormData, Personality } from '../types'
 
 interface StepPersonalityProps {
     t: ReturnType<typeof useTranslations>

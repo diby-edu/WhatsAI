@@ -46,3 +46,10 @@ export interface MissionTemplate {
     description: string
     prompt: string
 }
+
+export interface Personality {
+    id: string
+    name: string
+    emoji: string
+    description: string
+}
