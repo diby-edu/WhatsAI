@@ -3,15 +3,19 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
-    Save, Globe, Shield, CreditCard, Mail, AlertTriangle,
-    Database, Key, Server, Bell, Palette, Lock, RefreshCw,
-    CheckCircle, Loader2, Users, Bot, Activity, Zap, MessageCircle, Wifi, WifiOff
+    Save, Globe, Shield, CreditCard, Mail,
+    Database, Key, Server, Bell, Palette, Lock,
+    CheckCircle, Loader2, MessageCircle
 } from 'lucide-react'
 import { ToggleSwitch, SettingRow } from './components/shared'
 import { GeneralTab } from './components/GeneralTab'
 import { AiTab } from './components/AiTab'
 import { PaymentTab } from './components/PaymentTab'
 import { EmailTab } from './components/EmailTab'
+import { SecurityTab } from './components/SecurityTab'
+import { AdvancedTab } from './components/AdvancedTab'
+import { OtpTab } from './components/OtpTab'
+import { NotificationsTab } from './components/NotificationsTab'
 import type { AdminNotificationSettings, PaymentProviderReadiness, AdminSettings } from './types'
 
 type TabId = 'general' | 'ai' | 'payment' | 'email' | 'security' | 'advanced' | 'notifications' | 'otp'
@@ -379,480 +383,40 @@ export default function AdminSettingsPage() {
 
             case 'security':
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <div className="admin-settings-grid-2">
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    Timeout de session (heures)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={settings.sessionTimeout}
-                                    onChange={(e) => setSettings({ ...settings, sessionTimeout: e.target.valueAsNumber })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 14,
-                                        borderRadius: 10,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: 'white'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                    Tentatives de connexion max
-                                </label>
-                                <input
-                                    type="number"
-                                    value={settings.maxLoginAttempts}
-                                    onChange={(e) => setSettings({ ...settings, maxLoginAttempts: e.target.valueAsNumber })}
-                                    style={{
-                                        width: '100%',
-                                        padding: 14,
-                                        borderRadius: 10,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        color: 'white'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <SettingRow
-                            label="Vérification email obligatoire"
-                            description="Les utilisateurs doivent vérifier leur email avant connexion"
-                        >
-                            <ToggleSwitch
-                                value={settings.requireEmailVerification}
-                                onChange={() => handleToggle('requireEmailVerification')}
-                            />
-                        </SettingRow>
-
-                        <SettingRow
-                            label="Authentification à deux facteurs"
-                            description="Activer le 2FA pour les comptes admin"
-                        >
-                            <ToggleSwitch
-                                value={settings.enable2FA}
-                                onChange={() => handleToggle('enable2FA')}
-                            />
-                        </SettingRow>
-
-                        {/* Danger Zone */}
-                        <div style={{
-                            marginTop: 24,
-                            padding: 20,
-                            borderRadius: 16,
-                            border: '2px solid rgba(239, 68, 68, 0.2)',
-                            background: 'rgba(239, 68, 68, 0.05)'
-                        }}>
-                            <h3 style={{ color: '#f87171', fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <AlertTriangle style={{ width: 18, height: 18 }} />
-                                Zone dangereuse
-                            </h3>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <SettingRow
-                                    label="Réinitialiser toutes les sessions"
-                                    description="Déconnecte tous les utilisateurs"
-                                >
-                                    <button style={{
-                                        padding: '10px 16px',
-                                        borderRadius: 8,
-                                        background: 'rgba(239, 68, 68, 0.15)',
-                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                        color: '#f87171',
-                                        cursor: 'pointer',
-                                        fontWeight: 500
-                                    }}>
-                                        Réinitialiser
-                                    </button>
-                                </SettingRow>
-                            </div>
-                        </div>
-                    </div>
+                    <SecurityTab settings={settings} setSettings={setSettings} handleToggle={handleToggle} />
                 )
 
             case 'advanced':
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <div>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                Niveau de logs
-                            </label>
-                            <select
-                                value={settings.logLevel}
-                                onChange={(e) => setSettings({ ...settings, logLevel: e.target.value })}
-                                style={{
-                                    width: '100%',
-                                    padding: 14,
-                                    borderRadius: 10,
-                                    background: 'rgba(15, 23, 42, 0.5)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    color: 'white'
-                                }}
-                            >
-                                <option value="error">Error (erreurs uniquement)</option>
-                                <option value="warn">Warn (avertissements)</option>
-                                <option value="info">Info (informations générales)</option>
-                                <option value="debug">Debug (débogage détaillé)</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label style={{ display: 'block', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>
-                                Limite de requêtes API (par minute)
-                            </label>
-                            <input
-                                className="admin-settings-small-input"
-                                type="number"
-                                value={settings.apiRateLimit}
-                                onChange={(e) => setSettings({ ...settings, apiRateLimit: e.target.valueAsNumber })}
-                                style={{
-                                    width: 150,
-                                    padding: 14,
-                                    borderRadius: 10,
-                                    background: 'rgba(15, 23, 42, 0.5)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    color: 'white'
-                                }}
-                            />
-                        </div>
-
-                        <SettingRow
-                            label="Métriques de performance"
-                            description="Collecter les métriques pour le monitoring"
-                        >
-                            <ToggleSwitch
-                                value={settings.enableMetrics}
-                                onChange={() => handleToggle('enableMetrics')}
-                            />
-                        </SettingRow>
-
-                        <SettingRow
-                            label="Purger les logs"
-                            description="Supprime tous les logs de plus de 14 jours"
-                        >
-                            <button style={{
-                                padding: '10px 16px',
-                                borderRadius: 8,
-                                background: 'rgba(245, 158, 11, 0.15)',
-                                border: '1px solid rgba(245, 158, 11, 0.3)',
-                                color: '#fbbf24',
-                                cursor: 'pointer',
-                                fontWeight: 500
-                            }}>
-                                Purger
-                            </button>
-                        </SettingRow>
-                    </div>
+                    <AdvancedTab settings={settings} setSettings={setSettings} handleToggle={handleToggle} />
                 )
 
             case 'otp':
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        <div style={{
-                            padding: '20px 24px',
-                            borderRadius: 16,
-                            background: 'rgba(15,23,42,0.6)',
-                            border: '1px solid rgba(148,163,184,0.12)',
-                        }}>
-                            <h3 style={{ color: '#e2e8f0', fontSize: 16, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <MessageCircle size={18} style={{ color: '#10b981' }} />
-                                Connexion WhatsApp — Envoi OTP
-                            </h3>
-                            <p style={{ color: '#64748b', fontSize: 13, marginBottom: 24 }}>
-                                Ce numéro dédié envoie les codes de vérification aux nouveaux utilisateurs. Il ne répond jamais aux messages reçus.
-                            </p>
-
-                            {/* Statut */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-                                {otpStatus === 'connected' ? (
-                                    <>
-                                        <Wifi size={16} style={{ color: '#10b981' }} />
-                                        <span style={{ color: '#10b981', fontWeight: 600, fontSize: 14 }}>Connecté</span>
-                                        {otpPhone && <span style={{ color: '#64748b', fontSize: 13 }}>— {otpPhone}</span>}
-                                    </>
-                                ) : otpStatus === 'qr_ready' ? (
-                                    <>
-                                        <Loader2 size={16} style={{ color: '#f59e0b', animation: 'spin 1s linear infinite' }} />
-                                        <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: 14 }}>Scannez le QR code ci-dessous</span>
-                                    </>
-                                ) : otpStatus === 'connecting' ? (
-                                    <>
-                                        <Loader2 size={16} style={{ color: '#64748b', animation: 'spin 1s linear infinite' }} />
-                                        <span style={{ color: '#64748b', fontWeight: 600, fontSize: 14 }}>Génération du QR code…</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <WifiOff size={16} style={{ color: '#64748b' }} />
-                                        <span style={{ color: '#64748b', fontWeight: 600, fontSize: 14 }}>
-                                            {otpStatus === 'not_configured' ? 'Non configuré' : 'Déconnecté'}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-
-                            {/* QR Code */}
-                            {otpQrCode && (otpStatus === 'qr_ready' || otpStatus === 'connecting') && (
-                                <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                                    <div style={{
-                                        display: 'inline-block',
-                                        padding: 16,
-                                        background: 'white',
-                                        borderRadius: 16,
-                                        marginBottom: 12,
-                                    }}>
-                                        <img src={otpQrCode} alt="QR Code WhatsApp OTP" width={200} height={200} style={{ display: 'block' }} />
-                                    </div>
-                                    <p style={{ color: '#94a3b8', fontSize: 13 }}>
-                                        Ouvrez WhatsApp sur la SIM dédiée → <strong>Appareils liés</strong> → <strong>Lier un appareil</strong>
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Boutons */}
-                            <div style={{ display: 'flex', gap: 10 }}>
-                                {otpStatus !== 'connected' && (
-                                    <button
-                                        onClick={handleOtpConnect}
-                                        disabled={otpLoading}
-                                        style={{
-                                            padding: '10px 20px', borderRadius: 10, border: 'none',
-                                            background: 'linear-gradient(135deg, #10b981, #0891b2)',
-                                            color: 'white', fontWeight: 600, fontSize: 13,
-                                            cursor: otpLoading ? 'not-allowed' : 'pointer',
-                                            display: 'flex', alignItems: 'center', gap: 8,
-                                        }}
-                                    >
-                                        {otpLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={14} />}
-                                        {otpStatus === 'not_configured' ? 'Initialiser' : 'Afficher le QR code'}
-                                    </button>
-                                )}
-                                {otpStatus === 'connected' && (
-                                    <button
-                                        onClick={handleOtpDisconnect}
-                                        disabled={otpLoading}
-                                        style={{
-                                            padding: '10px 20px', borderRadius: 10,
-                                            border: '1px solid rgba(239,68,68,0.3)',
-                                            background: 'rgba(239,68,68,0.08)',
-                                            color: '#f87171', fontWeight: 600, fontSize: 13,
-                                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                                        }}
-                                    >
-                                        <WifiOff size={14} /> Déconnecter
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Reset tentatives OTP */}
-                            <div style={{
-                                marginTop: 8,
-                                padding: 16,
-                                borderRadius: 12,
-                                background: 'rgba(15,23,42,0.4)',
-                                border: '1px solid rgba(100,116,139,0.2)',
-                            }}>
-                                <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13, marginBottom: 8 }}>
-                                    Réinitialiser les tentatives d'un utilisateur
-                                </div>
-                                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>
-                                    Si un utilisateur est bloqué ("Trop de tentatives"), saisissez son numéro international et cliquez Réinitialiser.
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        value={otpResetPhone}
-                                        onChange={e => setOtpResetPhone(e.target.value)}
-                                        placeholder="ex: 225747094746"
-                                        style={{
-                                            flex: 1, padding: '8px 12px', borderRadius: 8,
-                                            background: 'rgba(15,23,42,0.6)',
-                                            border: '1px solid rgba(100,116,139,0.3)',
-                                            color: 'white', fontSize: 13,
-                                        }}
-                                    />
-                                    <button
-                                        onClick={handleOtpResetLimit}
-                                        disabled={otpResetLoading || !otpResetPhone.trim()}
-                                        style={{
-                                            padding: '8px 16px', borderRadius: 8,
-                                            background: otpResetLoading ? 'rgba(100,116,139,0.3)' : 'rgba(59,130,246,0.2)',
-                                            color: '#60a5fa', fontWeight: 600, fontSize: 13,
-                                            cursor: otpResetLoading || !otpResetPhone.trim() ? 'not-allowed' : 'pointer',
-                                            display: 'flex', alignItems: 'center', gap: 6,
-                                            border: '1px solid rgba(59,130,246,0.3)',
-                                        }}
-                                    >
-                                        {otpResetLoading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={13} />}
-                                        Réinitialiser
-                                    </button>
-                                </div>
-                                {otpResetMsg && (
-                                    <div style={{
-                                        marginTop: 8, fontSize: 12, padding: '6px 10px', borderRadius: 6,
-                                        background: otpResetMsg.startsWith('Erreur') ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-                                        color: otpResetMsg.startsWith('Erreur') ? '#f87171' : '#34d399',
-                                        border: `1px solid ${otpResetMsg.startsWith('Erreur') ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
-                                    }}>
-                                        {otpResetMsg}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    <OtpTab
+                        otpStatus={otpStatus}
+                        otpQrCode={otpQrCode}
+                        otpPhone={otpPhone}
+                        otpLoading={otpLoading}
+                        handleOtpConnect={handleOtpConnect}
+                        handleOtpDisconnect={handleOtpDisconnect}
+                        otpResetPhone={otpResetPhone}
+                        setOtpResetPhone={setOtpResetPhone}
+                        handleOtpResetLimit={handleOtpResetLimit}
+                        otpResetLoading={otpResetLoading}
+                        otpResetMsg={otpResetMsg}
+                    />
                 )
 
             case 'notifications':
-                const NotificationItem = ({ label, description, emailKey, pushKey, critical }: {
-                    label: string,
-                    description: string,
-                    emailKey: keyof AdminNotificationSettings,
-                    pushKey: keyof AdminNotificationSettings,
-                    critical?: boolean
-                }) => (
-                    <div className="admin-settings-notif-item" style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr auto auto',
-                        alignItems: 'center',
-                        padding: '14px 16px',
-                        borderRadius: 10,
-                        background: 'rgba(15, 23, 42, 0.3)',
-                        gap: 16
-                    }}>
-                        <div>
-                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{label}</div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>{description}</div>
-                        </div>
-                        <div className="admin-settings-notif-channel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                            <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Email</span>
-                            <ToggleSwitch
-                                value={notificationSettings[emailKey] as boolean}
-                                onChange={() => setNotificationSettings(s => ({ ...s, [emailKey]: !s[emailKey] }))}
-                                color={critical ? '#ef4444' : '#10b981'}
-                            />
-                        </div>
-                        <div className="admin-settings-notif-channel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                            <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Push</span>
-                            <ToggleSwitch
-                                value={notificationSettings[pushKey] as boolean}
-                                onChange={() => setNotificationSettings(s => ({ ...s, [pushKey]: !s[pushKey] }))}
-                                color={critical ? '#ef4444' : '#3b82f6'}
-                            />
-                        </div>
-                    </div>
-                )
-
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        {/* Info Banner */}
-                        <div style={{
-                            padding: 16,
-                            borderRadius: 12,
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            border: '1px solid rgba(59, 130, 246, 0.2)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12
-                        }}>
-                            <Bell style={{ width: 20, height: 20, color: '#60a5fa' }} />
-                            <div>
-                                <div style={{ fontWeight: 600, color: '#60a5fa' }}>Canaux de notification</div>
-                                <div style={{ fontSize: 13, color: '#94a3b8' }}>
-                                    Configurez séparément les notifications par <strong>Email</strong> et par <strong>Push</strong> (in-app).
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Users & Revenue */}
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                                <Users style={{ width: 18, height: 18, color: '#3b82f6' }} />
-                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Utilisateurs & Revenus</h3>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <NotificationItem label="Nouvel utilisateur inscrit" description="Alerte quand un nouveau compte est créé" emailKey="email_new_user" pushKey="push_new_user" />
-                                <NotificationItem label="Upgrade de plan" description="Un utilisateur passe à un plan supérieur" emailKey="email_plan_upgrade" pushKey="push_plan_upgrade" />
-                                <NotificationItem label="Downgrade de plan" description="Un utilisateur passe à un plan inférieur" emailKey="email_plan_downgrade" pushKey="push_plan_downgrade" />
-                                <NotificationItem label="Paiement reçu" description="Confirmation de paiement en ligne" emailKey="email_payment_received" pushKey="push_payment_received" />
-                                <NotificationItem label="Paiement échoué" description="Échec d'un paiement" emailKey="email_payment_failed" pushKey="push_payment_failed" critical />
-                                <NotificationItem label="Abonnement annulé" description="Un utilisateur annule son abonnement" emailKey="email_subscription_cancelled" pushKey="push_subscription_cancelled" />
-                            </div>
-                        </div>
-
-                        {/* Agents */}
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                                <Bot style={{ width: 18, height: 18, color: '#10b981' }} />
-                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Agents IA</h3>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <NotificationItem label="Nouvel agent créé" description="Un utilisateur crée un nouvel agent" emailKey="email_agent_created" pushKey="push_agent_created" />
-                                <NotificationItem label="Agent connecté WhatsApp" description="Un agent se connecte avec succès" emailKey="email_agent_connected" pushKey="push_agent_connected" />
-                                <NotificationItem label="Agent déconnecté WhatsApp" description="Perte de connexion WhatsApp" emailKey="email_agent_disconnected" pushKey="push_agent_disconnected" critical />
-                                <NotificationItem label="Quota agents dépassé" description="Tentative de créer plus d'agents que permis" emailKey="email_agent_quota_exceeded" pushKey="push_agent_quota_exceeded" />
-                            </div>
-                        </div>
-
-                        {/* System & Health */}
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                                <Zap style={{ width: 18, height: 18, color: '#f59e0b' }} />
-                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Système & Santé</h3>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <NotificationItem label="Erreur API OpenAI" description="Problème avec l'API IA" emailKey="email_openai_error" pushKey="push_openai_error" critical />
-                                <NotificationItem label="Service WhatsApp down" description="Le bot ne répond plus" emailKey="email_whatsapp_down" pushKey="push_whatsapp_down" critical />
-                                <NotificationItem label="Taux d'erreur élevé" description="> 5% de messages échoués" emailKey="email_high_error_rate" pushKey="push_high_error_rate" critical />
-                            </div>
-                        </div>
-
-                        {/* Activity */}
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                                <Activity style={{ width: 18, height: 18, color: '#8b5cf6' }} />
-                                <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>Activité</h3>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <NotificationItem label="Nouvelle conversation" description="Un client contacte un agent (volume élevé)" emailKey="email_new_conversation" pushKey="push_new_conversation" />
-                                <NotificationItem label="Nouvelle commande" description="Une commande est passée" emailKey="email_new_order" pushKey="push_new_order" />
-                                <NotificationItem label="Escalade conversation" description="Conversation transférée à humain" emailKey="email_escalation" pushKey="push_escalation" />
-                            </div>
-                        </div>
-
-                        {/* Save Button */}
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleSaveNotifications}
-                            disabled={saving}
-                            style={{
-                                padding: '14px 24px',
-                                borderRadius: 12,
-                                background: saved ? '#22c55e' : 'linear-gradient(135deg, #10b981, #059669)',
-                                border: 'none',
-                                color: 'white',
-                                fontWeight: 600,
-                                cursor: saving ? 'wait' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                marginTop: 8
-                            }}
-                        >
-                            {saving ? (
-                                <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
-                            ) : saved ? (
-                                <CheckCircle style={{ width: 18, height: 18 }} />
-                            ) : (
-                                <Save style={{ width: 18, height: 18 }} />
-                            )}
-                            {saved ? 'Sauvegardé !' : 'Sauvegarder les notifications'}
-                        </motion.button>
-                    </div>
+                    <NotificationsTab
+                        notificationSettings={notificationSettings}
+                        setNotificationSettings={setNotificationSettings}
+                        handleSaveNotifications={handleSaveNotifications}
+                        saving={saving}
+                        saved={saved}
+                    />
                 )
         }
     }
