@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
+import { calculateMerchantBalances, formatPayoutHistory, calculateCommission } from '@/lib/services/payout-metrics'
 
 // GET /api/admin/payouts — Get merchant balances + payout history
 export async function GET(request: NextRequest) {
@@ -41,33 +42,12 @@ export async function GET(request: NextRequest) {
                 .in('id', merchantIds.length > 0 ? merchantIds : ['00000000-0000-0000-0000-000000000000'])
 
             // Calculate balances per merchant
-            const balances = merchantIds.map(userId => {
-                const merchantOrders = (paidOrders || []).filter((o: any) => o.agents?.user_id === userId)
-
-                const totalCollected = merchantOrders.reduce((sum: number, o: any) => sum + (o.total_fcfa || 0), 0)
-
-                const totalPaidOut = (completedPayouts || [])
-                    .filter(p => p.user_id === userId)
-                    .reduce((sum, p) => sum + (p.net_amount || 0), 0)
-
-                const totalCommission = (completedPayouts || [])
-                    .filter(p => p.user_id === userId)
-                    .reduce((sum, p) => sum + (p.commission_amount || 0), 0)
-
-                const merchantProfile = merchantProfiles?.find(m => m.id === userId)
-
-                return {
-                    user_id: userId,
-                    full_name: merchantProfile?.full_name || 'Inconnu',
-                    email: merchantProfile?.email || '',
-                    phone: merchantProfile?.phone || '',
-                    total_collected: totalCollected,
-                    total_paid_out: totalPaidOut,
-                    total_commission: totalCommission,
-                    balance_due: totalCollected - totalPaidOut - totalCommission,
-                    orders_count: merchantOrders.length
-                }
-            }).sort((a, b) => b.balance_due - a.balance_due)
+            const balances = calculateMerchantBalances({
+                paidOrders: paidOrders as any,
+                completedPayouts,
+                merchantProfiles,
+                merchantIds,
+            })
 
             return successResponse({ balances })
 
@@ -85,14 +65,7 @@ export async function GET(request: NextRequest) {
 
             if (error) throw error
 
-            const formattedPayouts = (payouts || []).map((p: any) => ({
-                ...p,
-                merchant_name: p.merchant?.full_name || 'Inconnu',
-                merchant_email: p.merchant?.email || '',
-                processed_by_name: p.processor?.full_name || null,
-                merchant: undefined,
-                processor: undefined
-            }))
+            const formattedPayouts = formatPayoutHistory(payouts)
 
             return successResponse({ payouts: formattedPayouts })
         }
@@ -127,8 +100,7 @@ export async function POST(request: NextRequest) {
             return errorResponse('Champs requis: user_id, gross_amount, period_start, period_end', 400)
         }
 
-        const commission_amount = Math.round(gross_amount * (commission_rate / 100))
-        const net_amount = gross_amount - commission_amount
+        const { commission_amount, net_amount } = calculateCommission(gross_amount, commission_rate)
 
         const { data: payout, error } = await adminSupabase
             .from('payouts')

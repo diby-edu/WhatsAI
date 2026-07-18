@@ -1,31 +1,12 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient, createApiClient, successResponse, errorResponse, getAuthUser } from '@/lib/api-utils'
 import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
-
-async function clearRestaurantConversationState(
-    supabase: Awaited<ReturnType<typeof createApiClient>>,
-    conversationId: string | null | undefined
-) {
-    if (!conversationId) return
-
-    const { data: conversation } = await supabase
-        .from('conversations')
-        .select('metadata')
-        .eq('id', conversationId)
-        .single()
-
-    if (!conversation?.metadata?.restaurant) return
-
-    await supabase
-        .from('conversations')
-        .update({
-            metadata: {
-                ...conversation.metadata,
-                restaurant: null,
-            },
-        })
-        .eq('id', conversationId)
-}
+import {
+    isValidDepositTransition,
+    buildBookingStatusUpdate,
+    buildBookingConfirmationMessage,
+    clearRestaurantConversationState,
+} from '@/lib/services/booking-status.service'
 
 export async function PATCH(
     request: NextRequest,
@@ -83,32 +64,15 @@ export async function PATCH(
             return errorResponse("Vous n'etes pas autorise a modifier cette reservation", 403)
         }
 
-        if (depositStatus) {
-            const sameDepositStatus = depositStatus === currentDepositStatus
-            const validDepositTransition =
-                currentDepositStatus === 'pending' &&
-                ['paid', 'waived', 'expired'].includes(depositStatus)
-
-            if (!sameDepositStatus && !validDepositTransition) {
-                return errorResponse('Transition de statut acompte invalide', 400)
-            }
+        if (depositStatus && !isValidDepositTransition(currentDepositStatus, depositStatus)) {
+            return errorResponse('Transition de statut acompte invalide', 400)
         }
 
-        const updatePayload: Record<string, string> = {
-            updated_at: new Date().toISOString(),
-        }
-
-        if (status) {
-            updatePayload.status = status
-        }
-
-        if (depositStatus) {
-            updatePayload.deposit_status = depositStatus
-
-            if ((depositStatus === 'paid' || depositStatus === 'waived') && booking.status === 'pending' && !status) {
-                updatePayload.status = 'confirmed'
-            }
-        }
+        const updatePayload = buildBookingStatusUpdate({
+            status,
+            depositStatus,
+            currentBookingStatus: booking.status,
+        })
 
         const { error: updateError } = await supabase
             .from('bookings')
@@ -124,21 +88,7 @@ export async function PATCH(
         const statusChanged = finalStatus !== booking.status
         if (statusChanged && (finalStatus === 'confirmed' || finalStatus === 'completed') && booking.customer_phone) {
             try {
-                const serviceName = booking.service_name || 'votre reservation'
-                const dateStr = booking.start_time
-                    ? new Date(booking.start_time).toLocaleDateString('fr-FR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                    })
-                    : null
-
-                const msg = finalStatus === 'confirmed'
-                    ? `Reservation confirmee !\n\nBonjour ${booking.customer_name || ''} !\n\nVotre reservation pour *${serviceName}*${dateStr ? ` le ${dateStr}` : ''} est confirmee.\n\nMerci pour votre confiance !`
-                    : `Merci de votre visite !\n\nBonjour ${booking.customer_name || ''} !\n\nNous esperons que vous avez apprecie *${serviceName}*.\n\nN'hesitez pas a reserver a nouveau !`
-
+                const msg = buildBookingConfirmationMessage(finalStatus, booking)
                 const adminSupabase = createAdminClient()
                 await queueOutboundWhatsAppMessage(adminSupabase, {
                     agentId: booking.agent_id,

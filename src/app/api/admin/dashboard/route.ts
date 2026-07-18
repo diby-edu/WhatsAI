@@ -1,7 +1,13 @@
 import { NextRequest } from 'next/server'
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
-import { PLANS } from '@/lib/plans'
+import {
+    calculateMrrMetrics,
+    calculatePlatformRevenue,
+    calculateChurnedMrr,
+    calculateSaasMetrics,
+    calculateAgentActivationRate,
+} from '@/lib/services/admin-dashboard-metrics'
 
 export async function GET(request: NextRequest) {
     const { adminSupabase: db, response } = await requireAdminAccess()
@@ -65,22 +71,17 @@ export async function GET(request: NextRequest) {
                 .lt('completed_at', monthStart.toISOString()),
         ])
 
-        const mrr = subPaymentsThisMonth?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
-        const mrrLastMonth = subPaymentsLastMonth?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
-        const mrrGrowth = mrrLastMonth > 0 ? Math.round(((mrr - mrrLastMonth) / mrrLastMonth) * 100) : 0
-
-        // New MRR = abonnements de nouveaux clients (premier achat ce mois)
-        const existingSubUserIds = new Set((allSubPaymentsBeforeMonth || []).map(p => p.user_id))
-        const newSubPayments = (subPaymentsThisMonth || []).filter(p => !existingSubUserIds.has(p.user_id))
-        const newMrr = newSubPayments.reduce((s, p) => s + (p.amount_fcfa || 0), 0)
+        const { mrr, mrrLastMonth, mrrGrowth, newMrr, newSubPayments } = calculateMrrMetrics({
+            subPaymentsThisMonth,
+            subPaymentsLastMonth,
+            allSubPaymentsBeforeMonth,
+        })
 
         // Revenue auto vs manuel (abonnements + crédits ce mois)
         const { data: allPlatformPayments } = await db.from('payments').select('amount_fcfa, payment_method_source, payment_type')
             .eq('status', 'completed').in('payment_type', ['subscription', 'credits'])
             .gte('completed_at', monthStart.toISOString())
-        const platformRevenue = allPlatformPayments?.reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
-        const revenueAutomatic = allPlatformPayments?.filter(p => p.payment_method_source !== 'manual').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
-        const revenueManual = allPlatformPayments?.filter(p => p.payment_method_source === 'manual').reduce((s, p) => s + (p.amount_fcfa || 0), 0) || 0
+        const { platformRevenue, revenueAutomatic, revenueManual } = calculatePlatformRevenue(allPlatformPayments)
 
         // Merchant revenue
         const { data: orderPayments } = await db.from('payments').select('amount_fcfa')
@@ -96,18 +97,17 @@ export async function GET(request: NextRequest) {
                 .in('account_lifecycle_status', ['frozen_grace', 'inactive'])
                 .gte('paid_until', lastMonthStart.toISOString())
                 .lte('paid_until', now.toISOString())
-            churnedCount = churnedProfiles?.length || 0
-            churnedMrr = (churnedProfiles || []).reduce((s, p) => {
-                const planPrice = PLANS[p.plan as keyof typeof PLANS]?.price || 0
-                return s + planPrice
-            }, 0)
+            const churned = calculateChurnedMrr(churnedProfiles)
+            churnedMrr = churned.churnedMrr
+            churnedCount = churned.churnedCount
         } catch { }
 
         // ── Churn rate & LTV ─────────────────────────────────────────────
-        const totalAtRisk = (activeSubscribers || 0) + churnedCount
-        const churnRate = totalAtRisk > 0 ? parseFloat(((churnedCount / totalAtRisk) * 100).toFixed(1)) : 0
-        const arpu = (activeSubscribers || 0) > 0 ? Math.round(mrr / (activeSubscribers || 1)) : 0
-        const ltv = churnRate > 0 ? Math.round(arpu / (churnRate / 100)) : arpu * 12
+        const { churnRate, arpu, ltv } = calculateSaasMetrics({
+            activeSubscribers: activeSubscribers || 0,
+            churnedCount,
+            mrr,
+        })
 
         // Trial → Paid conversion rate
         const { count: qualifiedUsers } = await db.from('profiles')
@@ -124,9 +124,7 @@ export async function GET(request: NextRequest) {
                 .select('user_id').eq('whatsapp_connected', true)
             const { data: payingProfiles } = await db.from('profiles')
                 .select('id').eq('account_lifecycle_status', 'paid_active')
-            const payingIds = new Set((payingProfiles || []).map(p => p.id))
-            const activatedCount = (connectedAgentUserIds || []).filter(a => payingIds.has(a.user_id)).length
-            agentActivationRate = payingIds.size > 0 ? Math.round((activatedCount / payingIds.size) * 100) : 0
+            agentActivationRate = calculateAgentActivationRate({ connectedAgentUserIds, payingProfiles })
         } catch { }
 
         // ── Agents ────────────────────────────────────────────────────────

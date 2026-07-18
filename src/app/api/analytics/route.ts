@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { aggregateSalesByDate, aggregateTopProducts } from '@/lib/services/analytics-metrics'
 
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
@@ -97,17 +98,7 @@ export async function GET(request: NextRequest) {
             .lte('created_at', toISO)
             .order('created_at', { ascending: true })
 
-        // Aggregate by date
-        const salesByDate: Record<string, number> = {}
-        recentOrders?.forEach(order => {
-            const date = new Date(order.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
-            salesByDate[date] = (salesByDate[date] || 0) + (order.total_fcfa || 0)
-        })
-
-        const chartData = Object.keys(salesByDate).map(date => ({
-            date,
-            sales: salesByDate[date]
-        }))
+        const chartData = aggregateSalesByDate(recentOrders)
 
         // 4. Top Products (by quantity sold)
         let topProducts: { name: string; quantity: number; revenue: number }[] = []
@@ -123,23 +114,7 @@ export async function GET(request: NextRequest) {
                 .eq('order.user_id', user.id)
                 .in('order.status', ['paid', 'confirmed', 'delivered'])
 
-            if (orderItems && orderItems.length > 0) {
-                // Aggregate by product name
-                const productMap: Record<string, { quantity: number; revenue: number }> = {}
-                for (const item of orderItems) {
-                    const name = (item.product as any)?.name || 'Produit inconnu'
-                    if (!productMap[name]) {
-                        productMap[name] = { quantity: 0, revenue: 0 }
-                    }
-                    productMap[name].quantity += item.quantity || 1
-                    productMap[name].revenue += item.total_price || 0
-                }
-
-                topProducts = Object.entries(productMap)
-                    .map(([name, stats]) => ({ name, ...stats }))
-                    .sort((a, b) => b.revenue - a.revenue)
-                    .slice(0, 5)
-            }
+            topProducts = aggregateTopProducts(orderItems as any)
         } catch (topErr) {
             console.error('Top products error (non-blocking):', topErr)
             // Continue without top products
