@@ -3,7 +3,7 @@ import { Plus, X, Loader2, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { DollarSign } from 'lucide-react'
 import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
-import type { ProductFormData } from '../types'
+import type { ProductFormData } from '../../types'
 
 const RESTAURANT_MENU_SECTIONS = [
     { id: 'starters', label: 'Entrées' },

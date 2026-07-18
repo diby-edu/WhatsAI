@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import { errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
 
 // PATCH /api/admin/subscriptions/[id] — Update user subscription (plan, credits, cancel)
@@ -7,23 +8,8 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
-    }
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { user, adminSupabase, response } = await requireAdminAccess()
+    if (response || !user || !adminSupabase) return response!
 
     try {
         const { id } = await params

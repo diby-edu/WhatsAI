@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
+import { errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
 
 async function clearRestaurantConversationState(
@@ -33,23 +34,8 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Unauthorized', 401)
-    }
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Forbidden - Admin only', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
         const body = await request.json()

@@ -3,6 +3,7 @@ import { createApiClient, createAdminClient, getAuthUser, errorResponse, success
 import { normalizeAgentPaymentMode } from '@/lib/payments/payment-mode-display'
 import { buildAgentDeactivationUpdate, buildAgentReactivationUpdate, buildAgentSoftPauseUpdate } from '@/lib/whatsapp/agent-lifecycle'
 import { buildAccountLifecycleAccessState, getAccountLifecycleBlockMessage } from '@/lib/account-lifecycle'
+import { cleanupAgentDependencies } from '@/lib/agents/cleanup'
 
 function normalizeRestaurantDepositSettings(body: any) {
     const enabled = !!body.restaurant_deposit_enabled
@@ -22,43 +23,6 @@ function normalizeRestaurantDepositSettings(body: any) {
         restaurant_deposit_mode: enabled ? depositMode : 'percentage',
         restaurant_deposit_percentage: enabled && depositMode === 'percentage' ? boundedPercentage : 0,
         restaurant_deposit_fixed_amount_fcfa: enabled && depositMode === 'fixed' ? boundedFixedAmount : 0
-    }
-}
-
-async function cleanupAgentDependencies(adminSupabase: ReturnType<typeof createAdminClient>, agentId: string) {
-    // This table exists in production schema and can block agent deletion (FK restriction)
-    const { error: outboundError } = await adminSupabase
-        .from('outbound_messages')
-        .delete()
-        .eq('agent_id', agentId)
-
-    if (outboundError && outboundError.code !== '42P01') {
-        throw outboundError
-    }
-
-    // Current production schema uses session_id (key-value store)
-    const { error: bySessionIdError } = await adminSupabase
-        .from('whatsapp_sessions')
-        .delete()
-        .eq('session_id', agentId)
-
-    if (!bySessionIdError) return
-
-    // Legacy schema fallback uses agent_id
-    if (bySessionIdError.code === '42703') {
-        const { error: byAgentIdError } = await adminSupabase
-            .from('whatsapp_sessions')
-            .delete()
-            .eq('agent_id', agentId)
-
-        if (byAgentIdError && byAgentIdError.code !== '42P01' && byAgentIdError.code !== '42703') {
-            throw byAgentIdError
-        }
-        return
-    }
-
-    if (bySessionIdError.code !== '42P01') {
-        throw bySessionIdError
     }
 }
 

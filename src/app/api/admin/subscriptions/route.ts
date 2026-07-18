@@ -1,28 +1,12 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 export async function GET(request: NextRequest) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 403)
-    }
-
-    // Check admin via profile role
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Non autorisé', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
-        const adminSupabase = createAdminClient()
-
         // Get all users with paid plans (subscriptions)
         const { data: subscriptions, error } = await adminSupabase
             .from('profiles')

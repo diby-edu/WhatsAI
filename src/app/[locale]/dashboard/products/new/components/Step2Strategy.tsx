@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Bot } from 'lucide-react'
-import type { ProductFormData } from '../types'
+import type { ProductFormData } from '../../types'
 
 interface Step2StrategyProps {
     formData: ProductFormData

@@ -34,6 +34,7 @@ jest.mock('@/lib/api-utils', () => ({
     errorResponse: (message, status = 400) => Response.json({ error: message }, { status }),
     successResponse: (data, status = 200) => Response.json({ success: true, data }, { status }),
     logAdminAction: (...args) => mockLogAdminAction(...args),
+    isAdminRole: (role) => role === 'admin' || role === 'superadmin',
 }))
 
 const { DELETE } = require('@/app/api/admin/users/[id]/route')

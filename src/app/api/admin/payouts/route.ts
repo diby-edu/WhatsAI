@@ -1,25 +1,11 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import { errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 // GET /api/admin/payouts — Get merchant balances + payout history
 export async function GET(request: NextRequest) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
-    }
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     const { searchParams } = new URL(request.url)
     const view = searchParams.get('view') || 'balances' // 'balances' or 'history'
@@ -118,23 +104,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/payouts — Create a new payout
 export async function POST(request: NextRequest) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
-    }
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { user, adminSupabase, response } = await requireAdminAccess()
+    if (response || !user || !adminSupabase) return response!
 
     try {
         const body = await request.json()

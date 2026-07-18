@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import { errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 import { resolvePaidUntilForPlanChange, resolveGraceUntilFromPaidUntil } from '@/lib/account-lifecycle'
 
 // PATCH /api/admin/users/[id] — Update user profile, plan, status, credits
@@ -7,23 +8,8 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
-    }
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { user, adminSupabase, response } = await requireAdminAccess()
+    if (response || !user || !adminSupabase) return response!
 
     try {
         const { id } = await params
@@ -225,23 +211,8 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
-    }
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { user, adminSupabase, response } = await requireAdminAccess()
+    if (response || !user || !adminSupabase) return response!
 
     try {
         const { id } = await params

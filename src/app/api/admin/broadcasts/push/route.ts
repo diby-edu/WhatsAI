@@ -1,19 +1,10 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 import { getUserIdsForBroadcastSegment } from '@/lib/admin/broadcast-segments'
 import { sendPushNotificationToMultiple } from '@/lib/notifications/firebase-admin'
 
 export const dynamic = 'force-dynamic'
-
-async function adminCheck() {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-    if (authError || !user) return { error: errorResponse('Non autorisé', 401), user: null, adminSupabase: null }
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase.from('profiles').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') return { error: errorResponse('Accès refusé', 403), user: null, adminSupabase: null }
-    return { error: null, user, adminSupabase }
-}
 
 async function getTokensForSegment(adminSupabase: any, targetSegment: string): Promise<string[]> {
     const userIds = await getUserIdsForBroadcastSegment(adminSupabase, targetSegment)
@@ -29,8 +20,8 @@ async function getTokensForSegment(adminSupabase: any, targetSegment: string): P
 
 // GET — preview device count AND total user count for a plan segment
 export async function GET(request: NextRequest) {
-    const { error, adminSupabase } = await adminCheck()
-    if (error || !adminSupabase) return error!
+    const { response, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     const { searchParams } = new URL(request.url)
     const targetSegment = searchParams.get('targetSegment') || searchParams.get('targetPlan') || 'all'
@@ -49,8 +40,8 @@ export async function GET(request: NextRequest) {
 
 // POST — send push notification broadcast
 export async function POST(request: NextRequest) {
-    const { error, user, adminSupabase } = await adminCheck()
-    if (error || !adminSupabase) return error!
+    const { response, user, adminSupabase } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
         const { title, body, targetSegment, targetPlan, targetUserIds } = await request.json()

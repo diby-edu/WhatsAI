@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { motion } from 'framer-motion'
 import { Bot, X } from 'lucide-react'
-import type { ProductFormData } from '../types'
+import type { ProductFormData } from '../../types'
 
 interface Step2StrategyProps {
     formData: ProductFormData

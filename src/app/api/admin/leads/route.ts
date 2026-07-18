@@ -1,25 +1,14 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 20
 
 export async function GET(request: NextRequest) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-    if (authError || !user) return errorResponse('Non autorisé', 401)
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))

@@ -1,4 +1,5 @@
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 function pickRelation<T>(relation: T | T[] | null | undefined): T | null {
     if (Array.isArray(relation)) {
@@ -9,24 +10,8 @@ function pickRelation<T>(relation: T | T[] | null | undefined): T | null {
 }
 
 export async function GET() {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 401)
-    }
-
-    // Verify admin role via DB (secure)
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès refusé', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
         const { data: conversations, error } = await adminSupabase

@@ -4,7 +4,7 @@ import { Loader2, Package, Plus, Sparkles, Tag, Layers, X } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 import { useToast } from '@/components/ui/Toast'
-import type { ProductFormData } from '../types'
+import type { ProductFormData } from '../../types'
 
 const ProductVariantsEditor = dynamic(() => import('@/components/dashboard/ProductVariantsEditor'), { ssr: false })
 

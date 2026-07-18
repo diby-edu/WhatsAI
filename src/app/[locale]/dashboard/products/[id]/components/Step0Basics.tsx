@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction, RefObject } from 'react'
 import { motion } from 'framer-motion'
 import { DollarSign, Loader2, Plus, Trash2, X } from 'lucide-react'
 import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
-import type { ProductFormData } from '../types'
+import type { ProductFormData } from '../../types'
 
 const RESTAURANT_MENU_SECTIONS = [
     { id: 'starters', label: 'Entrees' },

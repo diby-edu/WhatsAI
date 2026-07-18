@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 // GET - List all subscription plans
 export async function GET() {
@@ -22,28 +23,13 @@ export async function GET() {
 
 // POST - Create new plan (admin only)
 export async function POST(request: NextRequest) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Unauthorized', 401)
-    }
-
-    // Check if admin
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès réservé aux administrateurs', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
         const body = await request.json()
 
-        const { data: plan, error } = await supabase
+        const { data: plan, error } = await adminSupabase
             .from('subscription_plans')
             .insert({
                 name: body.name,

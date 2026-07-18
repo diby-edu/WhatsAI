@@ -1,32 +1,12 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse, createAdminClient } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
+import { BookingSelectRow, BOOKING_SELECT_COLUMNS } from '@/lib/bookings/types'
 
 export const dynamic = 'force-dynamic'
 
-type BookingRow = {
-    id: string
-    customer_phone: string | null
-    customer_name: string | null
-    booking_type: string
-    booking_source: string | null
-    service_name: string | null
-    status: string
-    start_time: string | null
-    preferred_date: string | null
-    preferred_time: string | null
-    party_size: number | null
-    price_fcfa: number | null
-    fulfillment_mode: string | null
-    payment_method: string | null
-    deposit_required: boolean | null
-    deposit_amount_fcfa: number | null
-    deposit_status: string | null
-    transaction_id: string | null
-    provider_payment_url: string | null
-    notes: string | null
-    created_at: string
+type BookingRow = BookingSelectRow & {
     agent_id: string | null
-    booking_items?: { id: string }[] | null
 }
 
 type AgentRow = {
@@ -43,23 +23,8 @@ type OwnerRow = {
 
 // GET - List ALL bookings (admin only)
 export async function GET(request: NextRequest) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Unauthorized', 401)
-    }
-
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Forbidden - Admin only', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
         const { searchParams } = new URL(request.url)
@@ -72,31 +37,7 @@ export async function GET(request: NextRequest) {
 
         let query = adminSupabase
             .from('bookings')
-            .select(`
-                id,
-                customer_phone,
-                customer_name,
-                booking_type,
-                booking_source,
-                service_name,
-                status,
-                start_time,
-                preferred_date,
-                preferred_time,
-                party_size,
-                price_fcfa,
-                fulfillment_mode,
-                payment_method,
-                deposit_required,
-                deposit_amount_fcfa,
-                deposit_status,
-                transaction_id,
-                provider_payment_url,
-                notes,
-                created_at,
-                agent_id,
-                booking_items(id)
-            `)
+            .select(`${BOOKING_SELECT_COLUMNS}, agent_id`)
             .order('start_time', { ascending: false })
             .limit(100)
 

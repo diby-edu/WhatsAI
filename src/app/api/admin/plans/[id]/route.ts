@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 // PUT - Update plan
 export async function PUT(
@@ -7,22 +8,8 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Unauthorized', 401)
-    }
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès réservé aux administrateurs', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
         const body = await request.json()
@@ -41,7 +28,7 @@ export async function PUT(
         if (body.is_popular !== undefined) updateData.is_popular = body.is_popular
         if (body.description !== undefined) updateData.description = body.description
 
-        const { data: plan, error } = await supabase
+        const { data: plan, error } = await adminSupabase
             .from('subscription_plans')
             .update(updateData)
             .eq('id', id)
@@ -63,25 +50,11 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Unauthorized', 401)
-    }
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Accès réservé aux administrateurs', 403)
-    }
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
-        const { error } = await supabase
+        const { error } = await adminSupabase
             .from('subscription_plans')
             .delete()
             .eq('id', id)

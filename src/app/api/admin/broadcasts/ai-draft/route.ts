@@ -1,23 +1,14 @@
 import { NextRequest } from 'next/server'
 import OpenAI from 'openai'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 
 export const dynamic = 'force-dynamic'
 
-async function adminCheck() {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-    if (authError || !user) return { error: errorResponse('Non autorisé', 401), adminSupabase: null }
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase.from('profiles').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') return { error: errorResponse('Accès refusé', 403), adminSupabase: null }
-    return { error: null, adminSupabase }
-}
-
 // POST — génère un brouillon via IA
 export async function POST(request: NextRequest) {
-    const { error } = await adminCheck()
-    if (error) return error
+    const { response } = await requireAdminAccess()
+    if (response) return response
 
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) return errorResponse('OPENAI_API_KEY non configurée', 500)

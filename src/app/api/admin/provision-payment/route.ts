@@ -1,24 +1,11 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
+import { requireAdminAccess } from '@/lib/admin/auth'
 import { finalizePaymentRecord } from '@/lib/payments/finalization'
 
 export async function POST(request: NextRequest) {
-    const supabase = await createApiClient()
-    const { user, error: authError } = await getAuthUser(supabase)
-
-    if (authError || !user) {
-        return errorResponse('Non autorisé', 403)
-    }
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        return errorResponse('Non autorisé', 403)
-    }
+    const { user, profile, adminSupabase, response } = await requireAdminAccess()
+    if (response || !user || !adminSupabase || !profile) return response!
 
     let body: {
         userId: string
@@ -50,8 +37,6 @@ export async function POST(request: NextRequest) {
     if (paymentType === 'credits' && !creditPackId && !creditsAmount) {
         return errorResponse('creditPackId ou creditsAmount est requis pour un achat de crédits', 400)
     }
-
-    const adminSupabase = createAdminClient()
 
     // Vérifier que l'utilisateur existe
     const { data: targetProfile } = await adminSupabase
