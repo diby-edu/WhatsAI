@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
+import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
+import { buildOrderStatusTimestamps, buildOrderPaymentConfirmationMessage } from '@/lib/services/order-status.service'
 
 // PATCH - Update order status (admin only)
 export async function PATCH(
@@ -24,12 +26,38 @@ export async function PATCH(
             return errorResponse('Invalid status', 400)
         }
 
+        const { data: oldOrder } = await adminSupabase
+            .from('orders')
+            .select('status, customer_phone, total_fcfa, agent_id')
+            .eq('id', id)
+            .single()
+
+        const updateData: Record<string, any> = {
+            status,
+            updated_at: new Date().toISOString(),
+            ...buildOrderStatusTimestamps(status),
+        }
+
         const { error } = await adminSupabase
             .from('orders')
-            .update({ status, updated_at: new Date().toISOString() })
+            .update(updateData)
             .eq('id', id)
 
         if (error) throw error
+
+        if (status === 'paid' && oldOrder?.status !== 'paid' && oldOrder?.customer_phone) {
+            try {
+                const confirmationMessage = buildOrderPaymentConfirmationMessage(id, oldOrder.total_fcfa)
+
+                await queueOutboundWhatsAppMessage(adminSupabase, {
+                    agentId: oldOrder.agent_id,
+                    to: oldOrder.customer_phone,
+                    message: confirmationMessage,
+                })
+            } catch (notifError) {
+                console.error('Failed to queue WhatsApp notification:', notifError)
+            }
+        }
 
         return successResponse({ message: 'Order updated', orderId: id, newStatus: status })
     } catch (err) {

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient, createApiClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
 import { queueOutboundWhatsAppMessage } from '@/lib/whatsapp/outbound'
+import { buildOrderStatusTimestamps, buildOrderPaymentConfirmationMessage } from '@/lib/services/order-status.service'
 
 // GET - Get single order with items
 export async function GET(
@@ -86,16 +87,7 @@ export async function PATCH(
 
         if (body.status) {
             updateData.status = body.status
-
-            if (body.status === 'confirmed') updateData.confirmed_at = new Date().toISOString()
-            if (body.status === 'paid') updateData.paid_at = new Date().toISOString()
-            if (body.status === 'shipped') updateData.shipped_at = new Date().toISOString()
-            if (body.status === 'delivered') updateData.delivered_at = new Date().toISOString()
-            if (body.status === 'cancelled') updateData.cancelled_at = new Date().toISOString()
-
-            if (body.status === 'paid') {
-                updateData.payment_verification_status = 'verified'
-            }
+            Object.assign(updateData, buildOrderStatusTimestamps(body.status))
         }
 
         if (body.delivery_address !== undefined) updateData.delivery_address = body.delivery_address
@@ -113,7 +105,7 @@ export async function PATCH(
 
         if (body.status === 'paid' && oldOrder?.status !== 'paid' && oldOrder?.customer_phone) {
             try {
-                const confirmationMessage = `✅ *Paiement confirme !*\n\nVotre paiement de ${oldOrder.total_fcfa || order.total_fcfa} FCFA a ete verifie et accepte.\n\n🎉 Commande #${id.substring(0, 8)} confirmee !\n\nMerci pour votre confiance. Nous allons traiter votre commande dans les plus brefs delais.`
+                const confirmationMessage = buildOrderPaymentConfirmationMessage(id, oldOrder.total_fcfa || order.total_fcfa)
                 const adminSupabase = createAdminClient()
 
                 await queueOutboundWhatsAppMessage(adminSupabase, {
