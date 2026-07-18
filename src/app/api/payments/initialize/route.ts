@@ -6,11 +6,11 @@ import {
     generateTransactionId,
 } from '@/lib/payments/cinetpay'
 import { getDefaultPaymentProvider, initializeHostedPayment } from '@/lib/payments/provider'
-import { getFeexPayDefaultNetwork } from '@/lib/payments/feexpay'
 import {
-    getFeexPayNetworkOption,
-    resolveFeexPaySelection,
-} from '@/lib/payments/feexpay-networks'
+    resolveAndValidateFeexPaySelection,
+    buildSubscriptionPaymentDetails,
+    resolveCreditPackPaymentDetails,
+} from '@/lib/services/payment-initialization'
 
 const InitializePaymentSchema = z.discriminatedUnion('type', [
     z.object({
@@ -104,15 +104,10 @@ export async function POST(request: NextRequest) {
                 return errorResponse('Ce plan est gratuit', 400)
             }
 
-            amount = plan.price_fcfa
-            description = `Abonnement WazzapAI - ${plan.name}`
-            metadata = {
-                type: 'subscription',
-                plan_id: planId,
-                plan_name: plan.name,
-                user_id: user!.id,
-                credits: plan.credits_included,
-            }
+            const details = buildSubscriptionPaymentDetails(plan, planId!, user!.id)
+            amount = details.amount
+            description = details.description
+            metadata = details.metadata
         } else if (type === 'credits') {
             // Credit pack purchase - fetch from database
             const adminSupabaseForPacks = createAdminClient()
@@ -123,37 +118,17 @@ export async function POST(request: NextRequest) {
                 .eq('is_active', true)
                 .single()
 
-            if (packError || !pack) {
-                // Fallback: try to find in defaults if database table doesn't exist (prices in FCFA)
-                const defaultPacks = [
-                    { id: 'boost_mini', credits: 200,   price: 3000 },
-                    { id: 'boost_s',    credits: 400,   price: 7000 },
-                    { id: 'boost_m',    credits: 1800,  price: 25000 },
-                    { id: 'boost_l',    credits: 4500,  price: 55000 },
-                    { id: 'boost_xl',   credits: 11000, price: 110000 },
-                ]
-                const fallbackPack = defaultPacks.find(p => p.id === packId)
-                if (!fallbackPack) {
-                    return errorResponse('Pack de crédits invalide', 400)
-                }
-                amount = fallbackPack.price
-                description = `Pack de ${fallbackPack.credits} crédits WazzapAI`
-                metadata = {
-                    type: 'credits',
-                    pack_id: packId,
-                    user_id: user!.id,
-                    credits: fallbackPack.credits,
-                }
-            } else {
-                amount = pack.price
-                description = `Pack de ${pack.credits} crédits WazzapAI`
-                metadata = {
-                    type: 'credits',
-                    pack_id: packId,
-                    user_id: user!.id,
-                    credits: pack.credits,
-                }
+            const packDetails = resolveCreditPackPaymentDetails(
+                packError || !pack ? null : pack,
+                packId!,
+                user!.id
+            )
+            if (!packDetails) {
+                return errorResponse('Pack de crédits invalide', 400)
             }
+            amount = packDetails.amount
+            description = packDetails.description
+            metadata = packDetails.metadata
         } else {
             return errorResponse('Type de paiement invalide', 400)
         }
@@ -176,23 +151,24 @@ export async function POST(request: NextRequest) {
             return errorResponse('Numero payeur requis pour FeexPay', 400)
         }
 
-        const feexPaySelection = defaultProvider === 'feexpay'
-            ? resolveFeexPaySelection({
+        let feexPaySelection: { countryCode: string | null; networkCode: string | null; networkLabel: string | null } = { countryCode: null, networkCode: null, networkLabel: null }
+        if (defaultProvider === 'feexpay') {
+            const validated = resolveAndValidateFeexPaySelection({
                 country: body?.feexpay_country,
                 network: body?.feexpay_network,
                 phone: payerPhone,
-                defaultNetwork: getFeexPayDefaultNetwork(),
             })
-            : { countryCode: null, networkCode: null, error: null }
 
-        if (defaultProvider === 'feexpay') {
-            if (feexPaySelection.error === 'NETWORK_COUNTRY_MISMATCH') {
-                return errorResponse('Le reseau FeexPay ne correspond pas au pays choisi', 400)
+            if (!validated.ok) {
+                return errorResponse(
+                    validated.reason === 'NETWORK_COUNTRY_MISMATCH'
+                        ? 'Le reseau FeexPay ne correspond pas au pays choisi'
+                        : 'Selection FeexPay incomplete (pays + reseau requis)',
+                    400
+                )
             }
 
-            if (!feexPaySelection.networkCode || !feexPaySelection.countryCode) {
-                return errorResponse('Selection FeexPay incomplete (pays + reseau requis)', 400)
-            }
+            feexPaySelection = validated
         }
 
         const paymentInsert: Record<string, any> = {
@@ -237,7 +213,7 @@ export async function POST(request: NextRequest) {
                 feexpay_network: feexPaySelection.networkCode,
                 payment_channel: 'mobile_money',
                 payment_channel_detail: feexPaySelection.networkCode,
-                payment_channel_label: getFeexPayNetworkOption(feexPaySelection.networkCode || '')?.label || feexPaySelection.networkCode || null,
+                payment_channel_label: feexPaySelection.networkLabel || feexPaySelection.networkCode || null,
             } : {}),
         }
 

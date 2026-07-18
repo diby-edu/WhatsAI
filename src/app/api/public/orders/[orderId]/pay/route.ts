@@ -7,11 +7,7 @@ import {
     inspectExistingHostedPayment,
     resolveHostedPaymentProvider,
 } from '@/lib/payments/provider'
-import { getFeexPayDefaultNetwork } from '@/lib/payments/feexpay'
-import {
-    getFeexPayNetworkOption,
-    resolveFeexPaySelection,
-} from '@/lib/payments/feexpay-networks'
+import { resolveAndValidateFeexPaySelection } from '@/lib/services/payment-initialization'
 
 function buildPayTraceId(orderId: string) {
     return `pay_${orderId.slice(0, 8)}_${Date.now()}`
@@ -159,38 +155,32 @@ export async function POST(
         }
 
         if (paymentProvider === 'feexpay') {
-            const selection = resolveFeexPaySelection({
+            const selection = resolveAndValidateFeexPaySelection({
                 country: body.feexpay_country,
                 network: body.feexpay_network,
                 phone: order.customer_phone || '',
-                defaultNetwork: getFeexPayDefaultNetwork(),
             })
 
-            if (selection.error === 'NETWORK_COUNTRY_MISMATCH') {
+            if (!selection.ok) {
                 return NextResponse.json({
-                    error: 'Le reseau de paiement ne correspond pas au pays choisi',
+                    error: selection.reason === 'NETWORK_COUNTRY_MISMATCH'
+                        ? 'Le reseau de paiement ne correspond pas au pays choisi'
+                        : 'Selection FeexPay incomplete: choisissez un pays et un reseau',
                 }, { status: 400 })
             }
 
-            if (!selection.networkCode || !selection.countryCode) {
-                return NextResponse.json({
-                    error: 'Selection FeexPay incomplete: choisissez un pays et un reseau',
-                }, { status: 400 })
-            }
-
-            const networkOption = getFeexPayNetworkOption(selection.networkCode)
             metadata.feexpay_country = selection.countryCode
             metadata.feexpay_network = selection.networkCode
             metadata.payment_channel = 'mobile_money'
             metadata.payment_channel_detail = selection.networkCode
-            metadata.payment_channel_label = networkOption?.label || selection.networkCode
+            metadata.payment_channel_label = selection.networkLabel || selection.networkCode
 
             console.info('[PAY][INIT][FEEXPAY_SELECTION]', {
                 traceId,
                 orderId,
                 countryCode: selection.countryCode,
                 networkCode: selection.networkCode,
-                networkLabel: networkOption?.label || selection.networkCode,
+                networkLabel: selection.networkLabel || selection.networkCode,
             })
         }
 
