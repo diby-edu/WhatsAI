@@ -28,6 +28,9 @@ function RegisterForm() {
     const [success, setSuccess] = useState(false)
     const [registrationsOpen, setRegistrationsOpen] = useState(true)
     const [refCode, setRefCode] = useState('')
+    const [resending, setResending] = useState(false)
+    const [resent, setResent] = useState(false)
+    const [resendError, setResendError] = useState<string | null>(null)
 
     // Pré-remplir le code parrain depuis l'URL ?ref=
     useEffect(() => {
@@ -117,6 +120,25 @@ function RegisterForm() {
             setError(`Une erreur est survenue: ${err instanceof Error ? err.message : String(err)}`)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleResendConfirmation = async () => {
+        if (!email || resending) return
+        setResending(true)
+        setResendError(null)
+        try {
+            const supabase = createClient()
+            const { error } = await supabase.auth.resend({ type: 'signup', email })
+            if (error) {
+                setResendError(error.message)
+            } else {
+                setResent(true)
+            }
+        } catch (err) {
+            setResendError(err instanceof Error ? err.message : String(err))
+        } finally {
+            setResending(false)
         }
     }
 
@@ -277,6 +299,29 @@ function RegisterForm() {
                     <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
                         Cliquez sur le lien dans l'email pour activer votre compte
                     </p>
+
+                    <div style={{ marginBottom: 18 }}>
+                        <button
+                            type="button"
+                            onClick={handleResendConfirmation}
+                            disabled={resending || resent}
+                            style={{
+                                background: 'transparent',
+                                color: resent ? '#34d399' : '#94a3b8',
+                                border: '1px solid rgba(148, 163, 184, 0.2)',
+                                borderRadius: 10,
+                                padding: '10px 20px',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: resending || resent ? 'not-allowed' : 'pointer',
+                            }}
+                        >
+                            {resending ? 'Envoi...' : resent ? 'Email renvoyé ✓' : "Je n'ai pas reçu l'email — renvoyer"}
+                        </button>
+                        {resendError && (
+                            <p style={{ fontSize: 12, color: '#f87171', marginTop: 8 }}>{resendError}</p>
+                        )}
+                    </div>
 
                     <div style={{
                         marginBottom: 18,
