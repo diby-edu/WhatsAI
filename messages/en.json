@@ -1530,6 +1530,8 @@
         "cancelAndLogout": "Cancel and sign out",
         "sendCodeLoading": "Sending code…",
         "sendCodeButton": "Receive my WhatsApp code",
+        "continueLoading": "Verifying…",
+        "continueButton": "Continue",
         "currencies": {
             "XOF": { "label": "CFA Franc", "description": "West Africa", "example": "7,000 FCFA / month" },
             "USD": { "label": "US Dollar", "description": "United States", "example": "$10 / month" },

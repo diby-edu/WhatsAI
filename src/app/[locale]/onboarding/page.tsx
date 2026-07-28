@@ -34,6 +34,7 @@ export default function OnboardingPage() {
     const [dialSearch, setDialSearch] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [otpBypassEnabled, setOtpBypassEnabled] = useState(false)
 
     // OTP
     const [otpStep, setOtpStep] = useState(false)
@@ -65,6 +66,15 @@ export default function OnboardingPage() {
         }, 1000)
         return () => clearTimeout(t)
     }, [otpStep, otpCountdown])
+
+    // Détecte le bypass OTP admin pour ne jamais promettre l'envoi d'un code
+    // qui ne sera pas réellement envoyé.
+    useEffect(() => {
+        fetch('/api/features')
+            .then(r => r.json())
+            .then(d => setOtpBypassEnabled(Boolean(d?.data?.flags?.otp_bypass_enabled)))
+            .catch(() => {})
+    }, [])
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -575,8 +585,8 @@ export default function OnboardingPage() {
                             }}
                         >
                             {loading
-                                ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> {t('sendCodeLoading')}</>
-                                : <>{t('sendCodeButton')} <ArrowRight style={{ width: 18, height: 18 }} /></>
+                                ? <><Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> {otpBypassEnabled ? t('continueLoading') : t('sendCodeLoading')}</>
+                                : <>{otpBypassEnabled ? t('continueButton') : t('sendCodeButton')} <ArrowRight style={{ width: 18, height: 18 }} /></>
                             }
                         </motion.button>
                     )}

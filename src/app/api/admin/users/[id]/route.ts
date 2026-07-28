@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 import { resolvePaidUntilForPlanChange, resolveGraceUntilFromPaidUntil } from '@/lib/account-lifecycle'
+import { markUserAsQualified } from '@/lib/test-account'
 
 // PATCH /api/admin/users/[id] — Update user profile, plan, status, credits
 export async function PATCH(
@@ -162,6 +163,12 @@ export async function PATCH(
             .eq('id', id)
 
         if (error) throw error
+
+        // Un plan payant attribué manuellement qualifie le compte comme un vrai paiement
+        // (efface test_account_cleanup_deadline, sinon le badge admin reste bloqué sur "Test")
+        if (cleanUpdate.plan && cleanUpdate.plan !== 'free') {
+            try { await markUserAsQualified(adminSupabase, id) } catch { /* non-bloquant */ }
+        }
 
         // If plan changed, add the new plan's credits to the user's balance
         if (cleanUpdate.plan) {

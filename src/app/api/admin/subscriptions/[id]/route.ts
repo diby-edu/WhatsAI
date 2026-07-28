@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { errorResponse, successResponse, logAdminAction } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 import { notifyAdmins } from '@/lib/notifications/admin-notify'
+import { markUserAsQualified } from '@/lib/test-account'
 
 // PATCH /api/admin/subscriptions/[id] — Update user subscription (plan, credits, cancel)
 export async function PATCH(
@@ -62,6 +63,13 @@ export async function PATCH(
                 .eq('id', id)
 
             if (error) throw error
+
+            // Un plan payant attribué manuellement qualifie le compte comme un vrai paiement
+            // (efface test_account_cleanup_deadline, sinon le badge admin reste bloqué sur "Test")
+            if (plan !== 'free') {
+                try { await markUserAsQualified(adminSupabase, id) } catch { /* non-bloquant */ }
+            }
+
             // Créer un enregistrement dans payments pour l'historique de facturation
             if (plan !== 'free') {
                 await adminSupabase.from('payments').insert({
@@ -102,7 +110,13 @@ export async function PATCH(
 
             const { error } = await adminSupabase
                 .from('profiles')
-                .update({ plan: 'free', subscription_plan: 'Free' })
+                .update({
+                    plan: 'free',
+                    subscription_plan: 'Free',
+                    account_lifecycle_status: 'inactive',
+                    paid_until: null,
+                    grace_until: null,
+                })
                 .eq('id', id)
 
             if (error) throw error

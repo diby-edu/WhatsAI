@@ -139,16 +139,6 @@ export default function PayDunyaCheckoutPage() {
         }
     }
 
-    // Auto-redirect to PayDunya
-    useEffect(() => {
-        if (phase !== 'redirect_ready' || !paymentUrl) return
-        const t = setTimeout(() => {
-            setPhase('redirecting')
-            window.location.href = paymentUrl
-        }, 1200)
-        return () => clearTimeout(t)
-    }, [phase, paymentUrl])
-
     // Polling after returning from PayDunya
     useEffect(() => {
         if (phase !== 'pending') return
@@ -192,7 +182,7 @@ export default function PayDunyaCheckoutPage() {
             return (
                 <>
                     <p style={{ margin: 0, color: '#cbd5e1', fontSize: 14, lineHeight: 1.5 }}>
-                        Vous allez être redirigé vers la page de paiement sécurisée PayDunya.
+                        Cliquez sur « Continuer vers le paiement » pour finaliser via PayDunya, ou utilisez un moyen de paiement alternatif ci-dessous si votre méthode n'y figure pas.
                     </p>
                     <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <button
@@ -308,7 +298,7 @@ export default function PayDunyaCheckoutPage() {
                     Transaction : <strong style={{ color: '#e2e8f0' }}>{transactionId || '-'}</strong>
                 </div>
                 {renderBody()}
-                {(phase === 'pending' || phase === 'failed') && (
+                {(phase === 'redirect_ready' || phase === 'redirecting' || phase === 'pending' || phase === 'failed') && (
                     <div style={{ marginTop: 18 }}>
                         <ManualPaymentFallbackCard compact />
                     </div>

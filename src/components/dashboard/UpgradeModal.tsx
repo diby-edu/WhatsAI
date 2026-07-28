@@ -78,7 +78,11 @@ function PlanCard({ plan, featured, onClose }: { plan: typeof FALLBACK_PLANS[0];
 
             <Link
                 href="/dashboard/billing#plans"
-                onClick={() => { sessionStorage.setItem('billing_scroll', 'plans'); onClose() }}
+                onClick={() => {
+                    sessionStorage.setItem('billing_scroll', 'plans')
+                    sessionStorage.setItem('billing_autopay_plan_id', plan.id)
+                    onClose()
+                }}
                 style={{
                     display: 'block',
                     textAlign: 'center',

@@ -82,6 +82,7 @@ function BillingContent() {
     const [loading, setLoading] = useState(true)
     const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | 'pending' | null>(null)
     const [defaultPaymentProvider, setDefaultPaymentProvider] = useState<SupportedPaymentProvider>('cinetpay')
+    const [paymentConfigLoaded, setPaymentConfigLoaded] = useState(false)
     const [feexPayIntent, setFeexPayIntent] = useState<FeexPayPaymentIntent | null>(null)
     const [showFeexPayModal, setShowFeexPayModal] = useState(false)
     const [feexPayCountry, setFeexPayCountry] = useState<FeexPayCountryCode>('CI')
@@ -294,6 +295,18 @@ function BillingContent() {
         }
     }, [plans])
 
+    // Sélection directe depuis le popup d'upgrade (UpgradeModal) : redirige tout de suite
+    // vers le paiement au lieu de forcer un second clic sur cette page.
+    useEffect(() => {
+        if (!plans.length || !paymentConfigLoaded) return
+        const autopayPlanId = sessionStorage.getItem('billing_autopay_plan_id')
+        if (!autopayPlanId) return
+        sessionStorage.removeItem('billing_autopay_plan_id')
+        if (plans.some(p => p.id === autopayPlanId)) {
+            void handleSubscribeV2(autopayPlanId)
+        }
+    }, [plans, paymentConfigLoaded])
+
     useEffect(() => {
         if (!payments.length) return
 
@@ -461,6 +474,8 @@ function BillingContent() {
             }
         } catch (err) {
             console.error('Error fetching payment config:', err)
+        } finally {
+            setPaymentConfigLoaded(true)
         }
     }
 
