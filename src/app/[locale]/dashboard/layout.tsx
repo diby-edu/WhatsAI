@@ -412,13 +412,6 @@ export default function DashboardLayout({
                         <span style={{ fontWeight: 700, color: 'white', fontSize: 18 }}>WazzapAI</span>
                     </Link>
                     <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 6 }}>
-                        {/* Parrainage */}
-                        <Link href="/dashboard/settings?tab=referral" title="Parrainage" style={{ textDecoration: 'none', flexShrink: 0 }}>
-                            <div style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Gift style={{ width: 20, height: 20, color: '#a855f7' }} />
-                            </div>
-                        </Link>
-
                         {/* Notifications */}
                         <div ref={mobileNotifBtnRef} style={{ position: 'relative' }}>
                             <button
@@ -449,40 +442,6 @@ export default function DashboardLayout({
 
                         {/* Langue */}
                         <LocaleSwitcher compact />
-
-                        {/* Aide */}
-                        <Link href="/dashboard/help" title="Aide" style={{ textDecoration: 'none', flexShrink: 0 }}>
-                            <div style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <HelpCircle style={{ width: 20, height: 20, color: '#94a3b8' }} />
-                            </div>
-                        </Link>
-
-                        {/* Déconnexion */}
-                        <button
-                            onClick={handleLogout}
-                            title={t('logout')}
-                            style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', border: 'none', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                            <LogOut style={{ width: 20, height: 20, color: '#f87171' }} />
-                        </button>
-
-                        {/* Avatar */}
-                        <Link href="/dashboard/settings" style={{ textDecoration: 'none', flexShrink: 0 }}>
-                            <div style={{
-                                width: 34, height: 34, borderRadius: '50%',
-                                overflow: 'hidden',
-                                background: userAvatar ? 'transparent' : 'linear-gradient(135deg, #10b981, #059669)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: 'white', fontSize: 14, fontWeight: 600,
-                                border: '2px solid rgba(16, 185, 129, 0.3)',
-                                cursor: 'pointer'
-                            }}>
-                                {userAvatar
-                                    ? <img src={userAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                                    : (userName?.charAt(0)?.toUpperCase() || '?')
-                                }
-                            </div>
-                        </Link>
 
                         {/* Hamburger */}
                         <button
@@ -571,6 +530,39 @@ export default function DashboardLayout({
                                     <span style={{ fontWeight: 700, color: 'white', fontSize: 20 }}>WazzapAI</span>
                                 </Link>
                             </div>
+
+                            {/* Compte + actions rapides (déplacé depuis la barre du haut, trop étroite sur mobile) */}
+                            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(148, 163, 184, 0.1)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Link href="/dashboard/settings" onClick={() => setMobileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flex: 1, minWidth: 0 }}>
+                                    <div style={{
+                                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                                        overflow: 'hidden',
+                                        background: userAvatar ? 'transparent' : 'linear-gradient(135deg, #10b981, #059669)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: 'white', fontSize: 14, fontWeight: 600,
+                                        border: '2px solid rgba(16, 185, 129, 0.3)',
+                                    }}>
+                                        {userAvatar
+                                            ? <img src={userAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                            : (userName?.charAt(0)?.toUpperCase() || '?')
+                                        }
+                                    </div>
+                                    <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {userName || t('settings')}
+                                    </span>
+                                </Link>
+                                <Link href="/dashboard/settings?tab=referral" onClick={() => setMobileMenuOpen(false)} title="Parrainage" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                                    <div style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Gift style={{ width: 18, height: 18, color: '#a855f7' }} />
+                                    </div>
+                                </Link>
+                                <Link href="/dashboard/help" onClick={() => setMobileMenuOpen(false)} title="Aide" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                                    <div style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(51, 65, 85, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <HelpCircle style={{ width: 18, height: 18, color: '#94a3b8' }} />
+                                    </div>
+                                </Link>
+                            </div>
+
                             <nav style={{ flex: 1, minHeight: 0, padding: 16, display: 'flex', flexDirection: 'column', flexWrap: 'nowrap', gap: 4, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
                                 {sidebarLinks.map((item, idx) => {
                                     if ('separator' in item) {
@@ -638,6 +630,21 @@ export default function DashboardLayout({
                                     )
                                 })}
                             </nav>
+                            <div style={{ padding: 16, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                                <button
+                                    onClick={() => { setMobileMenuOpen(false); handleLogout() }}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                                        padding: '12px 14px', borderRadius: 12,
+                                        background: 'rgba(239, 68, 68, 0.08)',
+                                        border: '1px solid rgba(239, 68, 68, 0.15)',
+                                        color: '#f87171', fontWeight: 600, fontSize: 14, cursor: 'pointer'
+                                    }}
+                                >
+                                    <LogOut style={{ width: 18, height: 18 }} />
+                                    {t('logout')}
+                                </button>
+                            </div>
                         </motion.div>
                     </>
                 )}
