@@ -110,12 +110,24 @@ export default function AgentWizardPage({
     const [whatsappErrorMessage, setWhatsappErrorMessage] = useState<string | null>(null)
     const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
     const [countdown, setCountdown] = useState<number | null>(null)
+    const [slowConnectionHint, setSlowConnectionHint] = useState(false)
 
     useEffect(() => {
         if (countdown === null || countdown <= 0) return
         const t = setTimeout(() => setCountdown(c => (c !== null && c > 0 ? c - 1 : c)), 1000)
         return () => clearTimeout(t)
     }, [countdown])
+
+    // Après ~25s sans code/QR, signaler que ça peut être un incident WhatsApp
+    // ponctuel plutôt que de laisser le spinner tourner sans explication.
+    useEffect(() => {
+        if (whatsappStatus !== 'connecting') {
+            setSlowConnectionHint(false)
+            return
+        }
+        const t = setTimeout(() => setSlowConnectionHint(true), 25000)
+        return () => clearTimeout(t)
+    }, [whatsappStatus])
 
     // Conflict Detection
     const [conflictStatus, setConflictStatus] = useState<'idle' | 'checking' | 'safe' | 'conflict' | 'error'>('idle')
@@ -627,6 +639,7 @@ export default function AgentWizardPage({
                         whatsappErrorMessage={whatsappErrorMessage}
                         connectedPhone={connectedPhone}
                         disconnectWhatsApp={disconnectWhatsApp}
+                        slowConnectionHint={slowConnectionHint}
                     />
                 )
         }

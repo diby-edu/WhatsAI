@@ -507,6 +507,12 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                             whatsapp_status: 'disconnected',
                             whatsapp_disconnected_by: 'system'
                         }).eq('id', agentId)
+                        try {
+                            const { notifyAdmins } = require('../../notifications/admin-notify')
+                            notifyAdmins('whatsapp_pairing_failed', { agentName, agentId, attempts: MAX_RECONNECT_ATTEMPTS, errorCode: statusCode })
+                        } catch (notifError) {
+                            console.error('🔔 Notification error (non-blocking):', notifError)
+                        }
                         return
                     }
 

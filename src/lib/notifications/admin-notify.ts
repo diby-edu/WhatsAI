@@ -21,6 +21,7 @@ export type AdminNotifType =
     | 'agent_quota_exceeded'
     | 'openai_error'
     | 'whatsapp_down'
+    | 'whatsapp_pairing_failed'
     | 'high_error_rate'
     | 'new_conversation'
     | 'new_order'
@@ -41,6 +42,8 @@ export interface AdminNotifData {
     totalAmount?: number
     errorMessage?: string
     creditsAdded?: number
+    attempts?: number
+    errorCode?: number | string
     [key: string]: unknown
 }
 
@@ -138,6 +141,11 @@ function getContent(type: AdminNotifType, data: AdminNotifData): { title: string
                 title: '⚠️ Service WhatsApp indisponible',
                 body: 'Le service WhatsApp bot est hors ligne.',
             }
+        case 'whatsapp_pairing_failed':
+            return {
+                title: "🔌 Échec d'appairage WhatsApp",
+                body: `Agent "${data.agentName || ''}" — connexion abandonnée après ${data.attempts || '?'} tentatives (code ${data.errorCode ?? '?'}). Probable incident WhatsApp/Baileys.`,
+            }
         case 'high_error_rate':
             return {
                 title: "📊 Taux d'erreur élevé",
@@ -176,6 +184,7 @@ function getPushPayload(type: AdminNotifType, data: AdminNotifData): PushNotific
         agent_quota_exceeded: '/admin/users',
         openai_error: '/admin/diagnostics',
         whatsapp_down: '/admin/diagnostics',
+        whatsapp_pairing_failed: '/admin/diagnostics',
         high_error_rate: '/admin/diagnostics',
         new_conversation: '/admin/conversations',
         new_order: '/admin/orders',

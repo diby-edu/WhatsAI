@@ -19,6 +19,7 @@ interface StepWhatsappProps {
     whatsappErrorMessage: string | null
     connectedPhone: string | null
     disconnectWhatsApp: () => void
+    slowConnectionHint: boolean
 }
 
 export function StepWhatsapp({
@@ -36,6 +37,7 @@ export function StepWhatsapp({
     whatsappErrorMessage,
     connectedPhone,
     disconnectWhatsApp,
+    slowConnectionHint,
 }: StepWhatsappProps) {
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 20 }}>
@@ -89,6 +91,11 @@ export function StepWhatsapp({
                         <div style={{ fontSize: 13, color: countdown > 0 ? '#64748b' : '#f59e0b', textAlign: 'center' }}>
                             {countdown > 0 ? `${countdown}s` : 'Prend plus de temps que prévu...'}
                         </div>
+                    )}
+                    {slowConnectionHint && (
+                        <p style={{ color: '#fbbf24', fontSize: 13, textAlign: 'center', maxWidth: 360, lineHeight: 1.5 }}>
+                            Ça prend plus de temps que prévu. Il arrive que WhatsApp ait un problème temporaire au moment d&apos;enregistrer un nouvel appareil — patientez ou réessayez dans quelques minutes si ça continue.
+                        </p>
                     )}
                     <button onClick={cancelConnection} style={{ background: 'none', border: '1px solid #475569', color: '#94a3b8', borderRadius: 10, padding: '8px 20px', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
                 </>

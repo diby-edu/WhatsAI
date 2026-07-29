@@ -104,6 +104,11 @@ function getPushContent(type, data) {
                 title: '⚠️ Service WhatsApp indisponible',
                 body: 'Le service WhatsApp bot est hors ligne.'
             }
+        case 'whatsapp_pairing_failed':
+            return {
+                title: '🔌 Échec d\'appairage WhatsApp',
+                body: `Agent "${data.agentName || ''}" — connexion abandonnée après ${data.attempts || '?'} tentatives (code ${data.errorCode ?? '?'}). Probable incident WhatsApp/Baileys.`
+            }
         case 'high_error_rate':
             return {
                 title: '📊 Taux d\'erreur élevé',

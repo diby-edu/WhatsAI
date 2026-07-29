@@ -1,1 +1,1 @@
-export const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
+export const QR_CONNECTION_ERROR_MESSAGE = 'La connexion ne s\'est pas terminee (QR ou code de liaison). Cela peut etre un incident ponctuel cote WhatsApp au moment d\'enregistrer un nouvel appareil — reessayez, et si ca persiste, patientez quelques minutes avant de retenter.'

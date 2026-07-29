@@ -33,7 +33,7 @@ import { StepRules } from './components/StepRules'
 import { StepSettings } from './components/StepSettings'
 import { StepWhatsapp } from './components/StepWhatsapp'
 
-const QR_CONNECTION_ERROR_MESSAGE = 'Le scan a echoue avant la fin de la connexion. Generez un nouveau QR code puis rescanez depuis WhatsApp.'
+const QR_CONNECTION_ERROR_MESSAGE = 'La connexion ne s\'est pas terminee (QR ou code de liaison). Cela peut etre un incident ponctuel cote WhatsApp au moment d\'enregistrer un nouvel appareil — reessayez, et si ca persiste, patientez quelques minutes avant de retenter.'
 
 function normalizePairingPhoneInput(value: string): string | null {
     const trimmed = (value || '').trim()
@@ -82,6 +82,18 @@ export default function NewAgentPage() {
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
     const [retryWithFreshQr, setRetryWithFreshQr] = useState(false)
     const [countdown, setCountdown] = useState<number | null>(null)
+    const [slowConnectionHint, setSlowConnectionHint] = useState(false)
+
+    // Après ~25s sans code/QR, signaler que ça peut être un incident WhatsApp
+    // ponctuel plutôt que de laisser le spinner tourner sans explication.
+    useEffect(() => {
+        if (whatsappStatus !== 'connecting') {
+            setSlowConnectionHint(false)
+            return
+        }
+        const t = setTimeout(() => setSlowConnectionHint(true), 25000)
+        return () => clearTimeout(t)
+    }, [whatsappStatus])
 
     useEffect(() => {
         if (countdown === null || countdown <= 0) {
@@ -915,6 +927,7 @@ Regles:
                         router={router}
                         goToKnowledgeBase={goToKnowledgeBase}
                         error={error}
+                        slowConnectionHint={slowConnectionHint}
                     />
                 )
 
