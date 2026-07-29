@@ -229,7 +229,8 @@ export default function OnboardingPage() {
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                style={{ width: '100%', maxWidth: 500, position: 'relative', zIndex: 1 }}
+                className="onboarding-shell"
+                style={{ width: '100%', position: 'relative', zIndex: 1 }}
             >
                 {/* Logo */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32, justifyContent: 'center' }}>
@@ -275,6 +276,8 @@ export default function OnboardingPage() {
                         {t('trialNotice')}
                     </div>
 
+                    <div className="onboarding-grid">
+                    <div>
                     {sectionLabel(1, t('section1Label'))}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
                         {currencies.map((c) => {
@@ -312,7 +315,9 @@ export default function OnboardingPage() {
                             )
                         })}
                     </div>
+                    </div>
 
+                    <div>
                     {/* ── Section 2 : Langue ── */}
                     {sectionLabel(2, t('section2Label'))}
                     <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
@@ -462,6 +467,8 @@ export default function OnboardingPage() {
                                 }}
                             />
                         </div>
+                    </div>
+                    </div>
                     </div>
 
                     {/* Error */}
@@ -623,6 +630,11 @@ export default function OnboardingPage() {
                 ::-webkit-scrollbar { width: 4px; }
                 ::-webkit-scrollbar-track { background: transparent; }
                 ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.2); border-radius: 2px; }
+                .onboarding-shell { max-width: 500px; }
+                @media (min-width: 860px) {
+                    .onboarding-shell { max-width: 860px; }
+                    .onboarding-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+                }
             `}</style>
         </div>
     )
