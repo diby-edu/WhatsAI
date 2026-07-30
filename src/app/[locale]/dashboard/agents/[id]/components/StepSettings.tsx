@@ -536,11 +536,11 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                     <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#e2e8f0', marginBottom: 12 }}>
                         Frais de livraison
                     </label>
-                    <div className="agent-grid-3" style={{ gap: 12, marginBottom: 16 }}>
+                    <div className="agent-grid-3" style={{ gap: 12, marginBottom: 8 }}>
                         {[
                             { key: 'none', label: 'Aucun' },
                             { key: 'free', label: 'Gratuite' },
-                            { key: 'zones', label: 'Zones Abidjan' },
+                            { key: 'zones', label: 'Payante' },
                         ].map(opt => (
                             <button key={opt.key} type="button"
                                 onClick={() => {
@@ -570,6 +570,12 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                             </button>
                         ))}
                     </div>
+                    {formData.delivery_fee_mode !== 'zones' && (
+                        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+                            {formData.delivery_fee_mode === 'none' && "Aucune mention de livraison par l'agent — utile si le prix inclut déjà la livraison, ou si elle est négociée manuellement après la commande."}
+                            {formData.delivery_fee_mode === 'free' && "L'agent annonce explicitement au client que la livraison est gratuite."}
+                        </p>
+                    )}
 
                     {formData.delivery_fee_mode === 'zones' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -577,13 +583,13 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#94a3b8', marginBottom: 8 }}>
                                     Tarif par commune (FCFA)
                                 </label>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div className="agent-grid-3" style={{ gap: 8 }}>
                                     {formData.delivery_zones.communes.map((commune, idx) => {
                                         const allowsQuartiers = commune.name === 'Cocody' || commune.name === 'Yopougon'
                                         return (
-                                            <div key={commune.name} style={{ padding: 12, borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)', background: 'rgba(15,23,42,0.35)' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                    <span style={{ flex: 1, color: 'white', fontSize: 14, fontWeight: 500 }}>{commune.name}</span>
+                                            <div key={commune.name} style={{ padding: 10, borderRadius: 9, border: '1px solid rgba(148,163,184,0.1)', background: 'rgba(15,23,42,0.35)', minWidth: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <span style={{ flex: 1, minWidth: 0, color: 'white', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{commune.name}</span>
                                                     <input type="number" min={0} step={100} value={commune.fee}
                                                         onChange={e => {
                                                             const fee = Math.max(0, parseInt(e.target.value || '0'))
@@ -591,16 +597,16 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                                             communes[idx] = { ...communes[idx], fee }
                                                             setFormData({ ...formData, delivery_zones: { ...formData.delivery_zones, communes } })
                                                         }}
-                                                        style={{ width: 110, background: '#1e293b', border: '1px solid #334155', padding: '8px 10px', borderRadius: 8, color: 'white', outline: 'none', fontSize: 13 }}
+                                                        style={{ width: 72, background: '#1e293b', border: '1px solid #334155', padding: '6px 8px', borderRadius: 7, color: 'white', outline: 'none', fontSize: 12 }}
                                                     />
-                                                    <span style={{ fontSize: 12, color: '#64748b' }}>FCFA</span>
+                                                    <span style={{ fontSize: 10.5, color: '#64748b' }}>F</span>
                                                 </div>
 
                                                 {allowsQuartiers && (
-                                                    <div style={{ marginTop: 10, paddingLeft: 12, borderLeft: '2px solid rgba(148,163,184,0.1)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                    <div style={{ marginTop: 8, paddingLeft: 10, borderLeft: '2px solid rgba(148,163,184,0.1)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                         {(commune.quartiers || []).map((q, qIdx) => (
-                                                            <div key={q.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                                <span style={{ flex: 1, fontSize: 13, color: '#cbd5e1' }}>{q.name}</span>
+                                                            <div key={q.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.name}</span>
                                                                 <input type="number" min={0} step={100} value={q.fee}
                                                                     onChange={e => {
                                                                         const fee = Math.max(0, parseInt(e.target.value || '0'))
@@ -610,7 +616,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                                                         communes[idx] = { ...communes[idx], quartiers }
                                                                         setFormData({ ...formData, delivery_zones: { ...formData.delivery_zones, communes } })
                                                                     }}
-                                                                    style={{ width: 90, background: '#1e293b', border: '1px solid #334155', padding: '6px 8px', borderRadius: 6, color: 'white', outline: 'none', fontSize: 12 }}
+                                                                    style={{ width: 62, background: '#1e293b', border: '1px solid #334155', padding: '5px 6px', borderRadius: 6, color: 'white', outline: 'none', fontSize: 11 }}
                                                                 />
                                                                 <button type="button"
                                                                     onClick={() => {
@@ -630,8 +636,8 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                                                 communes[idx] = { ...communes[idx], quartiers: [...(communes[idx].quartiers || []), { name: val.trim(), fee: commune.fee }] }
                                                                 setFormData({ ...formData, delivery_zones: { ...formData.delivery_zones, communes } })
                                                             }}
-                                                            style={{ alignSelf: 'flex-start', padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
-                                                        >+ Ajouter un quartier (tarif différent)</button>
+                                                            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', padding: '4px 8px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
+                                                        >+ Ajouter un quartier</button>
                                                     </div>
                                                 )}
                                             </div>
