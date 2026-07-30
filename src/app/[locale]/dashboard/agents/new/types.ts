@@ -11,15 +11,15 @@ export interface DeliveryCommune {
     quartiers?: DeliveryQuartier[]
 }
 
-export interface DeliveryZoneNote {
-    fee: number | null
-    note: string
+export interface DeliveryZoneEntry {
+    name: string
+    fee: number
 }
 
 export interface DeliveryZonesConfig {
     communes: DeliveryCommune[]
-    hors_abidjan: DeliveryZoneNote
-    international: DeliveryZoneNote
+    hors_abidjan: DeliveryZoneEntry[]
+    international: DeliveryZoneEntry[]
 }
 
 export interface NewAgentFormData {

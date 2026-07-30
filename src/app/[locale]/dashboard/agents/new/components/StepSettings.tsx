@@ -1,15 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
-import {
-    AUTOMATIC_PAYMENT_MODE_DESCRIPTION,
-    AUTOMATIC_PAYMENT_MODE_HINT,
-    AUTOMATIC_PAYMENT_MODE_LABEL,
-    MANUAL_PAYMENT_METHODS_LABEL,
-    MANUAL_PAYMENT_MODE_DESCRIPTION,
-    MANUAL_PAYMENT_MODE_HINT,
-    MANUAL_PAYMENT_MODE_LABEL,
-} from '@/lib/payments/payment-mode-display'
 import type { NewAgentFormData, Personality } from '../types'
 
 interface StepSettingsProps {
@@ -387,38 +378,82 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                             <div className="agent-grid-2" style={{ gap: 16 }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#94a3b8', marginBottom: 8 }}>
-                                        Hors Abidjan (autre ville)
+                                        Hors Abidjan (autres villes)
                                     </label>
-                                    <input type="number" min={0} step={100} placeholder="Vide = tarif communiqué plus tard"
-                                        value={formData.delivery_zones.hors_abidjan.fee ?? ''}
-                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, hors_abidjan: { ...formData.delivery_zones.hors_abidjan, fee: e.target.value === '' ? null : Math.max(0, parseInt(e.target.value)) } })}
-                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
-                                    />
-                                    <input type="text" placeholder="Message (ex: communiqué après validation)"
-                                        value={formData.delivery_zones.hors_abidjan.note}
-                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, hors_abidjan: { ...formData.delivery_zones.hors_abidjan, note: e.target.value } })}
-                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 12, boxSizing: 'border-box' }}
-                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                        {formData.delivery_zones.hors_abidjan.map((city, idx) => (
+                                            <div key={city.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{city.name}</span>
+                                                <input type="number" min={0} step={100} value={city.fee}
+                                                    onChange={e => {
+                                                        const fee = Math.max(0, parseInt(e.target.value || '0'))
+                                                        const hors_abidjan = [...formData.delivery_zones.hors_abidjan]
+                                                        hors_abidjan[idx] = { ...hors_abidjan[idx], fee }
+                                                        updateFormData('delivery_zones', { ...formData.delivery_zones, hors_abidjan })
+                                                    }}
+                                                    style={{ width: 72, background: '#1e293b', border: '1px solid #334155', padding: '6px 8px', borderRadius: 7, color: 'white', outline: 'none', fontSize: 12 }}
+                                                />
+                                                <span style={{ fontSize: 10.5, color: '#64748b' }}>F</span>
+                                                <button type="button"
+                                                    onClick={() => {
+                                                        const hors_abidjan = formData.delivery_zones.hors_abidjan.filter(x => x.name !== city.name)
+                                                        updateFormData('delivery_zones', { ...formData.delivery_zones, hors_abidjan })
+                                                    }}
+                                                    style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}
+                                                >×</button>
+                                            </div>
+                                        ))}
+                                        <button type="button"
+                                            onClick={() => {
+                                                const val = window.prompt('Nom de la ville')
+                                                if (!val?.trim()) return
+                                                updateFormData('delivery_zones', { ...formData.delivery_zones, hors_abidjan: [...formData.delivery_zones.hors_abidjan, { name: val.trim(), fee: 0 }] })
+                                            }}
+                                            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', padding: '6px 8px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
+                                        >+ Ajouter une ville</button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#94a3b8', marginBottom: 8 }}>
-                                        International (autre pays)
+                                        International (autres pays)
                                     </label>
-                                    <input type="number" min={0} step={100} placeholder="Vide = tarif communiqué plus tard"
-                                        value={formData.delivery_zones.international.fee ?? ''}
-                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, international: { ...formData.delivery_zones.international, fee: e.target.value === '' ? null : Math.max(0, parseInt(e.target.value)) } })}
-                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
-                                    />
-                                    <input type="text" placeholder="Message (ex: nous contacter pour un devis)"
-                                        value={formData.delivery_zones.international.note}
-                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, international: { ...formData.delivery_zones.international, note: e.target.value } })}
-                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 12, boxSizing: 'border-box' }}
-                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                        {formData.delivery_zones.international.map((country, idx) => (
+                                            <div key={country.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{country.name}</span>
+                                                <input type="number" min={0} step={100} value={country.fee}
+                                                    onChange={e => {
+                                                        const fee = Math.max(0, parseInt(e.target.value || '0'))
+                                                        const international = [...formData.delivery_zones.international]
+                                                        international[idx] = { ...international[idx], fee }
+                                                        updateFormData('delivery_zones', { ...formData.delivery_zones, international })
+                                                    }}
+                                                    style={{ width: 72, background: '#1e293b', border: '1px solid #334155', padding: '6px 8px', borderRadius: 7, color: 'white', outline: 'none', fontSize: 12 }}
+                                                />
+                                                <span style={{ fontSize: 10.5, color: '#64748b' }}>F</span>
+                                                <button type="button"
+                                                    onClick={() => {
+                                                        const international = formData.delivery_zones.international.filter(x => x.name !== country.name)
+                                                        updateFormData('delivery_zones', { ...formData.delivery_zones, international })
+                                                    }}
+                                                    style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}
+                                                >×</button>
+                                            </div>
+                                        ))}
+                                        <button type="button"
+                                            onClick={() => {
+                                                const val = window.prompt('Nom du pays')
+                                                if (!val?.trim()) return
+                                                updateFormData('delivery_zones', { ...formData.delivery_zones, international: [...formData.delivery_zones.international, { name: val.trim(), fee: 0 }] })
+                                            }}
+                                            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', padding: '6px 8px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
+                                        >+ Ajouter un pays</button>
+                                    </div>
                                 </div>
                             </div>
 
                             <p style={{ fontSize: 12, color: '#64748b' }}>
-                                L&apos;agent demande la commune du client et ajoute automatiquement le bon tarif au total. Si le client mentionne un lieu non reconnu, l&apos;agent lui demande de préciser plutôt que de deviner.
+                                L&apos;agent demande la commune (ou ville/pays) du client et ajoute automatiquement le bon tarif au total. Si le client mentionne un lieu non reconnu, l&apos;agent lui demande de préciser plutôt que de deviner.
                             </p>
                         </div>
                     )}
@@ -453,178 +488,6 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                     )}
                 </div>
             </div>
-
-            {/* Payment Settings Section */}
-            <div>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 12 }}>
-                    Mode de Paiement
-                </label>
-                {isExternalSync ? (
-                    <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 14px', background: 'rgba(30,41,59,0.5)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)', lineHeight: 1.6 }}>
-                        Les commandes et paiements sont geres par votre plateforme externe. Le checkout natif WazzapAI est desactive pour cet agent.
-                    </div>
-                ) : isSupportClient ? (
-                    <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 14px', background: 'rgba(30,41,59,0.5)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)' }}>
-                        Paiement manuel activé automatiquement (mode Support Client).
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div
-                            onClick={() => updateFormData('payment_mode', 'cinetpay')}
-                            style={{
-                                padding: 16,
-                                border: `1px solid ${formData.payment_mode === 'cinetpay' ? '#6366f1' : 'rgba(148,163,184,0.1)'}`,
-                                borderRadius: 12,
-                                background: formData.payment_mode === 'cinetpay' ? 'rgba(99,102,241,0.1)' : 'rgba(30,41,59,0.5)',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{AUTOMATIC_PAYMENT_MODE_LABEL}</div>
-                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>{AUTOMATIC_PAYMENT_MODE_DESCRIPTION}</div>
-                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{AUTOMATIC_PAYMENT_MODE_HINT}</div>
-                        </div>
-                        <div
-                            onClick={() => updateFormData('payment_mode', 'mobile_money_direct')}
-                            style={{
-                                padding: 16,
-                                border: `1px solid ${formData.payment_mode === 'mobile_money_direct' ? '#10b981' : 'rgba(148,163,184,0.1)'}`,
-                                borderRadius: 12,
-                                background: formData.payment_mode === 'mobile_money_direct' ? 'rgba(16,185,129,0.1)' : 'rgba(30,41,59,0.5)',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            <div style={{ fontWeight: 500, color: 'white', fontSize: 14 }}>{MANUAL_PAYMENT_MODE_LABEL}</div>
-                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>{MANUAL_PAYMENT_MODE_DESCRIPTION}</div>
-                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{MANUAL_PAYMENT_MODE_HINT}</div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Mobile Money Numbers (only if direct mode or support client) */}
-            {!isExternalSync && (formData.payment_mode === 'mobile_money_direct' || isSupportClient) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
-                    <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>
-                        {MANUAL_PAYMENT_METHODS_LABEL}
-                    </label>
-                    <div className="agent-grid-2">
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                🟠 Orange Money
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.mobile_money_orange}
-                                onChange={(e) => updateFormData('mobile_money_orange', e.target.value)}
-                                placeholder="+225 07 XX XX XX XX"
-                                style={inputStyle}
-                            />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                🟡 MTN Money
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.mobile_money_mtn}
-                                onChange={(e) => updateFormData('mobile_money_mtn', e.target.value)}
-                                placeholder="+225 05 XX XX XX XX"
-                                style={inputStyle}
-                            />
-                        </div>
-                    </div>
-                    <div className="agent-grid-2">
-                        <div>
-                            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                🔵 Wave
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.mobile_money_wave}
-                                onChange={(e) => updateFormData('mobile_money_wave', e.target.value)}
-                                placeholder="+225 01 XX XX XX XX"
-                                style={inputStyle}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Custom Payment Methods */}
-                    <div>
-                        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                            Autres Moyens de Paiement
-                        </label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {formData.custom_payment_methods.map((method, index) => (
-                                <div className="agent-inline-fields" key={index} style={{ display: 'flex', gap: 8 }}>
-                                    <input
-                                        type="text"
-                                        value={method.name}
-                                        onChange={e => {
-                                            const updated = [...formData.custom_payment_methods]
-                                            updated[index].name = e.target.value
-                                            updateFormData('custom_payment_methods', updated)
-                                        }}
-                                        placeholder="Nom (ex: PayPal)"
-                                        style={{ ...inputStyle, flex: 1 }}
-                                    />
-                                    <input
-                                        type="text"
-                                        value={method.details}
-                                        onChange={e => {
-                                            const updated = [...formData.custom_payment_methods]
-                                            updated[index].details = e.target.value
-                                            updateFormData('custom_payment_methods', updated)
-                                        }}
-                                        placeholder="Détails (ex: email@paypal.com)"
-                                        style={{ ...inputStyle, flex: 1 }}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const updated = formData.custom_payment_methods.filter((_, i) => i !== index)
-                                            updateFormData('custom_payment_methods', updated)
-                                        }}
-                                        style={{
-                                            padding: '12px 16px',
-                                            background: 'rgba(239, 68, 68, 0.2)',
-                                            border: 'none',
-                                            borderRadius: 12,
-                                            color: '#f87171',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        🗑️
-                                    </button>
-                                </div>
-                            ))}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    updateFormData('custom_payment_methods', [...formData.custom_payment_methods, { name: '', details: '' }])
-                                }}
-                                style={{
-                                    padding: '12px 16px',
-                                    background: 'rgba(30, 41, 59, 0.5)',
-                                    border: '1px solid rgba(148, 163, 184, 0.1)',
-                                    borderRadius: 12,
-                                    color: '#94a3b8',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8
-                                }}
-                            >
-                                ➕ Ajouter un moyen de paiement
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style={{ marginTop: 8, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: 12, borderRadius: 8 }}>
-                        ⚠️ Avec ce mode, les clients enverront une capture d'écran après paiement. Vous devrez vérifier manuellement dans Commandes.
-                    </div>
-                </div>
-            )}
 
             {isExternalSync && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

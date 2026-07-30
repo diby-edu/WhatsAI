@@ -25,7 +25,7 @@ export function StepRules({ formData, setFormData, isSupportClient, conflictStat
                 Ajoutez ici TOUTES vos règles spécifiques que le bot doit respecter absolument.
                 {isSupportClient
                     ? <><br />Périmètre d&apos;intervention, Procédures, Restrictions, Escalade...</>
-                    : <><br />Politique de retour, Livraison, Paiement, Promos...</>
+                    : <><br />Politique de retour, Promotions, Conditions spéciales... (livraison et paiement ont leurs propres étapes)</>
                 }
             </p>
 
@@ -52,20 +52,17 @@ export function StepRules({ formData, setFormData, isSupportClient, conflictStat
 📞 ESCALADE:
 - Renvoyer vers le conseiller au +225 07 XX XX XX XX pour toute demande complexe` : `Exemples de règles que l'IA doit respecter:
 
-📦 LIVRAISON:
-- Livraison gratuite à partir de 50.000 FCFA
-- Zones de livraison: Abidjan uniquement
-
-💳 PAIEMENT:
-- Mobile Money préféré (Orange, MTN, Wave)
-- Paiement à la livraison accepté
-
 🚫 RESTRICTIONS:
 - Pas de remboursement sur articles soldés
 - Échange uniquement dans les 48h
 
+🎁 PROMOTIONS:
+- Réduction de 10% dès 3 articles achetés
+
 📞 ESCALADE:
-- Renvoyer vers le support si problème complexe`}
+- Renvoyer vers le support si problème complexe
+
+ℹ️ La livraison et le paiement sont déjà configurés dans leurs propres étapes — inutile de les répéter ici.`}
                 style={{
                     width: '100%',
                     padding: 16,

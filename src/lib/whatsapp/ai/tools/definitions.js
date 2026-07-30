@@ -48,7 +48,7 @@ IMPORTANT - VARIANTES :
                     delivery_zone_type: {
                         type: 'string',
                         enum: ['abidjan_commune', 'hors_abidjan', 'international'],
-                        description: "UNIQUEMENT si des frais de livraison sont configurés pour cette boutique (voir section FRAIS DE LIVRAISON du prompt) ET que la commande contient un produit physique. Classe la destination : 'abidjan_commune' si le client est dans une commune d'Abidjan (alors delivery_commune est obligatoire), 'hors_abidjan' pour une autre ville de Côte d'Ivoire, 'international' pour un autre pays."
+                        description: "UNIQUEMENT si des frais de livraison sont configurés pour cette boutique (voir section FRAIS DE LIVRAISON du prompt) ET que la commande contient un produit physique. Classe la destination : 'abidjan_commune' si le client est dans une commune d'Abidjan (alors delivery_commune est obligatoire), 'hors_abidjan' pour une autre ville de Côte d'Ivoire (alors delivery_city obligatoire si des villes sont configurées), 'international' pour un autre pays (alors delivery_country obligatoire si des pays sont configurés)."
                     },
                     delivery_commune: {
                         type: 'string',
@@ -57,6 +57,14 @@ IMPORTANT - VARIANTES :
                     delivery_quartier: {
                         type: 'string',
                         description: "Quartier précis si le client l'a mentionné, utile surtout pour Cocody et Yopougon où le tarif peut varier par quartier. Ne jamais inventer un quartier que le client n'a pas dit."
+                    },
+                    delivery_city: {
+                        type: 'string',
+                        description: "Ville telle que mentionnée par le client, si delivery_zone_type='hors_abidjan' et que des villes précises sont listées dans la section FRAIS DE LIVRAISON du prompt."
+                    },
+                    delivery_country: {
+                        type: 'string',
+                        description: "Pays tel que mentionné par le client, si delivery_zone_type='international' et que des pays précis sont listés dans la section FRAIS DE LIVRAISON du prompt."
                     }
                 },
                 required: ['items', 'customer_name', 'customer_phone', 'payment_method']

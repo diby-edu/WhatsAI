@@ -18,7 +18,8 @@ import {
     ChevronRight,
     ChevronLeft,
     BookOpen,
-    Users
+    Users,
+    CreditCard
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -36,6 +37,7 @@ import { StepMission } from './components/StepMission'
 import { StepPersonality } from './components/StepPersonality'
 import { StepRules } from './components/StepRules'
 import { StepSettings } from './components/StepSettings'
+import { StepPayment } from './components/StepPayment'
 import { StepWhatsapp } from './components/StepWhatsapp'
 
 function normalizePairingPhoneInput(value: string): string | null {
@@ -57,6 +59,7 @@ const STEPS = [
     { id: 'personality', title: 'Personnalité', icon: Sparkles },
     { id: 'rules', title: 'Règles', icon: Shield },
     { id: 'settings', title: 'Paramètres', icon: Settings },
+    { id: 'payment', title: 'Paiement', icon: CreditCard },
     { id: 'whatsapp', title: 'WhatsApp', icon: Smartphone }
 ]
 
@@ -78,6 +81,7 @@ export default function AgentWizardPage({
     const [isDirty, setIsDirty] = useState(false)
     const isInitializedRef = useRef(false)
     const [currentStep, setCurrentStep] = useState(0)
+    const stepTopRef = useRef<HTMLDivElement>(null)
     const [highlightEscalation, setHighlightEscalation] = useState(false)
     const [selectedMission, setSelectedMission] = useState('')
     const [isExternalSync, setIsExternalSync] = useState(false)
@@ -100,6 +104,13 @@ export default function AgentWizardPage({
             }, 500)
         }
     }, [sp])
+
+    // Remonte en haut de l'étape à chaque changement — sans ça, on garde la
+    // position de scroll de l'étape précédente et le début de l'étape suivante
+    // reste hors écran.
+    useEffect(() => {
+        stepTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, [currentStep])
 
     // WhatsApp State
     const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'connecting' | 'qr_ready' | 'connected' | 'error'>('idle')
@@ -219,7 +230,7 @@ export default function AgentWizardPage({
         restaurant_deposit_percentage: 30,
         restaurant_deposit_fixed_amount_fcfa: 0,
         delivery_fee_mode: 'none' as 'none' | 'free' | 'zones',
-        delivery_zones: { communes: [], hors_abidjan: { fee: null, note: '' }, international: { fee: null, note: '' } } as import('./types').DeliveryZonesConfig,
+        delivery_zones: { communes: [], hors_abidjan: [], international: [] } as import('./types').DeliveryZonesConfig,
         escalation_phone: '',  // Phone number to display when escalating to human
         agent_context: '',
         welcome_message: '',
@@ -361,7 +372,12 @@ export default function AgentWizardPage({
                 restaurant_deposit_percentage: agent.restaurant_deposit_percentage ?? 30,
                 restaurant_deposit_fixed_amount_fcfa: agent.restaurant_deposit_fixed_amount_fcfa ?? 0,
                 delivery_fee_mode: agent.delivery_fee_mode || 'none',
-                delivery_zones: agent.delivery_zones || { communes: [], hors_abidjan: { fee: null, note: '' }, international: { fee: null, note: '' } },
+                delivery_zones: agent.delivery_zones ? {
+                    communes: agent.delivery_zones.communes || [],
+                    // Ancien format (objet {fee,note}) -> liste vide : ces valeurs n'ont pas de nom exploitable.
+                    hors_abidjan: Array.isArray(agent.delivery_zones.hors_abidjan) ? agent.delivery_zones.hors_abidjan : [],
+                    international: Array.isArray(agent.delivery_zones.international) ? agent.delivery_zones.international : [],
+                } : { communes: [], hors_abidjan: [], international: [] },
                 escalation_phone: agent.escalation_phone || '',
                 agent_context: agent.agent_context || '',
                 welcome_message: agent.welcome_message || '',
@@ -410,16 +426,16 @@ export default function AgentWizardPage({
     }
 
     // Navigation helpers
-    // STEPS: 0=info, 1=hours, 2=personality, 3=rules, 4=settings, 5=whatsapp
+    // STEPS: 0=info, 1=hours, 2=personality, 3=rules, 4=settings, 5=payment, 6=whatsapp
     const getNextStep = (from: number) => {
         if (isExternalSync && from === 0) return 4 // skip hours(1), personality(2), rules(3)
-        if (isExternalSync && from === 4) return 5
+        if (isExternalSync && from === 4) return 6 // skip payment(5), sans objet en sync externe
         if (isSupportClient && from === 0) return 2 // skip hours (index 1)
         return Math.min(STEPS.length - 1, from + 1)
     }
     const getPrevStep = (from: number) => {
         if (isExternalSync && from === 4) return 0 // skip rules(3), personality(2), hours(1)
-        if (isExternalSync && from === 5) return 4
+        if (isExternalSync && from === 6) return 4 // skip back par-dessus payment(5)
         if (isSupportClient && from === 2) return 0 // skip hours (index 1)
         return Math.max(0, from - 1)
     }
@@ -630,6 +646,11 @@ export default function AgentWizardPage({
                     <StepSettings formData={formData} setFormData={setFormData} isSupportClient={isSupportClient} isExternalSync={isExternalSync} isPhysicalProduct={isPhysicalProduct} />
                 )
 
+            case 'payment':
+                return (
+                    <StepPayment formData={formData} setFormData={setFormData} isSupportClient={isSupportClient} />
+                )
+
             case 'whatsapp':
                 return (
                     <StepWhatsapp
@@ -710,7 +731,7 @@ export default function AgentWizardPage({
 
                         {STEPS
                             .map((step, index) => ({ ...step, originalIndex: index }))
-                            .filter(step => !isExternalSync || !['hours', 'personality', 'rules'].includes(step.id))
+                            .filter(step => !isExternalSync || !['hours', 'personality', 'rules', 'payment'].includes(step.id))
                             .map((step) => {
                             const isActive = step.originalIndex === currentStep
                             const isCompleted = step.originalIndex < currentStep
@@ -751,7 +772,7 @@ export default function AgentWizardPage({
             </div>
 
             {/* Content */}
-            <div className="max-w-3xl mx-auto px-4 py-6 pb-52">
+            <div ref={stepTopRef} className="max-w-3xl mx-auto px-4 py-6 pb-52 scroll-mt-40">
                 {renderStep()}
             </div>
 

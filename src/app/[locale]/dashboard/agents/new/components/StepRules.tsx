@@ -57,23 +57,19 @@ export function StepRules({ formData, updateFormData, isSupportClient, isExterna
 📞 ESCALADE:
 - Renvoyer vers le support au +225 07 XX XX XX XX pour toute réclamation` : `Exemples de règles que l'IA doit respecter:
 
-📦 LIVRAISON:
-- Livraison gratuite à partir de 50.000 FCFA
-- Zones de livraison: Abidjan uniquement
-- Délai de livraison: 24-48h
-
-💳 PAIEMENT:
-- Paiement à la livraison accepté
-- Mobile Money préféré (Orange, MTN, Wave)
-- Pas de carte bancaire
-
 🚫 RESTRICTIONS:
 - Pas de remboursement sur articles soldés
 - Échange uniquement dans les 48h
 - Quantité max par commande: 5 articles
 
+🎁 PROMOTIONS:
+- Réduction de 10% dès 3 articles achetés
+- Codes promo valables jusqu'au 31 du mois
+
 📞 ESCALADE:
-- Renvoyer vers le support au +225 07 XX XX XX XX si problème complexe`}
+- Renvoyer vers le support au +225 07 XX XX XX XX si problème complexe
+
+ℹ️ La livraison et le paiement sont déjà configurés dans leurs propres étapes du wizard — inutile de les répéter ici.`}
                     rows={10}
                     style={{ ...inputStyle, resize: 'none', fontFamily: 'monospace' }}
                 />

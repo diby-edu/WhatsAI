@@ -331,7 +331,7 @@ ${formattedHours !== 'Non spécifiés' ? `⏰ ${formattedHours}` : ''}
 
     // Section 5b: Règles personnalisées (custom_rules du wizard)
     const customRulesSection = agent.custom_rules && agent.custom_rules.trim()
-        ? `\n📌 RÈGLES PERSONNALISÉES :\n${agent.custom_rules.trim()}`
+        ? `\n📌 RÈGLES PERSONNALISÉES :\n${agent.custom_rules.trim()}\n⚠️ PRIORITÉ : si ces règles personnalisées contredisent les frais de livraison ou le mode de paiement configurés (indiqués ailleurs dans ce prompt), ce sont TOUJOURS ces informations structurées qui font foi — ignore toute mention contraire ici.`
         : ''
 
     // Section 6: Catalogue détaillé (variantes & prix réels — critique anti-hallucination)

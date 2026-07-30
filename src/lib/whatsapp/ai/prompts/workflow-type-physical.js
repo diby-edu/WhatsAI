@@ -27,20 +27,30 @@ function buildDeliveryFeeSection(agent) {
         return `    - ${c.name} : ${c.fee} FCFA${quartiers}`
     }).join('\n')
 
-    const horsAbidjanNote = zones.hors_abidjan?.note || 'tarif communique apres validation par notre equipe'
-    const internationalNote = zones.international?.note || 'nous contacter pour un devis'
+    const horsAbidjanCities = Array.isArray(zones.hors_abidjan) ? zones.hors_abidjan : []
+    const horsAbidjanList = horsAbidjanCities.length > 0
+        ? horsAbidjanCities.map(c => `    - ${c.name} : ${c.fee} FCFA`).join('\n')
+        : '    - (aucune ville precise configuree : tarif a communiquer apres validation par notre equipe)'
+
+    const internationalCountries = Array.isArray(zones.international) ? zones.international : []
+    const internationalList = internationalCountries.length > 0
+        ? internationalCountries.map(c => `    - ${c.name} : ${c.fee} FCFA`).join('\n')
+        : '    - (aucun pays precis configure : nous contacter pour un devis)'
 
     return `
 ÉTAPE 4.5 - FRAIS DE LIVRAISON (obligatoire avant paiement, produit physique):
     Tarifs de livraison configures pour cette boutique :
+    Communes d'Abidjan :
 ${communesList}
-    - Hors Abidjan (autre ville) : ${horsAbidjanNote}
-    - International (autre pays) : ${internationalNote}
+    Hors Abidjan :
+${horsAbidjanList}
+    International :
+${internationalList}
 
-    - Determine dans quelle commune d'Abidjan (ou hors Abidjan / international) le client souhaite etre livre, a partir de l'adresse donnee a l'ETAPE 4 ou en demandant si ce n'est pas clair.
-    🚨 ANTI-HALLUCINATION : Si le client mentionne un lieu precis (quartier, carrefour, repere local) qui ne correspond CLAIREMENT a aucune commune listee ci-dessus, NE DEVINE JAMAIS la commune. Demande explicitement : "C'est bien dans quelle commune, [lieu mentionne] ?"
-    - Une fois la commune identifiee avec certitude, tu peux annoncer le tarif exact (il est dans la liste ci-dessus).
-    - Appelle create_order avec delivery_zone_type="abidjan_commune" et delivery_commune=<commune exacte de la liste> (+ delivery_quartier si precise). Hors Abidjan : delivery_zone_type="hors_abidjan". A l'etranger : delivery_zone_type="international".
+    - Determine dans quelle commune d'Abidjan (ou quelle ville hors Abidjan / quel pays) le client souhaite etre livre, a partir de l'adresse donnee a l'ETAPE 4 ou en demandant si ce n'est pas clair.
+    🚨 ANTI-HALLUCINATION : Si le client mentionne un lieu precis (quartier, carrefour, repere local, ville, pays) qui ne correspond CLAIREMENT a aucune entree listee ci-dessus, NE DEVINE JAMAIS le tarif. Demande explicitement de preciser (ex: "C'est bien dans quelle commune, [lieu mentionne] ?").
+    - Une fois le lieu identifie avec certitude, tu peux annoncer le tarif exact (il est dans la liste ci-dessus).
+    - Appelle create_order avec delivery_zone_type="abidjan_commune" et delivery_commune=<commune exacte de la liste> (+ delivery_quartier si precise). Hors Abidjan : delivery_zone_type="hors_abidjan" et delivery_city=<ville exacte de la liste si des villes sont configurees>. A l'etranger : delivery_zone_type="international" et delivery_country=<pays exact de la liste si des pays sont configures>.
     - Le montant final facture est toujours calcule par le systeme au moment de create_order, jamais par toi.
 `
 }

@@ -28,6 +28,13 @@ function listCommuneNames(zones) {
         .join(', ')
 }
 
+function listZoneNames(list) {
+    return (list || [])
+        .map(entry => entry?.name)
+        .filter(Boolean)
+        .join(', ')
+}
+
 // hasPhysicalProduct : true si la commande contient au moins un produit physique
 // (les frais de livraison ne concernent jamais le pur numérique)
 function resolveDeliveryFee(agent, hasPhysicalProduct, args = {}) {
@@ -59,23 +66,61 @@ function resolveDeliveryFee(agent, hasPhysicalProduct, args = {}) {
     }
 
     if (zoneType === 'hors_abidjan') {
-        const cfg = zones.hors_abidjan || {}
-        const hasFixedFee = typeof cfg.fee === 'number' && cfg.fee >= 0
-        return {
-            fee: hasFixedFee ? cfg.fee : 0,
-            note: cfg.note || (hasFixedFee ? null : 'Frais de livraison hors Abidjan a confirmer avec notre equipe.'),
-            error: null
+        const cities = zones.hors_abidjan
+        if (!Array.isArray(cities) || cities.length === 0) {
+            return { fee: 0, note: 'Frais de livraison hors Abidjan a confirmer avec notre equipe.', error: null }
         }
+
+        const cityInput = String(args.delivery_city || '').trim()
+        if (!cityInput) {
+            return {
+                fee: 0,
+                note: null,
+                error: 'VILLE MANQUANTE. Demande au client dans quelle ville il souhaite etre livre avant de creer la commande.',
+                hint: `Villes disponibles : ${listZoneNames(cities)}`
+            }
+        }
+
+        const matchedCity = findZoneMatch(cities, cityInput)
+        if (!matchedCity) {
+            return {
+                fee: 0,
+                note: null,
+                error: `VILLE NON RECONNUE ("${cityInput}"). Ne devine jamais un tarif. Demande au client de preciser sa ville parmi la liste disponible.`,
+                hint: `Villes disponibles : ${listZoneNames(cities)}`
+            }
+        }
+
+        return { fee: typeof matchedCity.fee === 'number' ? matchedCity.fee : 0, note: `Livraison (${matchedCity.name})`, error: null }
     }
 
     if (zoneType === 'international') {
-        const cfg = zones.international || {}
-        const hasFixedFee = typeof cfg.fee === 'number' && cfg.fee >= 0
-        return {
-            fee: hasFixedFee ? cfg.fee : 0,
-            note: cfg.note || (hasFixedFee ? null : 'Livraison internationale : contactez-nous pour un devis.'),
-            error: null
+        const countries = zones.international
+        if (!Array.isArray(countries) || countries.length === 0) {
+            return { fee: 0, note: 'Livraison internationale : contactez-nous pour un devis.', error: null }
         }
+
+        const countryInput = String(args.delivery_country || '').trim()
+        if (!countryInput) {
+            return {
+                fee: 0,
+                note: null,
+                error: 'PAYS MANQUANT. Demande au client dans quel pays il souhaite etre livre avant de creer la commande.',
+                hint: `Pays disponibles : ${listZoneNames(countries)}`
+            }
+        }
+
+        const matchedCountry = findZoneMatch(countries, countryInput)
+        if (!matchedCountry) {
+            return {
+                fee: 0,
+                note: null,
+                error: `PAYS NON RECONNU ("${countryInput}"). Ne devine jamais un tarif. Demande au client de preciser son pays parmi la liste disponible.`,
+                hint: `Pays disponibles : ${listZoneNames(countries)}`
+            }
+        }
+
+        return { fee: typeof matchedCountry.fee === 'number' ? matchedCountry.fee : 0, note: `Livraison (${matchedCountry.name})`, error: null }
     }
 
     // zoneType === 'abidjan_commune'

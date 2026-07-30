@@ -15,7 +15,8 @@ import {
     Loader2,
     Smartphone,
     AlertCircle,
-    Copy
+    Copy,
+    CreditCard
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -31,6 +32,7 @@ import { StepHours } from './components/StepHours'
 import { StepPersonality } from './components/StepPersonality'
 import { StepRules } from './components/StepRules'
 import { StepSettings } from './components/StepSettings'
+import { StepPayment } from './components/StepPayment'
 import { StepWhatsapp } from './components/StepWhatsapp'
 
 const QR_CONNECTION_ERROR_MESSAGE = 'La connexion ne s\'est pas terminee (QR ou code de liaison). Cela peut etre un incident ponctuel cote WhatsApp au moment d\'enregistrer un nouvel appareil — reessayez, et si ca persiste, patientez quelques minutes avant de retenter.'
@@ -53,6 +55,7 @@ export default function NewAgentPage() {
     const router = useRouter()
     const { openUpgradeModal } = useUpgradeModal()
     const toast = useToast()
+    const stepTopRef = useRef<HTMLDivElement>(null)
     const [currentStep, setCurrentStep] = useState(0)
     const [isCompact, setIsCompact] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -116,6 +119,13 @@ export default function NewAgentPage() {
         window.addEventListener('resize', checkViewport)
         return () => window.removeEventListener('resize', checkViewport)
     }, [])
+
+    // Remonte en haut de l'étape à chaque changement — sans ça, on garde la
+    // position de scroll de l'étape précédente et le début de l'étape suivante
+    // reste hors écran.
+    useEffect(() => {
+        stepTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, [currentStep])
 
     // Redirect to billing if agent limit is already reached
     useEffect(() => {
@@ -189,7 +199,7 @@ export default function NewAgentPage() {
         restaurant_deposit_percentage: 30,
         restaurant_deposit_fixed_amount_fcfa: 0,
         delivery_fee_mode: 'none' as 'none' | 'free' | 'zones',
-        delivery_zones: { communes: [], hors_abidjan: { fee: null, note: '' }, international: { fee: null, note: '' } } as import('./types').DeliveryZonesConfig,
+        delivery_zones: { communes: [], hors_abidjan: [], international: [] } as import('./types').DeliveryZonesConfig,
         agent_context: '',
         welcome_message: '',
         // LEADS
@@ -211,6 +221,7 @@ export default function NewAgentPage() {
         { id: 'personality', title: t('Wizard.steps.personality'), icon: Sparkles },
         { id: 'rules', title: 'Règles', icon: Shield },
         { id: 'settings', title: t('Wizard.steps.settings'), icon: Settings },
+        { id: 'payment', title: 'Paiement', icon: CreditCard },
         { id: 'whatsapp', title: t('Wizard.steps.whatsapp'), icon: Smartphone },
     ]
 
@@ -430,7 +441,9 @@ Regles:
             case 5: // Settings
                 if (isExternalSync) return formData.external_sync_reply_message.trim() !== ''
                 return true
-            case 6: // WhatsApp
+            case 6: // Payment
+                return true
+            case 7: // WhatsApp
                 return true
             default:
                 return false
@@ -440,9 +453,11 @@ Regles:
     // Calcul du prochain/précédent step en tenant compte des skips Support Client
     const getNextStep = (from: number) => {
         // Agent API : step 0 → WhatsApp directement (champs déjà dans step 0)
-        if (isExternalSync && from === 0) return 6
+        if (isExternalSync && from === 0) return 7
         // Agent API : skip Horaires (2), Personnalité (3), Règles (4)
         if (isExternalSync && from === 1) return 5
+        // Agent API : Paramètres (5) → WhatsApp directement (skip Paiement, sans objet en sync externe)
+        if (isExternalSync && from === 5) return 7
         // Support Client : skip step 2 (Horaires)
         if (isSupportClient && from === 1) return 3
         return Math.min(steps.length - 1, from + 1)
@@ -450,7 +465,7 @@ Regles:
 
     const getPrevStep = (from: number) => {
         // Agent API : WhatsApp → step 0 directement
-        if (isExternalSync && from === 6) return 0
+        if (isExternalSync && from === 7) return 0
         // Agent API : skip back par-dessus Horaires, Personnalité, Règles
         if (isExternalSync && from === 5) return 1
         // Support Client : skip step 2 (Horaires)
@@ -570,7 +585,7 @@ Regles:
         // Prevent duplicate clicks
         if (loading || createdAgent) {
             if (createdAgent) {
-                setCurrentStep(6) // Just move to WhatsApp step
+                setCurrentStep(7) // Just move to WhatsApp step
             }
             return
         }
@@ -660,7 +675,7 @@ Regles:
 
             setCreatedAgent(agent)
             GA.agentCreated(agentType === 'api' ? 'api' : formData.mission, agentType)
-            setCurrentStep(6) // Move to WhatsApp step
+            setCurrentStep(7) // Move to WhatsApp step
         } catch (err) {
             console.error('[ERROR] Agent creation error:', err)
             setError((err as Error).message)
@@ -905,7 +920,12 @@ Regles:
                     <StepSettings t={t} formData={formData} updateFormData={updateFormData} inputStyle={inputStyle} isExternalSync={isExternalSync} isSupportClient={isSupportClient} personalities={personalities} />
                 )
 
-            case 6: // WHATSAPP
+            case 6: // PAYMENT
+                return (
+                    <StepPayment formData={formData} updateFormData={updateFormData} inputStyle={inputStyle} isExternalSync={isExternalSync} isSupportClient={isSupportClient} />
+                )
+
+            case 7: // WHATSAPP
                 return (
                     <StepWhatsapp
                         t={t}
@@ -968,7 +988,7 @@ Regles:
             <div className="agent-stepper" style={{ display: 'flex', alignItems: 'center', justifyContent: isCompact ? 'flex-start' : 'center', marginBottom: 32, gap: 8 }}>
                 {steps
                     .map((step, index) => ({ ...step, originalIndex: index }))
-                    .filter(step => !isExternalSync || !['hours', 'personality', 'rules'].includes(step.id))
+                    .filter(step => !isExternalSync || !['hours', 'personality', 'rules', 'payment'].includes(step.id))
                     .map((step, visIndex, visArr) => (
                     <div key={step.id} style={{ display: 'flex', alignItems: 'center' }}>
                         <div style={{
@@ -1004,7 +1024,7 @@ Regles:
             </div>
 
             {/* Step title */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div ref={stepTopRef} style={{ textAlign: 'center', marginBottom: 24, scrollMarginTop: 16 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
                     {steps[currentStep].title}
                 </h2>
@@ -1041,8 +1061,12 @@ Regles:
                 {renderStepContent()}
             </motion.div>
 
-            {/* Navigation buttons */}
-            <div className="agent-nav" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+            {/* Navigation buttons — toujours visibles, même sur une étape longue */}
+            <div className="agent-nav" style={{
+                display: 'flex', justifyContent: 'space-between', marginTop: 24,
+                position: 'sticky', bottom: 0, zIndex: 10,
+                padding: '14px 0', background: 'linear-gradient(180deg, transparent, #0f172a 28%)',
+            }}>
                 <button
                     onClick={() => setCurrentStep(prev => getPrevStep(prev))}
                     disabled={currentStep === 0}
@@ -1056,7 +1080,7 @@ Regles:
                     {t('Wizard.buttons.prev')}
                 </button>
 
-                {currentStep < 6 ? (
+                {currentStep < 7 ? (
                     <button
                         onClick={() => setCurrentStep(prev => getNextStep(prev))}
                         disabled={!canProceed()}
@@ -1069,7 +1093,7 @@ Regles:
                         {t('Wizard.buttons.next')}
                         <ArrowRight style={{ width: 16, height: 16 }} />
                     </button>
-                ) : currentStep === 6 ? (
+                ) : currentStep === 7 ? (
                     <button
                         onClick={handleCreateAgent}
                         disabled={loading}

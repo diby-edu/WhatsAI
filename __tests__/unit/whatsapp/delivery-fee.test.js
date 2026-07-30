@@ -87,23 +87,55 @@ describe('resolveDeliveryFee', () => {
         expect(result.error).toBeNull()
     })
 
-    test('hors_abidjan with a configured fixed fee -> fee applied', () => {
-        const agent = { delivery_fee_mode: 'zones', delivery_zones: { hors_abidjan: { fee: 2500, note: '' } } }
-        const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'hors_abidjan' })
-        expect(result.fee).toBe(2500)
-    })
-
-    test('hors_abidjan without a fixed fee -> zero fee, informational note only (never silently charged)', () => {
-        const agent = { delivery_fee_mode: 'zones', delivery_zones: { hors_abidjan: { fee: null, note: 'A confirmer par notre equipe' } } }
+    test('hors_abidjan with no cities configured -> zero fee, generic note (never blocks the order)', () => {
+        const agent = { delivery_fee_mode: 'zones', delivery_zones: { hors_abidjan: [] } }
         const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'hors_abidjan' })
         expect(result.fee).toBe(0)
-        expect(result.note).toBe('A confirmer par notre equipe')
+        expect(result.error).toBeNull()
+        expect(result.note).toMatch(/confirmer/)
     })
 
-    test('international without a fixed fee -> zero fee, default note', () => {
+    test('hors_abidjan with cities configured but no delivery_city -> validation error, no fee guessed', () => {
+        const agent = { delivery_fee_mode: 'zones', delivery_zones: { hors_abidjan: [{ name: 'Bouaké', fee: 2500 }] } }
+        const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'hors_abidjan' })
+        expect(result.fee).toBe(0)
+        expect(result.error).toMatch(/VILLE MANQUANTE/)
+    })
+
+    test('hors_abidjan exact city match -> city fee applied', () => {
+        const agent = { delivery_fee_mode: 'zones', delivery_zones: { hors_abidjan: [{ name: 'Bouaké', fee: 2500 }, { name: 'Yamoussoukro', fee: 3000 }] } }
+        const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'hors_abidjan', delivery_city: 'Bouaké' })
+        expect(result.fee).toBe(2500)
+        expect(result.error).toBeNull()
+    })
+
+    test('hors_abidjan unknown city -> validation error, never a guessed fee', () => {
+        const agent = { delivery_fee_mode: 'zones', delivery_zones: { hors_abidjan: [{ name: 'Bouaké', fee: 2500 }] } }
+        const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'hors_abidjan', delivery_city: 'San Pedro' })
+        expect(result.fee).toBe(0)
+        expect(result.error).toMatch(/VILLE NON RECONNUE/)
+        expect(result.hint).toMatch(/Bouaké/)
+    })
+
+    test('international with no countries configured -> zero fee, default quote note', () => {
         const agent = { delivery_fee_mode: 'zones', delivery_zones: {} }
         const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'international' })
         expect(result.fee).toBe(0)
         expect(result.note).toMatch(/devis/)
+    })
+
+    test('international exact country match -> country fee applied', () => {
+        const agent = { delivery_fee_mode: 'zones', delivery_zones: { international: [{ name: 'France', fee: 15000 }] } }
+        const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'international', delivery_country: 'France' })
+        expect(result.fee).toBe(15000)
+        expect(result.error).toBeNull()
+    })
+
+    test('international unknown country -> validation error, never a guessed fee', () => {
+        const agent = { delivery_fee_mode: 'zones', delivery_zones: { international: [{ name: 'France', fee: 15000 }] } }
+        const result = resolveDeliveryFee(agent, true, { delivery_zone_type: 'international', delivery_country: 'Belgique' })
+        expect(result.fee).toBe(0)
+        expect(result.error).toMatch(/PAYS NON RECONNU/)
+        expect(result.hint).toMatch(/France/)
     })
 })

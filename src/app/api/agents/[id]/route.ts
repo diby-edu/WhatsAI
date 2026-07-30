@@ -41,13 +41,6 @@ function normalizeZoneEntries(list: any): { name: string; fee: number }[] {
         .filter((entry) => entry.name.length > 0)
 }
 
-function normalizeDeliveryZoneNote(value: any): { fee: number | null; note: string } {
-    return {
-        fee: toPositiveIntOrNull(value?.fee),
-        note: String(value?.note || '').trim().slice(0, 300)
-    }
-}
-
 function normalizeDeliverySettings(body: any) {
     const rawMode = String(body.delivery_fee_mode || 'none').trim().toLowerCase()
     const mode = ['none', 'free', 'zones'].includes(rawMode) ? rawMode : 'none'
@@ -71,8 +64,8 @@ function normalizeDeliverySettings(body: any) {
         delivery_fee_mode: mode,
         delivery_zones: {
             communes,
-            hors_abidjan: normalizeDeliveryZoneNote(rawZones.hors_abidjan),
-            international: normalizeDeliveryZoneNote(rawZones.international)
+            hors_abidjan: normalizeZoneEntries(rawZones.hors_abidjan),
+            international: normalizeZoneEntries(rawZones.international)
         }
     }
 }
