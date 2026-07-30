@@ -1,6 +1,7 @@
 
 const { normalizePhoneNumber, checkStock, productHasRealVariants, findMatchingOption, getOptionValue, getOptionPrice } = require('./tool-helpers')
 const { validateCreateOrderArgs } = require('./tool-validators')
+const { resolveDeliveryFee } = require('./delivery-fee')
 
 function hasLicenseKeyInventory(product = {}) {
     return Array.isArray(product?.license_keys) && product.license_keys.length > 0
@@ -32,7 +33,7 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
 
         const { data: agent } = await supabase
             .from('agents')
-            .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods, escalation_phone')
+            .select('user_id, payment_mode, mobile_money_orange, mobile_money_mtn, mobile_money_wave, custom_payment_methods, escalation_phone, delivery_fee_mode, delivery_zones')
             .eq('id', agentId)
             .single()
 
@@ -198,6 +199,22 @@ async function handleCreateOrder(args, agentId, products, conversationId, supaba
                 error: 'ADRESSE DE LIVRAISON MANQUANTE. Demandez la ville et le quartier avant de creer la commande.',
                 hint: 'Demande : "Quelle est votre adresse de livraison (ville, quartier) ?"'
             })
+        }
+
+        // Frais de livraison — calculés côté serveur uniquement, jamais un chiffre annoncé par l'IA.
+        const deliveryResolution = resolveDeliveryFee(agent, hasPhysicalProduct, args)
+        if (deliveryResolution.error) {
+            return JSON.stringify({
+                success: false,
+                error: deliveryResolution.error,
+                hint: deliveryResolution.hint || undefined
+            })
+        }
+        if (deliveryResolution.fee > 0) {
+            total += deliveryResolution.fee
+        }
+        if (deliveryResolution.note) {
+            finalNotes += `\n🚚 ${deliveryResolution.note}${deliveryResolution.fee > 0 ? ` : ${deliveryResolution.fee} FCFA` : ''}`
         }
 
         console.log(`\n📝 Création commande atomique: ${orderItems.length} items, Total: ${total} FCFA`)

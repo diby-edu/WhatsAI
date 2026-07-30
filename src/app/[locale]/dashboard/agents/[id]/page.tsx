@@ -82,6 +82,7 @@ export default function AgentWizardPage({
     const [selectedMission, setSelectedMission] = useState('')
     const [isExternalSync, setIsExternalSync] = useState(false)
     const isSupportClient = selectedMission === 'support_client' || selectedMission === 'services'
+    const isPhysicalProduct = selectedMission === 'ecommerce_physical'
 
     // Handle deep linking to tabs or focus fields
     useEffect(() => {
@@ -217,6 +218,8 @@ export default function AgentWizardPage({
         restaurant_deposit_mode: 'percentage' as 'percentage' | 'fixed',
         restaurant_deposit_percentage: 30,
         restaurant_deposit_fixed_amount_fcfa: 0,
+        delivery_fee_mode: 'none' as 'none' | 'free' | 'zones',
+        delivery_zones: { communes: [], hors_abidjan: { fee: null, note: '' }, international: { fee: null, note: '' } } as import('./types').DeliveryZonesConfig,
         escalation_phone: '',  // Phone number to display when escalating to human
         agent_context: '',
         welcome_message: '',
@@ -357,6 +360,8 @@ export default function AgentWizardPage({
                 restaurant_deposit_mode: agent.restaurant_deposit_mode || 'percentage',
                 restaurant_deposit_percentage: agent.restaurant_deposit_percentage ?? 30,
                 restaurant_deposit_fixed_amount_fcfa: agent.restaurant_deposit_fixed_amount_fcfa ?? 0,
+                delivery_fee_mode: agent.delivery_fee_mode || 'none',
+                delivery_zones: agent.delivery_zones || { communes: [], hors_abidjan: { fee: null, note: '' }, international: { fee: null, note: '' } },
                 escalation_phone: agent.escalation_phone || '',
                 agent_context: agent.agent_context || '',
                 welcome_message: agent.welcome_message || '',
@@ -381,6 +386,9 @@ export default function AgentWizardPage({
             }
             if (agent.ecommerce_mode === 'external_sync') {
                 setIsExternalSync(true)
+            }
+            if (agent.mission === 'ecommerce_physical') {
+                setSelectedMission('ecommerce_physical')
             }
 
             setLoading(false)
@@ -619,7 +627,7 @@ export default function AgentWizardPage({
 
             case 'settings':
                 return (
-                    <StepSettings formData={formData} setFormData={setFormData} isSupportClient={isSupportClient} isExternalSync={isExternalSync} />
+                    <StepSettings formData={formData} setFormData={setFormData} isSupportClient={isSupportClient} isExternalSync={isExternalSync} isPhysicalProduct={isPhysicalProduct} />
                 )
 
             case 'whatsapp':

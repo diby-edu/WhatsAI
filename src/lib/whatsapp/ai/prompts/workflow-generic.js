@@ -8,8 +8,9 @@ const { buildMixedWorkflow } = require('./workflow-mixed')
  * Dispatche vers le bon workflow selon les types de produits disponibles dans le catalogue.
  * @param {Array} orders - Historique des commandes
  * @param {Array} products - Catalogue produits (nécessaire pour la détection)
+ * @param {Object} agent - Agent (nécessaire pour les frais de livraison en mode physique)
  */
-function buildGenericWorkflow(orders, products) {
+function buildGenericWorkflow(orders, products, agent) {
   if (!products || products.length === 0) {
     // Aucun produit configuré : interdire toute invention
     return `
@@ -39,10 +40,10 @@ Si un client demande des produits, des prix, ou souhaite commander, réponds EXA
     return buildDigitalWorkflow(orders)
   } else if (hasPhysical) {
     // Agent 100% Physique
-    return buildPhysicalWorkflow(orders)
+    return buildPhysicalWorkflow(orders, agent)
   } else {
     // Produits sans type explicite (legacy null / service non-engine) → workflow physique par défaut
-    return buildPhysicalWorkflow(orders)
+    return buildPhysicalWorkflow(orders, agent)
   }
 }
 

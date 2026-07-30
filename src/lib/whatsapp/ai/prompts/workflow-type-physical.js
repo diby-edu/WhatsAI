@@ -2,7 +2,51 @@
 /**
  * Workflow pour PRODUITS PHYSIQUES uniquement (📦)
  */
-function buildPhysicalWorkflow(orders) {
+
+function buildDeliveryFeeSection(agent) {
+    const mode = agent?.delivery_fee_mode
+
+    if (mode === 'free') {
+        return `
+ÉTAPE 4.5 - LIVRAISON GRATUITE:
+    - La livraison est gratuite pour cette boutique — tu peux le mentionner au client si utile.
+    - Aucun frais a ajouter au total.
+`
+    }
+
+    if (mode !== 'zones') return ''
+
+    const zones = agent?.delivery_zones || {}
+    const communes = Array.isArray(zones.communes) ? zones.communes : []
+    if (communes.length === 0) return ''
+
+    const communesList = communes.map(c => {
+        const quartiers = Array.isArray(c.quartiers) && c.quartiers.length > 0
+            ? ` (quartiers a tarif different : ${c.quartiers.map(q => `${q.name} = ${q.fee} FCFA`).join(', ')})`
+            : ''
+        return `    - ${c.name} : ${c.fee} FCFA${quartiers}`
+    }).join('\n')
+
+    const horsAbidjanNote = zones.hors_abidjan?.note || 'tarif communique apres validation par notre equipe'
+    const internationalNote = zones.international?.note || 'nous contacter pour un devis'
+
+    return `
+ÉTAPE 4.5 - FRAIS DE LIVRAISON (obligatoire avant paiement, produit physique):
+    Tarifs de livraison configures pour cette boutique :
+${communesList}
+    - Hors Abidjan (autre ville) : ${horsAbidjanNote}
+    - International (autre pays) : ${internationalNote}
+
+    - Determine dans quelle commune d'Abidjan (ou hors Abidjan / international) le client souhaite etre livre, a partir de l'adresse donnee a l'ETAPE 4 ou en demandant si ce n'est pas clair.
+    🚨 ANTI-HALLUCINATION : Si le client mentionne un lieu precis (quartier, carrefour, repere local) qui ne correspond CLAIREMENT a aucune commune listee ci-dessus, NE DEVINE JAMAIS la commune. Demande explicitement : "C'est bien dans quelle commune, [lieu mentionne] ?"
+    - Une fois la commune identifiee avec certitude, tu peux annoncer le tarif exact (il est dans la liste ci-dessus).
+    - Appelle create_order avec delivery_zone_type="abidjan_commune" et delivery_commune=<commune exacte de la liste> (+ delivery_quartier si precise). Hors Abidjan : delivery_zone_type="hors_abidjan". A l'etranger : delivery_zone_type="international".
+    - Le montant final facture est toujours calcule par le systeme au moment de create_order, jamais par toi.
+`
+}
+
+function buildPhysicalWorkflow(orders, agent) {
+    const deliveryFeeSection = buildDeliveryFeeSection(agent)
     return `
 📋 FLUX DE COMMANDE (MODE PRODUIT PHYSIQUE 📦):
 
@@ -65,7 +109,7 @@ ${(orders && orders.length > 0) ? `
     ⛔ JAMAIS "Je note", "Je retiens", "Je prends note" pour confirmer. Répéter directement.
     Exemple de confirmation correcte : "Super ! Commande pour Koffi Diby, +225..., livraison à Yop Maroc. Souhaitez-vous payer en ligne ou à la livraison ?"
 `}
-
+${deliveryFeeSection}
 ÉTAPE 5 - PAIEMENT:
     - Demander : "Souhaitez-vous payer en ligne ou à la livraison ?"
     - MAPPING : "livraison/cash" → 'cod' | "ligne/mobile money" → 'online'
@@ -87,11 +131,14 @@ ${(orders && orders.length > 0) ? `
     *<Nom Exact du Produit 2>* :
     - ...
     
-    💰 Total : (Somme des sous-totaux) FCFA
+    💰 Sous-total produits : (Somme des sous-totaux) FCFA${(agent?.delivery_fee_mode === 'zones' || agent?.delivery_fee_mode === 'free') ? `
+    🚚 Livraison ([Commune ou "gratuite"]) : [Montant confirmé à l'ÉTAPE 4.5] FCFA
+    💰 Total (produits + livraison) : [Somme] FCFA` : `
+    💰 Total : (Somme des sous-totaux) FCFA`}
     📍 Livraison à : [Adresse]
     💳 Paiement : [Mode]
     📝 Note : [Note]
-    
+
     Confirmez-vous ?"
 
 ÉTAPE 8 - CONFIRMATION:

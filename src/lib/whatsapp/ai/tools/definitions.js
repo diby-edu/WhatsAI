@@ -44,7 +44,20 @@ IMPORTANT - VARIANTES :
                     delivery_address: { type: 'string', description: 'Adresse de livraison complète (obligatoire pour les produits physiques)' },
                     email: { type: 'string', description: 'Email (requis pour produits numériques)' },
                     payment_method: { type: 'string', enum: ['online', 'cod'], description: 'Mode de paiement. Obligatoire avant create_order.' },
-                    notes: { type: 'string', description: 'Instructions spéciales' }
+                    notes: { type: 'string', description: 'Instructions spéciales' },
+                    delivery_zone_type: {
+                        type: 'string',
+                        enum: ['abidjan_commune', 'hors_abidjan', 'international'],
+                        description: "UNIQUEMENT si des frais de livraison sont configurés pour cette boutique (voir section FRAIS DE LIVRAISON du prompt) ET que la commande contient un produit physique. Classe la destination : 'abidjan_commune' si le client est dans une commune d'Abidjan (alors delivery_commune est obligatoire), 'hors_abidjan' pour une autre ville de Côte d'Ivoire, 'international' pour un autre pays."
+                    },
+                    delivery_commune: {
+                        type: 'string',
+                        description: "Commune d'Abidjan telle que mentionnée par le client (ex: Cocody, Yopougon). Obligatoire si delivery_zone_type='abidjan_commune'."
+                    },
+                    delivery_quartier: {
+                        type: 'string',
+                        description: "Quartier précis si le client l'a mentionné, utile surtout pour Cocody et Yopougon où le tarif peut varier par quartier. Ne jamais inventer un quartier que le client n'a pas dit."
+                    }
                 },
                 required: ['items', 'customer_name', 'customer_phone', 'payment_method']
             }

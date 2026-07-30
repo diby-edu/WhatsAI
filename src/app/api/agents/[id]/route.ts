@@ -26,6 +26,57 @@ function normalizeRestaurantDepositSettings(body: any) {
     }
 }
 
+function toPositiveIntOrNull(value: any): number | null {
+    const n = Number(value)
+    return Number.isFinite(n) && n >= 0 ? Math.round(n) : null
+}
+
+function normalizeZoneEntries(list: any): { name: string; fee: number }[] {
+    if (!Array.isArray(list)) return []
+    return list
+        .map((entry) => ({
+            name: String(entry?.name || '').trim(),
+            fee: toPositiveIntOrNull(entry?.fee) ?? 0
+        }))
+        .filter((entry) => entry.name.length > 0)
+}
+
+function normalizeDeliveryZoneNote(value: any): { fee: number | null; note: string } {
+    return {
+        fee: toPositiveIntOrNull(value?.fee),
+        note: String(value?.note || '').trim().slice(0, 300)
+    }
+}
+
+function normalizeDeliverySettings(body: any) {
+    const rawMode = String(body.delivery_fee_mode || 'none').trim().toLowerCase()
+    const mode = ['none', 'free', 'zones'].includes(rawMode) ? rawMode : 'none'
+
+    if (mode !== 'zones') {
+        return { delivery_fee_mode: mode, delivery_zones: null }
+    }
+
+    const rawZones = body.delivery_zones || {}
+    const communes = Array.isArray(rawZones.communes)
+        ? rawZones.communes
+            .map((c: any) => {
+                const base = { name: String(c?.name || '').trim(), fee: toPositiveIntOrNull(c?.fee) ?? 0 }
+                const quartiers = normalizeZoneEntries(c?.quartiers)
+                return quartiers.length > 0 ? { ...base, quartiers } : base
+            })
+            .filter((c: any) => c.name.length > 0)
+        : []
+
+    return {
+        delivery_fee_mode: mode,
+        delivery_zones: {
+            communes,
+            hors_abidjan: normalizeDeliveryZoneNote(rawZones.hors_abidjan),
+            international: normalizeDeliveryZoneNote(rawZones.international)
+        }
+    }
+}
+
 // GET /api/agents/[id] - Get a single agent
 export async function GET(
     request: NextRequest,
@@ -89,6 +140,7 @@ export async function PATCH(
             'mobile_money_wave', 'custom_payment_methods', 'escalation_phone',
             'restaurant_deposit_enabled', 'restaurant_deposit_mode',
             'restaurant_deposit_percentage', 'restaurant_deposit_fixed_amount_fcfa',
+            'delivery_fee_mode', 'delivery_zones',
             // Support Client
             'agent_context', 'welcome_message',
             // Leads
@@ -162,6 +214,10 @@ export async function PATCH(
                         ? body.restaurant_deposit_fixed_amount_fcfa
                         : currentAgent?.restaurant_deposit_fixed_amount_fcfa
             }))
+        }
+
+        if (body.delivery_fee_mode !== undefined || body.delivery_zones !== undefined) {
+            Object.assign(updates, normalizeDeliverySettings(body))
         }
 
         // Prevent bypassing plan limits by manually activating an agent

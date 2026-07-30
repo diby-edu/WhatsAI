@@ -307,9 +307,9 @@ Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit 
         else if (activeEngine === 'SLOT') collectOrder = prompt_SLOT
         else if (activeEngine === 'RENTAL') collectOrder = prompt_RENTAL
         else if (activeEngine === 'INSCRIPTION') collectOrder = prompt_INSCRIPTION
-        else collectOrder = buildGenericWorkflow(orders, products) // Fallback
+        else collectOrder = buildGenericWorkflow(orders, products, agent) // Fallback
     } else {
-        collectOrder = buildGenericWorkflow(orders, products) // Default Generic/Mixed
+        collectOrder = buildGenericWorkflow(orders, products, agent) // Default Generic/Mixed
     }
 
     // Section 4: Contexte & Business Info
