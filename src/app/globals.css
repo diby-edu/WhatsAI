@@ -917,6 +917,16 @@ h6 {
   }
 }
 
+/* Number input sans les flèches +/- natives (le champ reste éditable au clavier) */
+.no-spinner::-webkit-inner-spin-button,
+.no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+}
+
 /* Admin settings 2-col → 1 col mobile */
 .admin-settings-grid-2 {
   display: grid;

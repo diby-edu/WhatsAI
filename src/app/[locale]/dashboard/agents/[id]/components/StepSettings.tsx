@@ -417,7 +417,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                             <div key={commune.name} style={{ padding: 10, borderRadius: 9, border: '1px solid rgba(148,163,184,0.1)', background: 'rgba(15,23,42,0.35)', minWidth: 0 }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                     <span style={{ flex: 1, minWidth: 0, color: 'white', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{commune.name}</span>
-                                                    <input type="number" min={0} step={100} value={commune.fee}
+                                                    <input type="number" className="no-spinner" min={0} step={100} value={commune.fee}
                                                         onChange={e => {
                                                             const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                             const communes = [...formData.delivery_zones.communes]
@@ -434,7 +434,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                                         {(commune.quartiers || []).map((q, qIdx) => (
                                                             <div key={q.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.name}</span>
-                                                                <input type="number" min={0} step={100} value={q.fee}
+                                                                <input type="number" className="no-spinner" min={0} step={100} value={q.fee}
                                                                     onChange={e => {
                                                                         const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                                         const communes = [...formData.delivery_zones.communes]
@@ -482,7 +482,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                         {formData.delivery_zones.hors_abidjan.map((city, idx) => (
                                             <div key={city.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{city.name}</span>
-                                                <input type="number" min={0} step={100} value={city.fee}
+                                                <input type="number" className="no-spinner" min={0} step={100} value={city.fee}
                                                     onChange={e => {
                                                         const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                         const hors_abidjan = [...formData.delivery_zones.hors_abidjan]
@@ -507,8 +507,8 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                                 if (!val?.trim()) return
                                                 setFormData({ ...formData, delivery_zones: { ...formData.delivery_zones, hors_abidjan: [...formData.delivery_zones.hors_abidjan, { name: val.trim(), fee: 0 }] } })
                                             }}
-                                            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', padding: '6px 8px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
-                                        >+ Ajouter une ville</button>
+                                            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(148,163,184,0.25)', background: 'rgba(16,185,129,0.08)', color: '#6ee7b7', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                        >➕ Ajouter une ville</button>
                                     </div>
                                 </div>
                                 <div>
@@ -519,7 +519,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                         {formData.delivery_zones.international.map((country, idx) => (
                                             <div key={country.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{country.name}</span>
-                                                <input type="number" min={0} step={100} value={country.fee}
+                                                <input type="number" className="no-spinner" min={0} step={100} value={country.fee}
                                                     onChange={e => {
                                                         const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                         const international = [...formData.delivery_zones.international]
@@ -544,8 +544,8 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                                 if (!val?.trim()) return
                                                 setFormData({ ...formData, delivery_zones: { ...formData.delivery_zones, international: [...formData.delivery_zones.international, { name: val.trim(), fee: 0 }] } })
                                             }}
-                                            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', padding: '6px 8px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
-                                        >+ Ajouter un pays</button>
+                                            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(148,163,184,0.25)', background: 'rgba(16,185,129,0.08)', color: '#6ee7b7', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                        >➕ Ajouter un pays</button>
                                     </div>
                                 </div>
                             </div>
