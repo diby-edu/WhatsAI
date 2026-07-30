@@ -35,6 +35,57 @@ function normalizeRestaurantDepositSettings(body: any) {
     }
 }
 
+function toPositiveIntOrNull(value: any): number | null {
+    const n = Number(value)
+    return Number.isFinite(n) && n >= 0 ? Math.round(n) : null
+}
+
+function normalizeZoneEntries(list: any): { name: string; fee: number }[] {
+    if (!Array.isArray(list)) return []
+    return list
+        .map((entry) => ({
+            name: String(entry?.name || '').trim(),
+            fee: toPositiveIntOrNull(entry?.fee) ?? 0
+        }))
+        .filter((entry) => entry.name.length > 0)
+}
+
+function normalizeDeliveryZoneNote(value: any): { fee: number | null; note: string } {
+    return {
+        fee: toPositiveIntOrNull(value?.fee),
+        note: String(value?.note || '').trim().slice(0, 300)
+    }
+}
+
+function normalizeDeliverySettings(body: any) {
+    const rawMode = String(body.delivery_fee_mode || 'none').trim().toLowerCase()
+    const mode = ['none', 'free', 'zones'].includes(rawMode) ? rawMode : 'none'
+
+    if (mode !== 'zones') {
+        return { delivery_fee_mode: mode, delivery_zones: null }
+    }
+
+    const rawZones = body.delivery_zones || {}
+    const communes = Array.isArray(rawZones.communes)
+        ? rawZones.communes
+            .map((c: any) => {
+                const base = { name: String(c?.name || '').trim(), fee: toPositiveIntOrNull(c?.fee) ?? 0 }
+                const quartiers = normalizeZoneEntries(c?.quartiers)
+                return quartiers.length > 0 ? { ...base, quartiers } : base
+            })
+            .filter((c: any) => c.name.length > 0)
+        : []
+
+    return {
+        delivery_fee_mode: mode,
+        delivery_zones: {
+            communes,
+            hors_abidjan: normalizeDeliveryZoneNote(rawZones.hors_abidjan),
+            international: normalizeDeliveryZoneNote(rawZones.international)
+        }
+    }
+}
+
 // GET /api/agents - List all agents for current user
 export const dynamic = 'force-dynamic'
 
@@ -89,6 +140,7 @@ export async function POST(request: NextRequest) {
         const adminSupabase = createAdminClient()
         const aiDefaults = await getAIRuntimeSettings(adminSupabase)
         const restaurantDepositSettings = normalizeRestaurantDepositSettings(body)
+        const deliveryFeeSettings = normalizeDeliverySettings(body)
         const paymentMode = normalizeAgentPaymentMode(body.payment_mode)
         const ecommerceMode = resolveAgentEcommerceMode(body.mission, body.ecommerce_mode)
 
@@ -206,7 +258,8 @@ export async function POST(request: NextRequest) {
                 live_query_url: body.live_query_url || null,
                 live_query_secret: body.live_query_secret || null,
                 external_sync_reply_message: body.external_sync_reply_message || null,
-                ...restaurantDepositSettings
+                ...restaurantDepositSettings,
+                ...deliveryFeeSettings
             })
             .select()
             .single()

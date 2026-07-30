@@ -271,6 +271,154 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                 )}
             </div>}
 
+            {formData.mission === 'ecommerce_physical' && (
+                <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', paddingTop: 24 }}>
+                    <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#e2e8f0', marginBottom: 12 }}>
+                        Frais de livraison
+                    </label>
+                    <div className="agent-grid-3" style={{ gap: 12, marginBottom: 16 }}>
+                        {[
+                            { key: 'none', label: 'Aucun' },
+                            { key: 'free', label: 'Gratuite' },
+                            { key: 'zones', label: 'Zones Abidjan' },
+                        ].map(opt => (
+                            <button key={opt.key} type="button"
+                                onClick={() => {
+                                    if (opt.key === 'zones' && formData.delivery_zones.communes.length === 0) {
+                                        updateFormData('delivery_zones', {
+                                            ...formData.delivery_zones,
+                                            communes: [
+                                                'Cocody', 'Yopougon', 'Plateau', 'Marcory', 'Treichville', 'Koumassi',
+                                                'Port-Bouët', 'Abobo', 'Adjamé', 'Attécoubé', 'Bingerville', 'Songon',
+                                            ].map(name => ({ name, fee: 0 }))
+                                        })
+                                    }
+                                    updateFormData('delivery_fee_mode', opt.key)
+                                }}
+                                style={{
+                                    padding: '12px 14px', borderRadius: 10,
+                                    border: formData.delivery_fee_mode === opt.key ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.15)',
+                                    background: formData.delivery_fee_mode === opt.key ? 'rgba(16, 185, 129, 0.12)' : 'rgba(15, 23, 42, 0.35)',
+                                    color: formData.delivery_fee_mode === opt.key ? '#d1fae5' : '#cbd5e1',
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {formData.delivery_fee_mode === 'zones' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#94a3b8', marginBottom: 8 }}>
+                                    Tarif par commune (FCFA)
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {formData.delivery_zones.communes.map((commune, idx) => {
+                                        const allowsQuartiers = commune.name === 'Cocody' || commune.name === 'Yopougon'
+                                        return (
+                                            <div key={commune.name} style={{ padding: 12, borderRadius: 10, border: '1px solid rgba(148,163,184,0.1)', background: 'rgba(15,23,42,0.35)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <span style={{ flex: 1, color: 'white', fontSize: 14, fontWeight: 500 }}>{commune.name}</span>
+                                                    <input type="number" min={0} step={100} value={commune.fee}
+                                                        onChange={e => {
+                                                            const fee = Math.max(0, parseInt(e.target.value || '0'))
+                                                            const communes = [...formData.delivery_zones.communes]
+                                                            communes[idx] = { ...communes[idx], fee }
+                                                            updateFormData('delivery_zones', { ...formData.delivery_zones, communes })
+                                                        }}
+                                                        style={{ width: 110, background: '#1e293b', border: '1px solid #334155', padding: '8px 10px', borderRadius: 8, color: 'white', outline: 'none', fontSize: 13 }}
+                                                    />
+                                                    <span style={{ fontSize: 12, color: '#64748b' }}>FCFA</span>
+                                                </div>
+
+                                                {allowsQuartiers && (
+                                                    <div style={{ marginTop: 10, paddingLeft: 12, borderLeft: '2px solid rgba(148,163,184,0.1)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                        {(commune.quartiers || []).map((q, qIdx) => (
+                                                            <div key={q.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                <span style={{ flex: 1, fontSize: 13, color: '#cbd5e1' }}>{q.name}</span>
+                                                                <input type="number" min={0} step={100} value={q.fee}
+                                                                    onChange={e => {
+                                                                        const fee = Math.max(0, parseInt(e.target.value || '0'))
+                                                                        const communes = [...formData.delivery_zones.communes]
+                                                                        const quartiers = [...(communes[idx].quartiers || [])]
+                                                                        quartiers[qIdx] = { ...quartiers[qIdx], fee }
+                                                                        communes[idx] = { ...communes[idx], quartiers }
+                                                                        updateFormData('delivery_zones', { ...formData.delivery_zones, communes })
+                                                                    }}
+                                                                    style={{ width: 90, background: '#1e293b', border: '1px solid #334155', padding: '6px 8px', borderRadius: 6, color: 'white', outline: 'none', fontSize: 12 }}
+                                                                />
+                                                                <button type="button"
+                                                                    onClick={() => {
+                                                                        const communes = [...formData.delivery_zones.communes]
+                                                                        communes[idx] = { ...communes[idx], quartiers: (communes[idx].quartiers || []).filter(x => x.name !== q.name) }
+                                                                        updateFormData('delivery_zones', { ...formData.delivery_zones, communes })
+                                                                    }}
+                                                                    style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}
+                                                                >×</button>
+                                                            </div>
+                                                        ))}
+                                                        <button type="button"
+                                                            onClick={() => {
+                                                                const val = window.prompt(`Nom du quartier (${commune.name})`)
+                                                                if (!val?.trim()) return
+                                                                const communes = [...formData.delivery_zones.communes]
+                                                                communes[idx] = { ...communes[idx], quartiers: [...(communes[idx].quartiers || []), { name: val.trim(), fee: commune.fee }] }
+                                                                updateFormData('delivery_zones', { ...formData.delivery_zones, communes })
+                                                            }}
+                                                            style={{ alignSelf: 'flex-start', padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
+                                                        >+ Ajouter un quartier (tarif différent)</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="agent-grid-2" style={{ gap: 16 }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#94a3b8', marginBottom: 8 }}>
+                                        Hors Abidjan (autre ville)
+                                    </label>
+                                    <input type="number" min={0} step={100} placeholder="Vide = tarif communiqué plus tard"
+                                        value={formData.delivery_zones.hors_abidjan.fee ?? ''}
+                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, hors_abidjan: { ...formData.delivery_zones.hors_abidjan, fee: e.target.value === '' ? null : Math.max(0, parseInt(e.target.value)) } })}
+                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
+                                    />
+                                    <input type="text" placeholder="Message (ex: communiqué après validation)"
+                                        value={formData.delivery_zones.hors_abidjan.note}
+                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, hors_abidjan: { ...formData.delivery_zones.hors_abidjan, note: e.target.value } })}
+                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 12, boxSizing: 'border-box' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#94a3b8', marginBottom: 8 }}>
+                                        International (autre pays)
+                                    </label>
+                                    <input type="number" min={0} step={100} placeholder="Vide = tarif communiqué plus tard"
+                                        value={formData.delivery_zones.international.fee ?? ''}
+                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, international: { ...formData.delivery_zones.international, fee: e.target.value === '' ? null : Math.max(0, parseInt(e.target.value)) } })}
+                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
+                                    />
+                                    <input type="text" placeholder="Message (ex: nous contacter pour un devis)"
+                                        value={formData.delivery_zones.international.note}
+                                        onChange={e => updateFormData('delivery_zones', { ...formData.delivery_zones, international: { ...formData.delivery_zones.international, note: e.target.value } })}
+                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', padding: 10, borderRadius: 8, color: 'white', outline: 'none', fontSize: 12, boxSizing: 'border-box' }}
+                                    />
+                                </div>
+                            </div>
+
+                            <p style={{ fontSize: 12, color: '#64748b' }}>
+                                L&apos;agent demande la commune du client et ajoute automatiquement le bon tarif au total. Si le client mentionne un lieu non reconnu, l&apos;agent lui demande de préciser plutôt que de deviner.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Summary */}
             <div style={{
                 padding: 20,

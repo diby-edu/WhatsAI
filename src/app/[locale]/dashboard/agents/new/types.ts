@@ -1,5 +1,27 @@
 import type { AgentPaymentMode } from '@/lib/payments/payment-mode-display'
 
+export interface DeliveryQuartier {
+    name: string
+    fee: number
+}
+
+export interface DeliveryCommune {
+    name: string
+    fee: number
+    quartiers?: DeliveryQuartier[]
+}
+
+export interface DeliveryZoneNote {
+    fee: number | null
+    note: string
+}
+
+export interface DeliveryZonesConfig {
+    communes: DeliveryCommune[]
+    hors_abidjan: DeliveryZoneNote
+    international: DeliveryZoneNote
+}
+
 export interface NewAgentFormData {
     name: string
     description: string
@@ -29,6 +51,8 @@ export interface NewAgentFormData {
     restaurant_deposit_mode: 'percentage' | 'fixed'
     restaurant_deposit_percentage: number
     restaurant_deposit_fixed_amount_fcfa: number
+    delivery_fee_mode: 'none' | 'free' | 'zones'
+    delivery_zones: DeliveryZonesConfig
     agent_context: string
     welcome_message: string
     lead_collection_enabled: boolean
