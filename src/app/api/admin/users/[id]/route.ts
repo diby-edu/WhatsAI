@@ -143,6 +143,7 @@ export async function PATCH(
         }
 
         // Quand le plan change, mettre à jour paid_until/grace_until comme un vrai paiement
+        const billingCycle: 'monthly' | 'yearly' = updateData.billing_period === 'yearly' ? 'yearly' : 'monthly'
         if (cleanUpdate.plan) {
             const newPlan = cleanUpdate.plan
             if (newPlan === 'free') {
@@ -150,7 +151,7 @@ export async function PATCH(
                 cleanUpdate.grace_until = null
                 cleanUpdate.account_lifecycle_status = 'inactive'
             } else {
-                const paidUntil = resolvePaidUntilForPlanChange('monthly', Date.now())
+                const paidUntil = resolvePaidUntilForPlanChange(billingCycle, Date.now())
                 cleanUpdate.paid_until = paidUntil
                 cleanUpdate.grace_until = resolveGraceUntilFromPaidUntil(paidUntil)
                 cleanUpdate.account_lifecycle_status = 'paid_active'
@@ -180,10 +181,11 @@ export async function PATCH(
                     .single()
 
                 if (planData) {
-                    if (planData.credits_included > 0) {
+                    const creditsToAdd = (planData.credits_included || 0) * (billingCycle === 'yearly' ? 12 : 1)
+                    if (creditsToAdd > 0) {
                         const { data: currentProfile } = await adminSupabase
                             .from('profiles').select('credits_balance').eq('id', id).single()
-                        const newBalance = (currentProfile?.credits_balance || 0) + planData.credits_included
+                        const newBalance = (currentProfile?.credits_balance || 0) + creditsToAdd
                         await adminSupabase.from('profiles')
                             .update({ credits_balance: newBalance })
                             .eq('id', id)
@@ -196,15 +198,15 @@ export async function PATCH(
                         payment_provider: 'admin',
                         payment_type: 'subscription',
                         payment_method_source: 'manual',
-                        description: `Abonnement ${planData.name || cleanUpdate.plan} attribué manuellement`,
-                        credits_purchased: planData.credits_included || 0,
+                        description: `Abonnement ${planData.name || cleanUpdate.plan} (${billingCycle === 'yearly' ? 'annuel' : 'mensuel'}) attribué manuellement`,
+                        credits_purchased: creditsToAdd,
                         completed_at: new Date().toISOString()
                     })
                 }
             } catch { /* non-bloquant */ }
         }
 
-        await logAdminAction(user.id, 'update_user_profile', id, 'profile', cleanUpdate)
+        await logAdminAction(user.id, 'update_user_profile', id, 'profile', cleanUpdate.plan ? { ...cleanUpdate, billing_period: billingCycle } : cleanUpdate)
 
         return successResponse({ message: 'Profil mis à jour' })
     } catch (err) {

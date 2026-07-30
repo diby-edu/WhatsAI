@@ -597,6 +597,7 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSu
     const [name, setName] = useState(user.full_name || user.name || '')
     const [phone, setPhone] = useState(user.phone || '')
     const [plan, setPlan] = useState(user.plan || 'Free')
+    const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly')
     const [credits, setCredits] = useState<number>(0)
 
     const inputStyle = {
@@ -644,7 +645,19 @@ function EditUserModal({ user, onClose, onSave, onSetCredits, onAddCredits, onSu
                         </select>
                     </div>
 
-                    <button onClick={() => onSave({ full_name: name, phone, plan: plan.toLowerCase() })}
+                    {plan.toLowerCase() !== 'free' && (
+                        <div>
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>
+                                Période de facturation <span style={{ color: '#64748b' }}>(détermine la nouvelle échéance)</span>
+                            </label>
+                            <select value={billingPeriod} onChange={e => setBillingPeriod(e.target.value as 'monthly' | 'yearly')} style={inputStyle}>
+                                <option value="monthly">Mensuel — +1 mois</option>
+                                <option value="yearly">Annuel — +1 an (crédits x12)</option>
+                            </select>
+                        </div>
+                    )}
+
+                    <button onClick={() => onSave({ full_name: name, phone, plan: plan.toLowerCase(), billing_period: billingPeriod })}
                         style={{
                             width: '100%', padding: 12, borderRadius: 10,
                             background: 'linear-gradient(135deg, #10b981, #059669)',
