@@ -366,8 +366,8 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                     <div className="agent-grid-3" style={{ gap: 12, marginBottom: 8 }}>
                         {[
                             { key: 'none', label: 'Aucun' },
-                            { key: 'free', label: 'Gratuite' },
                             { key: 'zones', label: 'Payante' },
+                            { key: 'free', label: 'Gratuite' },
                         ].map(opt => (
                             <button key={opt.key} type="button"
                                 onClick={() => {
