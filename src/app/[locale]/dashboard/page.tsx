@@ -155,46 +155,6 @@ export default function DashboardPage() {
         <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(16px, 4vw, 32px)', maxWidth: '100%', overflow: 'hidden' }}>
             <OnboardingChecklist />
 
-            {/* Quick Actions - au-dessus du titre */}
-            <div style={{
-                background: 'rgba(15, 23, 42, 0.6)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(148, 163, 184, 0.1)',
-                borderRadius: 16,
-                padding: 24
-            }}>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('quickActions')}</h2>
-                <div className="dashboard-quick-actions" style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                    gap: 16
-                }}>
-                    {[
-                        { href: '/dashboard/agents/new', icon: Bot, label: t('actions.createAgent'), color: '#10b981' },
-                        { href: '/dashboard/knowledge', icon: BookOpen, label: t('actions.knowledgeBase'), color: '#3b82f6' },
-                        { href: '/dashboard/products/new', icon: Package, label: t('actions.addProduct'), color: '#a855f7' },
-                        { href: '/dashboard/billing', icon: Zap, label: t('actions.buyCredits'), color: '#f97316' },
-                    ].map((action) => (
-                        <a
-                            key={action.href}
-                            href={action.href}
-                            style={{
-                                padding: 16,
-                                borderRadius: 12,
-                                border: '1px solid rgba(148, 163, 184, 0.1)',
-                                textAlign: 'center',
-                                textDecoration: 'none',
-                                transition: 'all 0.2s',
-                                display: 'block'
-                            }}
-                        >
-                            <action.icon style={{ width: 32, height: 32, margin: '0 auto 8px', color: action.color }} />
-                            <span style={{ fontSize: 14, fontWeight: 500, color: 'white' }}>{action.label}</span>
-                        </a>
-                    ))}
-                </div>
-            </div>
-
             {/* Header with user name */}
             <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
@@ -316,6 +276,46 @@ export default function DashboardPage() {
                         <div style={{ fontSize: 14, color: '#94a3b8' }}>{stat.label}</div>
                     </motion.div>
                 ))}
+            </div>
+
+            {/* Quick Actions */}
+            <div style={{
+                background: 'rgba(15, 23, 42, 0.6)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(148, 163, 184, 0.1)',
+                borderRadius: 16,
+                padding: 24
+            }}>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'white', marginBottom: 16 }}>{t('quickActions')}</h2>
+                <div className="dashboard-quick-actions" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                    gap: 16
+                }}>
+                    {[
+                        { href: '/dashboard/agents/new', icon: Bot, label: t('actions.createAgent'), color: '#10b981' },
+                        { href: '/dashboard/knowledge', icon: BookOpen, label: t('actions.knowledgeBase'), color: '#3b82f6' },
+                        { href: '/dashboard/products/new', icon: Package, label: t('actions.addProduct'), color: '#a855f7' },
+                        { href: '/dashboard/billing', icon: Zap, label: t('actions.buyCredits'), color: '#f97316' },
+                    ].map((action) => (
+                        <a
+                            key={action.href}
+                            href={action.href}
+                            style={{
+                                padding: 16,
+                                borderRadius: 12,
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                textAlign: 'center',
+                                textDecoration: 'none',
+                                transition: 'all 0.2s',
+                                display: 'block'
+                            }}
+                        >
+                            <action.icon style={{ width: 32, height: 32, margin: '0 auto 8px', color: action.color }} />
+                            <span style={{ fontSize: 14, fontWeight: 500, color: 'white' }}>{action.label}</span>
+                        </a>
+                    ))}
+                </div>
             </div>
 
             {/* Main Content Grid */}
