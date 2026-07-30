@@ -301,7 +301,7 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                     </div>
                     {formData.delivery_fee_mode !== 'zones' && (
                         <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-                            {formData.delivery_fee_mode === 'none' && "Aucune mention de livraison par l'agent — utile si le prix inclut déjà la livraison, ou si elle est négociée manuellement après la commande."}
+                            {formData.delivery_fee_mode === 'none' && "L'agent ne mentionne pas la livraison — à réserver aux cas où vous préférez en discuter vous-même avec le client après la commande (tarif variable, livraison gérée au cas par cas). Si le prix inclut déjà la livraison, choisissez plutôt \"Gratuite\" : c'est un argument de vente que le client appréciera."}
                             {formData.delivery_fee_mode === 'free' && "L'agent annonce explicitement au client que la livraison est gratuite."}
                         </p>
                     )}
