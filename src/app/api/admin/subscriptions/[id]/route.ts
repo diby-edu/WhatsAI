@@ -43,7 +43,7 @@ export async function PATCH(
                 const { data: planData } = await adminSupabase
                     .from('subscription_plans')
                     .select('credits_included')
-                    .eq('id', plan)
+                    .ilike('name', plan)
                     .single()
                 if (planData?.credits_included) creditsToAdd = planData.credits_included * (billingPeriod === 'annual' ? 12 : 1)
             } catch { /* non-bloquant */ }

@@ -176,8 +176,8 @@ export async function PATCH(
             try {
                 const { data: planData } = await adminSupabase
                     .from('subscription_plans')
-                    .select('credits_included, name, price')
-                    .eq('id', cleanUpdate.plan)
+                    .select('credits_included, name')
+                    .ilike('name', cleanUpdate.plan)
                     .single()
 
                 if (planData) {
