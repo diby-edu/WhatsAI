@@ -929,20 +929,23 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             aiResponse.imageActions = [...preImageActions, ...(aiResponse.imageActions || [])]
         }
 
-        // Ajouter les images produits si l'IA mentionne un produit avec image (écommerce uniquement)
+        // Ajouter l'image produit si l'IA mentionne UN SEUL produit avec image (écommerce uniquement).
+        // Limité à 1 volontairement : quand le bot liste le catalogue par nom (ex: message
+        // d'accueil "Voici notre carte : 1. X 2. Y"), plusieurs noms de produits apparaissent
+        // dans le même texte — sans cette limite, ce filet de sécurité renvoyait les images de
+        // TOUS les produits mentionnés, y compris lors d'un simple listing non sollicité.
         if (!isSupportClientMode && orderableProducts.length > 0 && aiResponse.content) {
             const responseTextLower = aiResponse.content.toLowerCase()
             const mentionedProductImages = orderableProducts
                 .filter(p => p.image_url && p.name && responseTextLower.includes(p.name.toLowerCase()))
-                .slice(0, 2)
                 .map(p => ({
                     image_url: p.image_url,
                     caption: `${p.name}${p.price ? ` — ${Number(p.price).toLocaleString('fr-FR')} FCFA` : ''}`,
                     product_name: p.name
                 }))
-            if (mentionedProductImages.length > 0) {
+            if (mentionedProductImages.length === 1) {
                 aiResponse.imageActions = [...(aiResponse.imageActions || []), ...mentionedProductImages]
-                console.log(`🛍️ Product images auto-attached: ${mentionedProductImages.map(i => i.product_name).join(', ')}`)
+                console.log(`🛍️ Product image auto-attached: ${mentionedProductImages[0].product_name}`)
             }
         }
 
