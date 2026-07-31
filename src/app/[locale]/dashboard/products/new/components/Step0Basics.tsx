@@ -35,7 +35,6 @@ interface Step0BasicsProps {
     isProductTypeDisabled: (typeId: string) => boolean
     isProductTypeSoon: (typeId: string) => boolean | undefined | ''
     selectProductType: (nextType: string) => void
-    selectServiceSubtype: (subtype: string) => void
     batchMode: boolean
     setBatchMode: Dispatch<SetStateAction<boolean>>
     batchItems: BatchItem[]
@@ -61,7 +60,6 @@ export function Step0Basics({
     isProductTypeDisabled,
     isProductTypeSoon,
     selectProductType,
-    selectServiceSubtype,
     batchMode,
     setBatchMode,
     batchItems,
@@ -86,14 +84,18 @@ export function Step0Basics({
                         {getDisabledReason()}
                     </p>
                 )}
-                <div className="agent-grid-3">
+                <div className="agent-grid-2">
                     {[
                         { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
                         { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
-                        { id: 'service', label: '🛠️ Service', desc: 'Prestation' }
+                        { id: 'restaurant', label: '🍽️ Restaurant / Bar', desc: 'Menu, table, livraison' },
+                        { id: 'hotel', label: '🏨 Hôtel / Hébergement', desc: 'Chambres, réservations' },
                     ].map(type => {
                         const isDisabled = isProductTypeDisabled(type.id)
                         const isSoon = isProductTypeSoon(type.id)
+                        const isSelected = (type.id === 'product' || type.id === 'digital')
+                            ? formData.product_type === type.id
+                            : formData.product_type === 'service' && formData.service_subtype === type.id
                         return (
                             <button
                                 key={type.id}
@@ -103,8 +105,8 @@ export function Step0Basics({
                                 style={{
                                     padding: 16,
                                     borderRadius: 12,
-                                    border: formData.product_type === type.id ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
-                                    background: formData.product_type === type.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                    border: isSelected ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                    background: isSelected ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
                                     textAlign: 'center',
                                     cursor: isDisabled ? 'not-allowed' : 'pointer',
                                     opacity: isDisabled ? 0.45 : 1,
@@ -123,56 +125,6 @@ export function Step0Basics({
                     })}
                 </div>
             </div>
-
-            {/* SERVICE SUBTYPE SELECTOR (v2.19) */}
-            {
-                formData.product_type === 'service' && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                    >
-                        <label style={labelStyle}>Catégorie de Service (Important pour l'IA)</label>
-                        <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-                            Permet à l'IA de poser les bonnes questions (ex: Restaurat = nb couverts, Hotel = Check-in/out).
-                        </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                            {[
-                                { id: 'restaurant', icon: '🍽️', label: 'Restaurant / Bar' },
-                                { id: 'hotel', icon: '🏨', label: 'Hôtel / Hébergement' },
-                                { id: 'coiffeur', icon: '💇', label: 'Coiffure / Beauté' },
-                                { id: 'medecin', icon: '🩺', label: 'Santé / Clinique' },
-                                { id: 'formation', icon: '🎓', label: 'Formation / Atelier' },
-                                { id: 'event', icon: '🎟️', label: 'Événement' },
-                                { id: 'coaching', icon: '🧠', label: 'Coaching / Conseil' },
-                                { id: 'rental', icon: '🚗', label: 'Location (Voiture/Mat.)' },
-                                { id: 'other', icon: '🧩', label: 'Autre Service' }
-                            ].map(sub => (
-                                <button
-                                    key={sub.id}
-                                    type="button"
-                                    onClick={() => selectServiceSubtype(sub.id)}
-                                    style={{
-                                        padding: '10px',
-                                        borderRadius: 8,
-                                        border: formData.service_subtype === sub.id ? '2px solid #a855f7' : '1px solid rgba(148, 163, 184, 0.2)',
-                                        background: formData.service_subtype === sub.id ? 'rgba(168, 85, 247, 0.1)' : 'rgba(30, 41, 59, 0.5)',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 8,
-                                        color: 'white',
-                                        fontSize: 13
-                                    }}
-                                >
-                                    <span style={{ fontSize: 16 }}>{sub.icon}</span>
-                                    {sub.label}
-                                </button>
-                            ))}
-                        </div>
-                    </motion.div>
-                )
-            }
 
             {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
                 <motion.div

@@ -244,32 +244,28 @@ export default function NewProductPage() {
         }
     }, [agents])
 
+    // "restaurant"/"hotel" sont des cartes "Type de produit" à part entière côté UI,
+    // mais restent stockés comme product_type='service' + service_subtype en base
+    // (le moteur de reservation/menu existant repose sur cette combinaison).
     const selectProductType = (nextType: string) => {
-        setFormData(prev => {
-            const nextState = { ...prev, product_type: nextType }
+        if (nextType === 'restaurant' || nextType === 'hotel') {
+            localStorage.setItem('product_last_service_subtype', nextType)
+            setFormData(prev => ({
+                ...prev,
+                product_type: 'service',
+                service_subtype: nextType,
+                menu_section_slug: nextType === 'restaurant' ? prev.menu_section_slug : '',
+                menu_sort_order: nextType === 'restaurant' ? prev.menu_sort_order : '',
+            }))
+            return
+        }
 
-            if (nextType !== 'service') {
-                nextState.service_subtype = ''
-                nextState.menu_section_slug = ''
-                nextState.menu_sort_order = ''
-                return nextState
-            }
-
-            if (!nextState.service_subtype) {
-                nextState.service_subtype = localStorage.getItem('product_last_service_subtype') || ''
-            }
-
-            return nextState
-        })
-    }
-
-    const selectServiceSubtype = (subtype: string) => {
-        localStorage.setItem('product_last_service_subtype', subtype)
         setFormData(prev => ({
             ...prev,
-            service_subtype: subtype,
-            menu_section_slug: subtype === 'restaurant' ? prev.menu_section_slug : '',
-            menu_sort_order: subtype === 'restaurant' ? prev.menu_sort_order : '',
+            product_type: nextType,
+            service_subtype: '',
+            menu_section_slug: '',
+            menu_sort_order: '',
         }))
     }
 
@@ -281,7 +277,7 @@ export default function NewProductPage() {
 
             const { data: products } = await supabase
                 .from('products')
-                .select('product_type')
+                .select('product_type, service_subtype')
                 .eq('user_id', user.id)
                 .limit(50)
 
@@ -292,7 +288,8 @@ export default function NewProductPage() {
                 // Auto-switch selection if current default is invalid
                 const hasService = types.includes('service')
                 if (hasService) {
-                    setFormData(prev => ({ ...prev, product_type: 'service' }))
+                    const existingSubtype = products.find((p: { product_type: string; service_subtype: string | null }) => p.product_type === 'service')?.service_subtype || ''
+                    setFormData(prev => ({ ...prev, product_type: 'service', service_subtype: existingSubtype }))
                 }
             }
         } catch (e) {
@@ -303,20 +300,21 @@ export default function NewProductPage() {
     // v2.30: Check if a product type should be disabled based on isolation rules + feature flags
     const isProductTypeDisabled = (typeId: string) => {
         // Vérifier le feature flag (si flags chargés et flag = false → grisé)
-        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', service: 'product_service' }
+        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', restaurant: 'product_service', hotel: 'product_service' }
         const flagKey = flagMap[typeId]
         if (flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false) return true
 
         if (existingProductTypes.length === 0) return false
+        const isServiceType = typeId === 'restaurant' || typeId === 'hotel'
         const hasService = existingProductTypes.includes('service')
         const hasNonService = existingProductTypes.some(t => t === 'product' || t === 'digital')
         if (hasService && (typeId === 'product' || typeId === 'digital')) return true
-        if (hasNonService && typeId === 'service') return true
+        if (hasNonService && isServiceType) return true
         return false
     }
 
     const isProductTypeSoon = (typeId: string) => {
-        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', service: 'product_service' }
+        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', restaurant: 'product_service', hotel: 'product_service' }
         const flagKey = flagMap[typeId]
         return flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false
     }
@@ -661,7 +659,6 @@ export default function NewProductPage() {
                         isProductTypeDisabled={isProductTypeDisabled}
                         isProductTypeSoon={isProductTypeSoon}
                         selectProductType={selectProductType}
-                        selectServiceSubtype={selectServiceSubtype}
                         batchMode={batchMode}
                         setBatchMode={setBatchMode}
                         batchItems={batchItems}

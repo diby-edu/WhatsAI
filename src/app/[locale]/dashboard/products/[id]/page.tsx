@@ -126,26 +126,27 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+    // "restaurant"/"hotel" sont des cartes "Type de produit" à part entière côté UI,
+    // mais restent stockés comme product_type='service' + service_subtype en base
+    // (le moteur de reservation/menu existant repose sur cette combinaison).
     const selectProductType = (nextType: string) => {
-        setFormData(prev => {
-            const nextState = { ...prev, product_type: nextType }
+        if (nextType === 'restaurant' || nextType === 'hotel') {
+            setFormData(prev => ({
+                ...prev,
+                product_type: 'service',
+                service_subtype: nextType,
+                menu_section_slug: nextType === 'restaurant' ? prev.menu_section_slug : '',
+                menu_sort_order: nextType === 'restaurant' ? prev.menu_sort_order : '',
+            }))
+            return
+        }
 
-            if (nextType !== 'service') {
-                nextState.service_subtype = ''
-                nextState.menu_section_slug = ''
-                nextState.menu_sort_order = ''
-            }
-
-            return nextState
-        })
-    }
-
-    const selectServiceSubtype = (subtype: string) => {
         setFormData(prev => ({
             ...prev,
-            service_subtype: subtype,
-            menu_section_slug: subtype === 'restaurant' ? prev.menu_section_slug : '',
-            menu_sort_order: subtype === 'restaurant' ? prev.menu_sort_order : '',
+            product_type: nextType,
+            service_subtype: '',
+            menu_section_slug: '',
+            menu_sort_order: '',
         }))
     }
 
@@ -389,7 +390,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         setFormData={setFormData}
                         featureFlags={featureFlags}
                         selectProductType={selectProductType}
-                        selectServiceSubtype={selectServiceSubtype}
                         getServicePlaceholders={getServicePlaceholders}
                         fileInputRef={fileInputRef}
                         uploading={uploading}

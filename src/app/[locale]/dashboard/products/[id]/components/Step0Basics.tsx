@@ -25,7 +25,6 @@ interface Step0BasicsProps {
     setFormData: Dispatch<SetStateAction<ProductFormData>>
     featureFlags: Record<string, boolean>
     selectProductType: (nextType: string) => void
-    selectServiceSubtype: (subtype: string) => void
     getServicePlaceholders: () => { name: string; category: string; descFull: string; content: string; features: string }
     fileInputRef: RefObject<HTMLInputElement | null>
     uploading: boolean
@@ -41,7 +40,6 @@ export function Step0Basics({
     setFormData,
     featureFlags,
     selectProductType,
-    selectServiceSubtype,
     getServicePlaceholders,
     fileInputRef,
     uploading,
@@ -56,15 +54,19 @@ export function Step0Basics({
             {/* Product Type Selection */}
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                 <label className="block text-slate-300 font-medium mb-3">Type de produit</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     {[
                         { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
                         { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
-                        { id: 'service', label: '🛠️ Service', desc: 'Prestation' }
+                        { id: 'restaurant', label: '🍽️ Restaurant / Bar', desc: 'Menu, table, livraison' },
+                        { id: 'hotel', label: '🏨 Hôtel / Hébergement', desc: 'Chambres, réservations' },
                     ].map(type => {
-                        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', service: 'product_service' }
+                        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', restaurant: 'product_service', hotel: 'product_service' }
                         const flagKey = flagMap[type.id]
-                        const isSoon = flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false && formData.product_type !== type.id
+                        const isSelected = (type.id === 'product' || type.id === 'digital')
+                            ? formData.product_type === type.id
+                            : formData.product_type === 'service' && formData.service_subtype === type.id
+                        const isSoon = flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false && !isSelected
                         return (
                         <button
                             key={type.id}
@@ -72,7 +74,7 @@ export function Step0Basics({
                             disabled={!!isSoon}
                             onClick={() => !isSoon && selectProductType(type.id)}
                             style={{ position: 'relative', opacity: isSoon ? 0.45 : 1, cursor: isSoon ? 'not-allowed' : 'pointer' }}
-                            className={`p-4 rounded-lg border text-center transition-all ${formData.product_type === type.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
+                            className={`p-4 rounded-lg border text-center transition-all ${isSelected ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
                         >
                             {isSoon && (
                                 <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 6px', borderRadius: 20, letterSpacing: '0.05em' }}>
@@ -86,38 +88,6 @@ export function Step0Basics({
                     })}
                 </div>
             </div>
-
-            {/* Service subtype selector */}
-            {formData.product_type === 'service' && (
-                <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                    <label className="block text-slate-300 font-medium mb-1">Catégorie de Service (Important pour l'IA)</label>
-                    <p className="text-xs text-slate-400 mb-3">Permet à l'IA de poser les bonnes questions selon le type de service.</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                        {[
-                            { id: 'restaurant', icon: '🍽️', label: 'Restaurant / Bar' },
-                            { id: 'hotel', icon: '🏨', label: 'Hôtel / Hébergement' },
-                            { id: 'coiffeur', icon: '💇', label: 'Coiffure / Beauté' },
-                            { id: 'medecin', icon: '🩺', label: 'Santé / Clinique' },
-                            { id: 'formation', icon: '🎓', label: 'Formation / Atelier' },
-                            { id: 'event', icon: '🎟️', label: 'Événement' },
-                            { id: 'coaching', icon: '🧠', label: 'Coaching / Conseil' },
-                            { id: 'rental', icon: '🚗', label: 'Location (Voiture/Mat.)' },
-                            { id: 'other', icon: '🧩', label: 'Autre Service' }
-                        ].map(sub => (
-                            <button key={sub.id} type="button"
-                                onClick={() => selectServiceSubtype(sub.id)}
-                                style={{
-                                    padding: '10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', gap: 8, color: 'white', fontSize: 13,
-                                    border: formData.service_subtype === sub.id ? '2px solid #a855f7' : '1px solid rgba(148,163,184,0.2)',
-                                    background: formData.service_subtype === sub.id ? 'rgba(168,85,247,0.1)' : 'rgba(30,41,59,0.5)'
-                                }}>
-                                <span style={{ fontSize: 16 }}>{sub.icon}</span>{sub.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
 
             {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
                 <div className="bg-emerald-500/5 p-6 rounded-xl border border-emerald-500/20">
