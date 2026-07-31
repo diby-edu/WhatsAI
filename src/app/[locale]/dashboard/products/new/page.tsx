@@ -757,7 +757,12 @@ export default function NewProductPage() {
                 {currentStep < steps.length - 1 ? (
                     <button
                         onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
-                        style={buttonPrimaryStyle}
+                        disabled={currentStep === 0 && !formData.agent_id}
+                        style={{
+                            ...buttonPrimaryStyle,
+                            opacity: (currentStep === 0 && !formData.agent_id) ? 0.5 : 1,
+                            cursor: (currentStep === 0 && !formData.agent_id) ? 'not-allowed' : 'pointer'
+                        }}
                     >
                         Suivant
                         <ArrowRight style={{ width: 16, height: 16 }} />

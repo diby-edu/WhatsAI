@@ -518,7 +518,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     {currentStep < STEPS.length - 1 ? (
                         <button
                             onClick={() => setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))}
-                            className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+                            disabled={currentStep === 0 && !formData.agent_id}
+                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all ${(currentStep === 0 && !formData.agent_id) ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-slate-200'}`}
                         >
                             Suivant <ChevronRight size={20} />
                         </button>
