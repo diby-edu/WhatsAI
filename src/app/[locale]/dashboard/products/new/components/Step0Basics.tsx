@@ -440,51 +440,49 @@ export function Step0Basics({
 
             <div>
                 <label style={labelStyle}>Agent Vendeur</label>
-                <select
-                    value={formData.agent_id}
-                    onChange={e => {
-                        const selectedAgent = agents.find(a => a.id === e.target.value)
-                        if (e.target.value) localStorage.setItem('product_last_agent_id', e.target.value)
-                        const missionTypeMap: Record<string, string> = {
-                            ecommerce_digital: 'digital',
-                            ecommerce_physical: 'product',
-                        }
-                        const autoType = selectedAgent?.mission ? missionTypeMap[selectedAgent.mission] : undefined
-                        setFormData({ ...formData, agent_id: e.target.value, ...(autoType ? { product_type: autoType } : {}) })
-                    }}
-                    style={inputStyle}
-                >
-                    <option value="">Tous les agents</option>
-                    {agents.map(a => (
-                        <option key={a.id} value={a.id} disabled={!!getManualProductsBlockedReason(a)}>
-                            {a.name}
-                            {a.mission === 'support_client' ? ' (Support — KB uniquement)' : ''}
-                            {a.mission === 'ecommerce_digital' ? ' (Numérique)' : ''}
-                            {a.mission === 'ecommerce_physical' ? ' (Physique)' : ''}
-                            {a.mission === 'ecommerce' && a.ecommerce_mode === 'external_sync' ? ' (API externe uniquement)' : ''}
-                        </option>
-                    ))}
-                </select>
                 {(() => {
-                    const selectedAgent = agents.find(a => a.id === formData.agent_id)
-                    const blockedReason = getManualProductsBlockedReason(selectedAgent)
-                    if (!blockedReason) return null
+                    // Un produit ne peut etre propose que par un agent de la meme mission
+                    // (Physique -> agent Physique, Restaurant -> agent Restaurant, etc).
+                    const expectedMission = formData.product_type === 'service'
+                        ? (formData.service_subtype === 'restaurant' ? 'restaurant' : formData.service_subtype === 'hotel' ? 'hotel' : null)
+                        : ({ product: 'ecommerce_physical', digital: 'ecommerce_digital' } as Record<string, string>)[formData.product_type] || null
+                    const matchingAgents = expectedMission ? agents.filter(a => a.mission === expectedMission) : agents
+                    const typeLabel = expectedMission === 'ecommerce_physical' ? 'Physique'
+                        : expectedMission === 'ecommerce_digital' ? 'Numérique'
+                        : expectedMission === 'restaurant' ? 'Restaurant'
+                        : expectedMission === 'hotel' ? 'Hôtel'
+                        : ''
+
                     return (
-                        <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                            â›” {blockedReason}
-                        </p>
+                        <>
+                            <select
+                                value={formData.agent_id}
+                                onChange={e => {
+                                    if (e.target.value) localStorage.setItem('product_last_agent_id', e.target.value)
+                                    setFormData({ ...formData, agent_id: e.target.value })
+                                }}
+                                style={inputStyle}
+                            >
+                                <option value="">Tous les agents {typeLabel && `(${typeLabel})`}</option>
+                                {matchingAgents.map(a => (
+                                    <option key={a.id} value={a.id} disabled={!!getManualProductsBlockedReason(a)}>
+                                        {a.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {matchingAgents.length === 0 && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    ⛔ Aucun agent {typeLabel ? `"${typeLabel}"` : 'correspondant'} pour le moment. Créez-en un d'abord pour lui attribuer ce produit.
+                                </p>
+                            )}
+                            {!formData.agent_id && matchingAgents.length > 1 && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    ⚠️ Ce produit sera proposé par <strong>tous vos agents {typeLabel}</strong>. Sélectionnez un agent pour le restreindre.
+                                </p>
+                            )}
+                        </>
                     )
                 })()}
-                {formData.agent_id && !getManualProductsBlockedReason(agents.find(a => a.id === formData.agent_id)) && agents.find(a => a.id === formData.agent_id)?.mission === 'support_client' && (
-                    <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                        ⛔ Les agents Support Client n'acceptent pas de produits. Utilisez la Base de Connaissances pour cet agent.
-                    </p>
-                )}
-                {!formData.agent_id && agents.length > 1 && (
-                    <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                        ⚠️ Ce produit sera proposé par <strong>tous vos agents</strong>. Sélectionnez un agent pour le restreindre.
-                    </p>
-                )}
             </div>
         </div >
     )

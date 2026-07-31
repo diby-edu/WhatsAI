@@ -31,6 +31,7 @@ interface Product {
     variants: Variant[] | null
     agent_id: string | null
     product_type: string | null
+    service_subtype: string | null
     created_at: string
 }
 
@@ -42,7 +43,20 @@ interface Agent {
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
     product: 'Physique',
     digital: 'Numérique',
-    service: 'Service',
+    restaurant: 'Restaurant / Bar',
+    hotel: 'Hôtel / Hébergement',
+}
+
+// "restaurant"/"hotel" restent stockes en base comme product_type='service' +
+// service_subtype — cette fonction reconstitue la cle d'affichage a partir des deux.
+function getProductTypeKey(product: Pick<Product, 'product_type' | 'service_subtype'>): string {
+    if (product.product_type === 'service') return product.service_subtype || 'service'
+    return product.product_type || 'product'
+}
+
+function getProductTypeLabel(product: Pick<Product, 'product_type' | 'service_subtype'>): string {
+    const key = getProductTypeKey(product)
+    return PRODUCT_TYPE_LABELS[key] || key
 }
 
 export default function ProductsPage() {
@@ -150,13 +164,13 @@ export default function ProductsPage() {
         setSelectedIds(new Set())
     }
 
-    const availableTypes = [...new Set(products.map(p => p.product_type || 'product'))].filter(Boolean)
+    const availableTypes = [...new Set(products.map(p => getProductTypeKey(p)))].filter(Boolean)
 
     const filteredProducts = products.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.category?.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesAgent = agentFilter === 'all' || p.agent_id === agentFilter
-        const matchesType = typeFilter.length === 0 || typeFilter.includes(p.product_type || 'product')
+        const matchesType = typeFilter.length === 0 || typeFilter.includes(getProductTypeKey(p))
         return matchesSearch && matchesAgent && matchesType
     })
 
@@ -343,9 +357,10 @@ export default function ProductsPage() {
                     {availableTypes.map(type => {
                         const active = typeFilter.includes(type)
                         const colorMap: Record<string, { bg: string; color: string; border: string }> = {
-                            product:  { bg: 'rgba(99,102,241,0.15)',  color: '#a5b4fc', border: 'rgba(99,102,241,0.4)' },
-                            digital:  { bg: 'rgba(16,185,129,0.15)',  color: '#6ee7b7', border: 'rgba(16,185,129,0.4)' },
-                            service:  { bg: 'rgba(251,191,36,0.15)',  color: '#fcd34d', border: 'rgba(251,191,36,0.4)' },
+                            product:    { bg: 'rgba(99,102,241,0.15)',  color: '#a5b4fc', border: 'rgba(99,102,241,0.4)' },
+                            digital:    { bg: 'rgba(16,185,129,0.15)',  color: '#6ee7b7', border: 'rgba(16,185,129,0.4)' },
+                            restaurant: { bg: 'rgba(251,191,36,0.15)',  color: '#fcd34d', border: 'rgba(251,191,36,0.4)' },
+                            hotel:      { bg: 'rgba(251,191,36,0.15)',  color: '#fcd34d', border: 'rgba(251,191,36,0.4)' },
                         }
                         const colors = colorMap[type] || { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8', border: 'rgba(100,116,139,0.3)' }
                         return (
@@ -532,7 +547,7 @@ export default function ProductsPage() {
                                                     : '#a5b4fc',
                                                 fontWeight: 500
                                             }}>
-                                                {PRODUCT_TYPE_LABELS[product.product_type] || product.product_type}
+                                                {getProductTypeLabel(product)}
                                             </span>
                                         )}
                                         {(() => {
