@@ -1,17 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Palette, Ruler, Scale, Settings } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { VariantCategory, VariantGroup, VariantOption } from './types'
 import { CATEGORY_VALUE_SUGGESTIONS } from './helpers'
 import VariantGroupEditor from './VariantGroupEditor'
 
-const PHYSICAL_TABS: { category: VariantCategory; icon: any; label: string }[] = [
-    { category: 'visual', icon: Palette, label: 'Couleur' },
-    { category: 'size', icon: Ruler, label: 'Taille' },
-    { category: 'weight', icon: Scale, label: 'Poids' },
-    { category: 'custom', icon: Settings, label: 'Autre' },
+const PHYSICAL_TABS: { category: VariantCategory; icon: string; label: string }[] = [
+    { category: 'visual', icon: '🎨', label: 'Couleur' },
+    { category: 'size', icon: '📏', label: 'Taille' },
+    { category: 'weight', icon: '⚖️', label: 'Poids' },
+    { category: 'custom', icon: '✨', label: 'Autre' },
 ]
 
 interface PhysicalVariantsEditorProps {
@@ -69,7 +68,6 @@ export default function PhysicalVariantsEditor({
                     const group = groupFor(tab.category)
                     const filled = !!group && group.options.length > 0
                     const isActive = activeTab === tab.category
-                    const Icon = tab.icon
                     return (
                         <button
                             type="button"
@@ -86,7 +84,7 @@ export default function PhysicalVariantsEditor({
                                 transition: 'all 0.15s',
                             }}
                         >
-                            <Icon size={22} style={{ margin: '0 auto 6px', color: isActive ? '#34d399' : '#94a3b8' }} />
+                            <div style={{ fontSize: 22, lineHeight: 1, margin: '0 auto 6px' }}>{tab.icon}</div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? '#e2e8f0' : '#cbd5e1' }}>
                                 {tab.label}
                             </div>
