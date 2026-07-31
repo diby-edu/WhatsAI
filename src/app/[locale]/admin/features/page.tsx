@@ -47,6 +47,8 @@ const ALL_FEATURES: Omit<FeatureFlag, 'enabled'>[] = [
     { id: '9',  name: 'Restaurant / Fast-food',   key: 'agent_restaurant',         description: 'Commandes en ligne ou livraison, réservations de tables, menu en temps réel.', icon: UtensilsCrossed, category: 'Missions' },
     { id: '10', name: 'Hôtel / Hébergement',      key: 'agent_hotel',              description: 'Réservations de chambres, tarifs et services hôteliers.',        icon: Hotel,           category: 'Missions' },
     { id: '13', name: 'Personnalisé',              key: 'agent_custom',             description: 'Agent sur mesure sans template prédéfini.', icon: PenLine,         category: 'Missions' },
+    { id: '19', name: 'Type de produit : Physique', key: 'product_physical',        description: 'Autorise la création de produits "Physique" dans le catalogue (distinct du flag agent).', icon: Package, category: 'Types de produit' },
+    { id: '20', name: 'Type de produit : Service',  key: 'product_service',         description: 'Autorise la création de produits "Service" dans le catalogue (distinct du flag agent).',  icon: PenLine, category: 'Types de produit' },
 ]
 
 const PLAN_COLORS: Record<string, string> = {
@@ -76,9 +78,10 @@ export default function AdminFeaturesPage() {
     const [userFlagsSaving, setUserFlagsSaving] = useState(false)
     const [userFlagsSaved, setUserFlagsSaved] = useState(false)
     const [modalOpen, setModalOpen] = useState(false)
+    const [userOverrides, setUserOverrides] = useState<Record<string, string[]>>({})
 
     useEffect(() => { fetchFeatures() }, [])
-    useEffect(() => { if (activeTab === 'users') fetchUsers() }, [activeTab])
+    useEffect(() => { if (activeTab === 'users') { fetchUsers(); fetchAllOverrides() } }, [activeTab])
 
     const fetchFeatures = async () => {
         setLoading(true)
@@ -110,6 +113,20 @@ export default function AdminFeaturesPage() {
         } catch { } finally { setUsersLoading(false) }
     }
 
+    const fetchAllOverrides = async () => {
+        try {
+            const res = await fetch('/api/admin/user-features')
+            const data = await res.json()
+            const map: Record<string, string[]> = {}
+            for (const f of data.data?.flags || []) {
+                if (!f.enabled) continue
+                if (!map[f.user_id]) map[f.user_id] = []
+                map[f.user_id].push(f.feature_key)
+            }
+            setUserOverrides(map)
+        } catch { }
+    }
+
     const openUserModal = async (user: UserProfile) => {
         setSelectedUser(user)
         setUserFlags({})
@@ -128,7 +145,7 @@ export default function AdminFeaturesPage() {
         setUserFlagsSaving(true)
         try {
             const missionProductKeys = ALL_FEATURES
-                .filter(f => f.category === 'Missions')
+                .filter(f => f.category === 'Missions' || f.category === 'Types de produit')
                 .map(f => f.key)
             const features = missionProductKeys.map(key => ({ key, enabled: userFlags[key] ?? false }))
             await fetch('/api/admin/user-features', {
@@ -137,6 +154,7 @@ export default function AdminFeaturesPage() {
                 body: JSON.stringify({ user_id: selectedUser.id, features })
             })
             setUserFlagsSaved(true)
+            fetchAllOverrides()
             setTimeout(() => setUserFlagsSaved(false), 2000)
         } catch { } finally { setUserFlagsSaving(false) }
     }
@@ -164,7 +182,7 @@ export default function AdminFeaturesPage() {
         u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase())
     )
-    const missionProductFeatures = ALL_FEATURES.filter(f => f.category === 'Missions')
+    const missionProductFeatures = ALL_FEATURES.filter(f => f.category === 'Missions' || f.category === 'Types de produit')
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -287,7 +305,7 @@ export default function AdminFeaturesPage() {
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.1)' }}>
-                                    {['Utilisateur', 'Email', 'Plan', 'Action'].map(h => (
+                                    {['Utilisateur', 'Email', 'Plan', 'Flags actifs', 'Action'].map(h => (
                                         <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>{h}</th>
                                     ))}
                                 </tr>
@@ -301,6 +319,19 @@ export default function AdminFeaturesPage() {
                                             <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: `${PLAN_COLORS[u.plan] || '#64748b'}22`, color: PLAN_COLORS[u.plan] || '#64748b', textTransform: 'uppercase' }}>
                                                 {u.plan || 'free'}
                                             </span>
+                                        </td>
+                                        <td style={{ padding: '12px 16px' }}>
+                                            {(userOverrides[u.id] || []).length === 0 ? (
+                                                <span style={{ color: '#475569', fontSize: 12 }}>—</span>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                    {(userOverrides[u.id] || []).map(key => (
+                                                        <span key={key} style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500, background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
+                                                            {ALL_FEATURES.find(f => f.key === key)?.name || key}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
                                             <button onClick={() => openUserModal(u)} style={{ padding: '6px 14px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, color: '#34d399', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
