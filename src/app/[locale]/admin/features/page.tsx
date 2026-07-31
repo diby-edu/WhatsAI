@@ -104,9 +104,9 @@ export default function AdminFeaturesPage() {
     const fetchUsers = async () => {
         setUsersLoading(true)
         try {
-            const res = await fetch('/api/admin/users?limit=200')
+            const res = await fetch('/api/admin/users?pageSize=200')
             const data = await res.json()
-            setUsers(data.data?.users || [])
+            setUsers(data.data || [])
         } catch { } finally { setUsersLoading(false) }
     }
 
