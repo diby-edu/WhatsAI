@@ -390,7 +390,7 @@ export function Step0Basics({
                         ? (formData.menu_section_slug === 'drinks' ? 'Nom de la boisson'
                             : formData.menu_section_slug ? 'Nom du plat'
                             : 'Nom du plat ou de la boisson')
-                        : formData.product_type === 'service' ? 'Nom du Service'
+                        : formData.product_type === 'service' && formData.service_subtype === 'hotel' ? 'Nom de la chambre / formule'
                         : formData.product_type === 'digital' ? 'Nom du Produit Numérique' : 'Nom du Produit'}
                 </label>
                 <input

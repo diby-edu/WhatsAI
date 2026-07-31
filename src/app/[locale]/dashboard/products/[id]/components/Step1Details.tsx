@@ -60,10 +60,12 @@ export function Step1Details({
             {/* Description with AI Analysis */}
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Sparkles className="text-emerald-400" /> Description
+                    <Sparkles className="text-emerald-400" /> {formData.product_type === 'service' ? 'Description du service' : 'Description du produit'}
                 </h2>
                 <p className="text-sm text-slate-400 mb-3">
-                    Décrivez librement votre produit. L'IA extraira automatiquement les informations structurées.
+                    {formData.product_type === 'service'
+                        ? "Décrivez votre service en détail. L'IA adaptera les questions au type de service."
+                        : "Décrivez librement votre produit. L'IA extraira automatiquement les informations structurées."}
                 </p>
                 <textarea
                     value={formData.description}
@@ -150,12 +152,16 @@ export function Step1Details({
                 )}
             </div>
 
-            {/* Content Included */}
+            {/* Content Included (+ Features fusionnés pour les services) */}
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Package className="text-blue-400" /> Contenu inclus
+                    <Package className="text-blue-400" /> {formData.product_type === 'service' ? 'Inclus & Caractéristiques' : 'Contenu inclus'}
                 </h2>
-                <p className="text-sm text-slate-400 mb-3">Listez ce qui est inclus (pour logiciels, packs, etc.)</p>
+                <p className="text-sm text-slate-400 mb-3">
+                    {formData.product_type === 'service'
+                        ? "Listez ce qui est inclus et les caractéristiques de votre service"
+                        : "Listez ce qui est inclus dans le produit (pour logiciels, packs, etc.)"}
+                </p>
                 <div className="flex gap-2 mb-3 flex-wrap">
                     {formData.content_included.map((c, i) => (
                         <span key={i} className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm flex items-center gap-2">
@@ -188,7 +194,8 @@ export function Step1Details({
                 </div>
             </div>
 
-            {/* Features/Tags */}
+            {/* Features/Tags — masqué pour les services (fusionné avec content_included) */}
+            {formData.product_type !== 'service' && (
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                     <Tag className="text-emerald-400" /> Caractéristiques (Tags)
@@ -211,6 +218,7 @@ export function Step1Details({
                     <button onClick={addFeature} className="bg-slate-700 p-3 rounded-lg text-white"><Plus /></button>
                 </div>
             </div>
+            )}
 
             {/* Variants — masqué pour les produits numériques */}
             {formData.product_type !== 'digital' && (

@@ -98,14 +98,6 @@ export default function NewProductPage() {
                 content: "Ex: WiFi, Petit-déjeuner, Piscine, Vue mer, Climatisation, Room service...",
                 features: "Ex: Vue mer, Climatisation, Room service..."
             },
-            residence: {
-                name: "Ex: Appartement 2 pièces, Studio meublé...",
-                desc: "Capacité, équipements, durée minimum...",
-                category: "Location",
-                descFull: "Décrivez le logement : nombre de pièces, capacité, équipements, durée minimum de séjour...",
-                content: "Ex: Cuisine équipée, Terrasse, Parking, Bord de mer, Calme, Wifi...",
-                features: "Ex: Bord de mer, Calme, Famille..."
-            },
             restaurant: {
                 name: "Ex: Table, Menu Dégustation, Brunch...",
                 desc: "Type de réservation, capacité, formule...",
@@ -114,62 +106,6 @@ export default function NewProductPage() {
                 content: "Ex: Terrasse, Parking, Halal, Végétarien, Live music, Climatisé...",
                 features: "Ex: Halal, Végétarien, Terrasse, Live music..."
             },
-            coiffeur: {
-                name: "Ex: Coupe Homme Tendance",
-                desc: "Durée, technique utilisée...",
-                category: "Beauté",
-                descFull: "Décrivez le service : durée, technique, produits utilisés, résultat attendu...",
-                content: "Ex: Shampoing, Coupe, Brushing, Sans RDV, Domicile, Produits bio...",
-                features: "Ex: Sans RDV, Domicile, Produits bio..."
-            },
-            medecin: {
-                name: "Ex: Consultation Générale",
-                desc: "Durée, préparation nécessaire...",
-                category: "Santé",
-                descFull: "Décrivez la consultation : durée, spécialité, préparation nécessaire, documents à apporter...",
-                content: "Ex: Examen clinique, Ordonnance, Conseil, Téléconsultation, Urgence...",
-                features: "Ex: Téléconsultation, Urgence, Spécialiste..."
-            },
-            formation: {
-                name: "Ex: Formation Excel Avancé",
-                desc: "Durée, niveau requis, certificat...",
-                category: "Formation",
-                descFull: "Décrivez la formation : durée, niveau requis, objectifs, certificat délivré, matériel fourni...",
-                content: "Ex: Support PDF, Exercices, Certificat, En ligne, Présentiel...",
-                features: "Ex: En ligne, Présentiel, Débutant, Avancé..."
-            },
-            event: {
-                name: "Ex: Concert Live Didier Awadi",
-                desc: "Date, lieu, programme...",
-                category: "Événement",
-                descFull: "Décrivez l'événement : date, heure, lieu, programme, artistes/intervenants...",
-                content: "Ex: Entrée, Cocktail, Concert, VIP, Parking inclus, Dress code...",
-                features: "Ex: VIP, Parking inclus, Dress code..."
-            },
-            coaching: {
-                name: "Ex: Session Coaching Carrière",
-                desc: "Durée, objectifs, format...",
-                category: "Coaching",
-                descFull: "Décrivez la session : durée, format (visio/présentiel), objectifs, méthode...",
-                content: "Ex: Bilan, Plan d'action, Suivi, Visio, Individuel, Groupe...",
-                features: "Ex: Visio, Individuel, Groupe..."
-            },
-            rental: {
-                name: "Ex: Citadine, SUV, Camion 20m³...",
-                desc: "Type de véhicule/matériel, caractéristiques...",
-                category: "Location",
-                descFull: "Décrivez le véhicule/matériel : caractéristiques, conditions de location, caution, kilométrage inclus...",
-                content: "Ex: Assurance, Kilométrage illimité, GPS, Automatique, Diesel, Clim...",
-                features: "Ex: Automatique, Diesel, Clim, 5 places..."
-            },
-            other: {
-                name: "Ex: Service Personnalisé",
-                desc: "Décrivez votre prestation...",
-                category: "Service",
-                descFull: "Décrivez votre service : ce qu'il inclut, durée, conditions...",
-                content: "Ex: Ce qui est inclus, caractéristiques...",
-                features: "Ex: Caractéristiques du service..."
-            }
         }
         const defaultPlaceholders = {
             name: "Ex: Bougie Vanille",
