@@ -48,55 +48,57 @@ export function Step0Basics({
     agents,
     handleDelete,
 }: Step0BasicsProps) {
+    const MISSION_TYPE_META: Record<string, { label: string; icon: string; flagKey: string }> = {
+        ecommerce_physical: { label: 'Physique', icon: '📦', flagKey: 'product_physical' },
+        ecommerce_digital: { label: 'Numérique', icon: '💻', flagKey: 'product_digital' },
+        restaurant: { label: 'Restaurant / Bar', icon: '🍽️', flagKey: 'product_service' },
+        hotel: { label: 'Hôtel / Hébergement', icon: '🏨', flagKey: 'product_service' },
+    }
+    const sellableAgents = agents.filter(a => a.mission && MISSION_TYPE_META[a.mission])
+    const selectedAgent = agents.find(a => a.id === formData.agent_id)
+    const selectedMeta = selectedAgent?.mission ? MISSION_TYPE_META[selectedAgent.mission] : null
+
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
             {/* Agent Vendeur — determine entierement le type de produit */}
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                 <label className="block text-slate-300 font-medium mb-1">Agent Vendeur</label>
                 <p className="text-xs text-slate-400 mb-3">Le type de produit se déduit automatiquement de la mission de l'agent choisi.</p>
-                {(() => {
-                    const MISSION_TYPE_META: Record<string, { label: string; icon: string; flagKey: string }> = {
-                        ecommerce_physical: { label: 'Physique', icon: '📦', flagKey: 'product_physical' },
-                        ecommerce_digital: { label: 'Numérique', icon: '💻', flagKey: 'product_digital' },
-                        restaurant: { label: 'Restaurant / Bar', icon: '🍽️', flagKey: 'product_service' },
-                        hotel: { label: 'Hôtel / Hébergement', icon: '🏨', flagKey: 'product_service' },
-                    }
-                    const sellableAgents = agents.filter(a => a.mission && MISSION_TYPE_META[a.mission])
-                    const selectedAgent = agents.find(a => a.id === formData.agent_id)
-                    const selectedMeta = selectedAgent?.mission ? MISSION_TYPE_META[selectedAgent.mission] : null
-
-                    return (
-                        <>
-                            <select
-                                value={formData.agent_id}
-                                onChange={e => selectAgent(e.target.value)}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                            >
-                                <option value="">— Choisir un agent —</option>
-                                {sellableAgents.map(a => {
-                                    const meta = MISSION_TYPE_META[a.mission!]
-                                    const isSoon = Object.keys(featureFlags).length > 0 && featureFlags[meta.flagKey] === false
-                                    return (
-                                        <option key={a.id} value={a.id} disabled={isSoon}>
-                                            {a.name} — {meta.label}{isSoon ? ' (bientôt disponible)' : ''}
-                                        </option>
-                                    )
-                                })}
-                            </select>
-                            {sellableAgents.length === 0 && (
-                                <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                                    ⛔ Aucun agent Physique, Numérique, Restaurant ou Hôtel pour le moment. Créez-en un d'abord.
-                                </p>
-                            )}
-                            {selectedMeta && (
-                                <p style={{ marginTop: 6, fontSize: 12, color: '#6ee7b7', background: 'rgba(16,185,129,0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                                    {selectedMeta.icon} Type de produit : <strong>{selectedMeta.label}</strong>
-                                </p>
-                            )}
-                        </>
-                    )
-                })()}
+                <select
+                    value={formData.agent_id}
+                    onChange={e => selectAgent(e.target.value)}
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+                    <option value="">— Choisir un agent —</option>
+                    {sellableAgents.map(a => {
+                        const meta = MISSION_TYPE_META[a.mission!]
+                        const isSoon = Object.keys(featureFlags).length > 0 && featureFlags[meta.flagKey] === false
+                        return (
+                            <option key={a.id} value={a.id} disabled={isSoon}>
+                                {a.name} — {meta.label}{isSoon ? ' (bientôt disponible)' : ''}
+                            </option>
+                        )
+                    })}
+                </select>
+                {sellableAgents.length === 0 && (
+                    <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                        ⛔ Aucun agent Physique, Numérique, Restaurant ou Hôtel pour le moment. Créez-en un d'abord.
+                    </p>
+                )}
+                {selectedMeta && (
+                    <p style={{ marginTop: 6, fontSize: 12, color: '#6ee7b7', background: 'rgba(16,185,129,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                        {selectedMeta.icon} Type de produit : <strong>{selectedMeta.label}</strong>
+                    </p>
+                )}
             </div>
+
+            {!selectedMeta && (
+                <p className="text-sm text-slate-500 text-center py-6">
+                    Choisissez un agent ci-dessus pour continuer — les champs suivants dépendent de son type.
+                </p>
+            )}
+
+            {selectedMeta && <>
 
             {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
                 <div className="bg-emerald-500/5 p-6 rounded-xl border border-emerald-500/20">
@@ -224,6 +226,8 @@ export function Step0Basics({
                     </div>
                 </div>
             </div>
+
+            </>}
         </motion.div>
     )
 }
