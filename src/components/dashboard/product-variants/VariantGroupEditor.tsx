@@ -187,6 +187,7 @@ export default function VariantGroupEditor({
                     </label>
                     <input
                         type="number"
+                        className="no-spinner"
                         value={basePrice}
                         onChange={(e) => setBasePrice(e.target.value)}
                         placeholder="5000"
@@ -278,6 +279,7 @@ export default function VariantGroupEditor({
                                 <div style={{ position: 'relative', width: 120 }}>
                                     <input
                                         type="number"
+                                        className="no-spinner"
                                         value={option.price || ''}
                                         onChange={(e) => updateOption(group.id, idx, { price: parseFloat(e.target.value) || 0 })}
                                         placeholder="Prix"

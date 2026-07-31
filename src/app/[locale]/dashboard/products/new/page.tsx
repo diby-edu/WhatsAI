@@ -576,7 +576,7 @@ export default function NewProductPage() {
     }
 
     return (
-        <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 40 }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 40 }}>
             {/* Header */}
             <div style={{ marginBottom: 32 }}>
                 <Link

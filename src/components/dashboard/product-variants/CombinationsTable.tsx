@@ -199,6 +199,7 @@ export default function CombinationsTable({
                                             <td style={cellStyle}>
                                                 <input
                                                     type="number"
+                                                    className="no-spinner"
                                                     value={combo.price ?? ''}
                                                     onChange={(e) => updateCombinationAt(index, {
                                                         price: e.target.value ? parseFloat(e.target.value) : null
@@ -216,6 +217,7 @@ export default function CombinationsTable({
                                             <td style={cellStyle}>
                                                 <input
                                                     type="number"
+                                                    className="no-spinner"
                                                     value={combo.stock ?? ''}
                                                     onChange={(e) => updateCombinationAt(index, {
                                                         stock: e.target.value ? parseInt(e.target.value) : null

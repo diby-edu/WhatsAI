@@ -420,7 +420,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         <div className="min-h-screen bg-slate-900 pb-20">
             {/* Top Bar (Same layout) */}
             <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard/products" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
                             <ArrowLeft size={20} />
@@ -440,7 +440,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     </button>
                 </div>
                 {/* Progress Bar */}
-                <div className="max-w-4xl mx-auto px-4 mt-2 mb-0">
+                <div className="max-w-5xl mx-auto px-4 mt-2 mb-0">
                     <div className="flex justify-between items-center relative">
                         <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
                         <div
@@ -475,12 +475,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 </div>
             </div>
 
-            <div className="max-w-3xl mx-auto px-4 py-8">
+            <div className="max-w-5xl mx-auto px-4 py-8">
                 {renderStep()}
             </div>
 
             <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
-                <div className="max-w-3xl mx-auto flex justify-between items-center">
+                <div className="max-w-5xl mx-auto flex justify-between items-center">
                     <button
                         onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
                         disabled={currentStep === 0}
