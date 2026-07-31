@@ -298,37 +298,23 @@ export function Step0Basics({
                 </motion.div>
             )}
 
-            {/* Multi-Image Upload Gallery */}
+            {/* Image du produit (une seule — c'est la seule que le bot utilise) */}
             <div>
-                <label style={labelStyle}>Images du produit ({formData.images.length}/10)</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
-                    {/* Existing images */}
-                    {formData.images.map((img, index) => (
-                        <div key={index} style={{
+                <label style={labelStyle}>Image du produit</label>
+                <div style={{ display: 'flex', marginTop: 8 }}>
+                    {formData.images.length > 0 ? (
+                        <div style={{
                             width: 100,
                             height: 100,
                             borderRadius: 12,
                             overflow: 'hidden',
                             position: 'relative',
-                            border: index === 0 ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)'
+                            border: '1px solid rgba(148, 163, 184, 0.2)'
                         }}>
-                            <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            {index === 0 && (
-                                <div style={{
-                                    position: 'absolute',
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    background: 'rgba(16, 185, 129, 0.9)',
-                                    fontSize: 9,
-                                    textAlign: 'center',
-                                    padding: 2,
-                                    color: 'white'
-                                }}>Principal</div>
-                            )}
+                            <img src={formData.images[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             <button
                                 type="button"
-                                onClick={() => removeImage(index)}
+                                onClick={() => removeImage(0)}
                                 style={{
                                     position: 'absolute',
                                     top: 4,
@@ -347,10 +333,7 @@ export function Step0Basics({
                                 <X size={12} color="white" />
                             </button>
                         </div>
-                    ))}
-
-                    {/* Add image button */}
-                    {formData.images.length < 10 && (
+                    ) : (
                         <div
                             onClick={() => fileInputRef.current?.click()}
                             style={{
@@ -377,11 +360,8 @@ export function Step0Basics({
                             )}
                         </div>
                     )}
-                    <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" multiple />
+                    <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
                 </div>
-                <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-                    La première image sera l'image principale affichée
-                </p>
             </div>
 
             <div>

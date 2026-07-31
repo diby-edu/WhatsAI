@@ -137,29 +137,22 @@ export function Step0Basics({
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Multi-Image Gallery */}
+                {/* Image du produit (une seule — c'est la seule que le bot utilise) */}
                 <div className="space-y-4">
-                    <label className="block text-slate-300 font-medium">Images du produit ({formData.images.length}/10)</label>
+                    <label className="block text-slate-300 font-medium">Image du produit</label>
                     <div className="flex flex-wrap gap-3">
-                        {/* Existing images */}
-                        {formData.images.map((img, index) => (
-                            <div key={index} className={`relative w-24 h-24 rounded-xl overflow-hidden ${index === 0 ? 'ring-2 ring-emerald-500' : 'border border-slate-700'}`}>
-                                <img src={img} className="w-full h-full object-cover" />
-                                {index === 0 && (
-                                    <div className="absolute bottom-0 left-0 right-0 bg-emerald-500/90 text-white text-[10px] text-center py-0.5">Principal</div>
-                                )}
+                        {formData.images.length > 0 ? (
+                            <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-700">
+                                <img src={formData.images[0]} className="w-full h-full object-cover" />
                                 <button
                                     type="button"
-                                    onClick={() => removeImage(index)}
+                                    onClick={() => removeImage(0)}
                                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/90 flex items-center justify-center"
                                 >
                                     <X size={10} color="white" />
                                 </button>
                             </div>
-                        ))}
-
-                        {/* Add image button */}
-                        {formData.images.length < 10 && (
+                        ) : (
                             <div
                                 onClick={() => fileInputRef.current?.click()}
                                 className="w-24 h-24 rounded-xl border-2 border-dashed border-slate-600 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition-all"
@@ -174,9 +167,8 @@ export function Step0Basics({
                                 )}
                             </div>
                         )}
-                        <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" multiple />
+                        <input ref={fileInputRef} type="file" onChange={handleImageUpload} className="hidden" accept="image/*" />
                     </div>
-                    <p className="text-xs text-slate-500">La première image sera l'image principale</p>
                 </div>
                 {/* Fields */}
                 <div className="space-y-5">

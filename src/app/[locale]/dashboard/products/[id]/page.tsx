@@ -67,8 +67,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const [formData, setFormData] = useState({
         name: '',
         price: '' as string | number,
-        images: [] as string[], // Multi-images support (up to 10)
-        image_url: '', // Legacy support
+        images: [] as string[], // Une seule image (voir handleImageUpload) — array conserve pour compat avec image_url
+        image_url: '',
         category: '',
         is_available: true,
         agent_id: '',
@@ -218,56 +218,38 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         }
     }
 
+    // Une seule image par produit — c'est la seule que le bot utilise reellement
+    // (le dashboard et le handler WhatsApp lisent tous deux image_url, jamais images[1+]).
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0) return
-
-        const files = Array.from(e.target.files)
-        const remaining = 10 - formData.images.length
-
-        if (remaining <= 0) {
-            toast.error('Maximum 10 images autorisées')
-            return
-        }
-
-        const filesToUpload = files.slice(0, remaining)
-        if (files.length > remaining) {
-            toast.warning(`Seulement ${remaining} image(s) peuvent être ajoutées (max 10)`)
-        }
+        const file = e.target.files?.[0]
+        if (!file) return
 
         setUploading(true)
         try {
-            const uploadedUrls: string[] = []
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+            const filePath = `products/${fileName}`
 
-            for (const file of filesToUpload) {
-                const fileExt = file.name.split('.').pop()
-                const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-                const filePath = `products/${fileName}`
+            const { error: uploadError } = await supabase.storage
+                .from('images')
+                .upload(filePath, file)
 
-                const { error: uploadError } = await supabase.storage
-                    .from('images')
-                    .upload(filePath, file)
+            if (uploadError) throw uploadError
 
-                if (uploadError) {
-                    console.error('Upload error:', uploadError)
-                    continue
-                }
-
-                const { data: publicUrl } = supabase.storage
-                    .from('images')
-                    .getPublicUrl(filePath)
-
-                uploadedUrls.push(publicUrl.publicUrl)
-            }
+            const { data: publicUrl } = supabase.storage
+                .from('images')
+                .getPublicUrl(filePath)
 
             setFormData(prev => ({
                 ...prev,
-                images: [...prev.images, ...uploadedUrls],
-                image_url: prev.image_url || uploadedUrls[0] || ''
+                images: [publicUrl.publicUrl],
+                image_url: publicUrl.publicUrl
             }))
         } catch (error: any) {
             toast.error(`Erreur upload: ${error.message || 'Erreur de téléchargement'}`)
         } finally {
             setUploading(false)
+            e.target.value = ''
         }
     }
 
