@@ -319,7 +319,7 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                                             <div key={commune.name} style={{ padding: 10, borderRadius: 9, border: '1px solid rgba(148,163,184,0.1)', background: 'rgba(15,23,42,0.35)', minWidth: 0 }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                     <span style={{ flex: 1, minWidth: 0, color: 'white', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{commune.name}</span>
-                                                    <input type="number" className="no-spinner" min={0} step={100} value={commune.fee}
+                                                    <input type="number" className="no-spinner" min={0} step={100} value={commune.fee === 0 ? '' : commune.fee} placeholder="0"
                                                         onChange={e => {
                                                             const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                             const communes = [...formData.delivery_zones.communes]
@@ -336,7 +336,7 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                                                         {(commune.quartiers || []).map((q, qIdx) => (
                                                             <div key={q.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.name}</span>
-                                                                <input type="number" className="no-spinner" min={0} step={100} value={q.fee}
+                                                                <input type="number" className="no-spinner" min={0} step={100} value={q.fee === 0 ? '' : q.fee} placeholder="0"
                                                                     onChange={e => {
                                                                         const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                                         const communes = [...formData.delivery_zones.communes]
@@ -384,7 +384,7 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                                         {formData.delivery_zones.hors_abidjan.map((city, idx) => (
                                             <div key={city.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{city.name}</span>
-                                                <input type="number" className="no-spinner" min={0} step={100} value={city.fee}
+                                                <input type="number" className="no-spinner" min={0} step={100} value={city.fee === 0 ? '' : city.fee} placeholder="0"
                                                     onChange={e => {
                                                         const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                         const hors_abidjan = [...formData.delivery_zones.hors_abidjan]
@@ -421,7 +421,7 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                                         {formData.delivery_zones.international.map((country, idx) => (
                                             <div key={country.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{country.name}</span>
-                                                <input type="number" className="no-spinner" min={0} step={100} value={country.fee}
+                                                <input type="number" className="no-spinner" min={0} step={100} value={country.fee === 0 ? '' : country.fee} placeholder="0"
                                                     onChange={e => {
                                                         const fee = Math.max(0, parseInt(e.target.value || '0'))
                                                         const international = [...formData.delivery_zones.international]
