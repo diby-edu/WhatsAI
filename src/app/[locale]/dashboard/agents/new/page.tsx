@@ -198,8 +198,15 @@ export default function NewAgentPage() {
         restaurant_deposit_mode: 'percentage' as 'percentage' | 'fixed',
         restaurant_deposit_percentage: 30,
         restaurant_deposit_fixed_amount_fcfa: 0,
-        delivery_fee_mode: 'none' as 'none' | 'free' | 'zones',
-        delivery_zones: { communes: [], hors_abidjan: [], international: [] } as import('./types').DeliveryZonesConfig,
+        delivery_fee_mode: 'zones' as 'none' | 'free' | 'zones',
+        delivery_zones: {
+            communes: [
+                'Cocody', 'Yopougon', 'Plateau', 'Marcory', 'Treichville', 'Koumassi',
+                'Port-Bouët', 'Abobo', 'Adjamé', 'Attécoubé', 'Bingerville', 'Songon',
+            ].map(name => ({ name, fee: 0 })),
+            hors_abidjan: [],
+            international: []
+        } as import('./types').DeliveryZonesConfig,
         agent_context: '',
         welcome_message: '',
         // LEADS
