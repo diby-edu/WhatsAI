@@ -18,6 +18,7 @@ import {
 } from './product-variants/helpers'
 import VariantGroupEditor from './product-variants/VariantGroupEditor'
 import CombinationsTable from './product-variants/CombinationsTable'
+import PhysicalVariantsEditor from './product-variants/PhysicalVariantsEditor'
 
 // Re-exports de compatibilité — sites d'import externes inchangés
 // (src/app/[locale]/dashboard/products/new/page.tsx, products/[id]/page.tsx)
@@ -66,11 +67,15 @@ export default function ProductVariantsEditor({
     // Auto-sync combinations when variant options change (add/remove options)
     useEffect(() => {
         if (!onCombinationsChange) return
-        const fixedGroupsWithOptions = variants.filter(g => g.type === 'fixed' && g.options.length > 0)
+        // Produits physiques (cartes Couleur/Taille/Poids/Autre) : les combinaisons se
+        // génèrent dès que 2 cartes ont des valeurs, fixe ou additif confondus (cf. modèle validé).
+        // Produits service/digital : comportement historique inchangé — seuls 2+ groupes
+        // PRIX FIXE déclenchent l'auto-activation (obligatoire pour un calcul de prix correct).
+        const autoEnableGroups = productType === 'product'
+            ? variants.filter(g => g.options.length > 0)
+            : variants.filter(g => g.type === 'fixed' && g.options.length > 0)
 
-        // Auto-activer les combinaisons si ≥2 groupes PRIX FIXE ont des options
-        // (obligatoire pour que le bot calcule les prix correctement)
-        if (fixedGroupsWithOptions.length >= 2 && !combinations) {
+        if (autoEnableGroups.length >= 2 && !combinations) {
             onCombinationsChange(mergeCombinations(variants, []))
             return
         }
@@ -144,11 +149,19 @@ export default function ProductVariantsEditor({
         }
     }
 
-    const addGroup = (type: 'fixed' | 'additive') => {
-        if (variants.length >= MAX_VARIANT_GROUPS) return
+    const addGroup = (type: 'fixed' | 'additive', category?: VariantCategory) => {
+        // Catégorie explicite (cartes Couleur/Taille/Poids/Autre) : pas de plafond MAX_VARIANT_GROUPS —
+        // il n'y a jamais plus de 4 cartes possibles, et une seule par catégorie.
+        if (category) {
+            if (variants.some(v => v.category === category)) return
+        } else if (variants.length >= MAX_VARIANT_GROUPS) {
+            return
+        }
         // Determine the best default category for this product type
         let defaultCategory: VariantCategory
-        if (type !== 'fixed') {
+        if (category) {
+            defaultCategory = category
+        } else if (type !== 'fixed') {
             defaultCategory = 'custom'
         } else if (productType === 'digital') {
             defaultCategory = 'format'
@@ -160,9 +173,11 @@ export default function ProductVariantsEditor({
         }
         const newGroup: VariantGroup = {
             id: Date.now().toString(),
-            name: type === 'fixed'
-                ? (CATEGORY_DEFAULT_NAMES[defaultCategory] || defaultCategory)
-                : 'Supplément',
+            name: category
+                // Carte explicite (physique) : nom déduit de la catégorie, vide pour "Autre" (saisie manuelle)
+                ? (defaultCategory === 'custom' ? '' : (CATEGORY_DEFAULT_NAMES[defaultCategory] || defaultCategory))
+                // Flux historique (service/digital) : comportement inchangé
+                : (type === 'fixed' ? (CATEGORY_DEFAULT_NAMES[defaultCategory] || defaultCategory) : 'Supplément'),
             type: type,
             category: defaultCategory,
             options: []
@@ -184,6 +199,17 @@ export default function ProductVariantsEditor({
         const newOption: VariantOption = {
             id: Date.now().toString(36),  // stable unique ID — never changes after creation
             value: '',
+            price: 0,
+        }
+        updateGroup(groupId, { options: [...group.options, newOption] })
+    }
+
+    const addOptionWithValue = (groupId: string, value: string) => {
+        const group = variants.find(v => v.id === groupId)
+        if (!group) return
+        const newOption: VariantOption = {
+            id: Date.now().toString(36),
+            value,
             price: 0,
         }
         updateGroup(groupId, { options: [...group.options, newOption] })
@@ -216,84 +242,108 @@ export default function ProductVariantsEditor({
                 Variantes & Options
             </h3>
 
-            <AnimatePresence>
-                {variants.map(group => (
-                    <VariantGroupEditor
-                        key={group.id}
-                        group={group}
+            {productType === 'product' ? (
+                <>
+                    <PhysicalVariantsEditor
+                        variants={variants}
                         categoryConfig={CATEGORY_CONFIG}
                         currencySymbol={currencySymbol}
                         uploadingOptionKey={uploadingOptionKey}
+                        addGroup={addGroup}
                         updateGroup={updateGroup}
                         removeGroup={removeGroup}
                         addOption={addOption}
+                        addOptionWithValue={addOptionWithValue}
                         updateOption={updateOption}
                         removeOption={removeOption}
                         handleImageUpload={handleImageUpload}
                     />
-                ))}
-            </AnimatePresence>
-
-            {/* Add Group Buttons */}
-            {variants.length < MAX_VARIANT_GROUPS ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-                    <button
-                        type="button"
-                        onClick={() => addGroup('fixed')}
-                        style={{
-                            padding: 12,
-                            borderRadius: 10,
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            border: '1px dashed #3b82f6',
-                            color: '#60a5fa',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 8,
-                            fontSize: 14,
-                            fontWeight: 500
-                        }}
-                    >
-                        <Plus size={16} />
-                        Variante (Prix Fixe)
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => addGroup('additive')}
-                        style={{
-                            padding: 12,
-                            borderRadius: 10,
-                            background: 'rgba(168, 85, 247, 0.1)',
-                            border: '1px dashed #a855f7',
-                            color: '#c084fc',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 8,
-                            fontSize: 14,
-                            fontWeight: 500
-                        }}
-                    >
-                        <Plus size={16} />
-                        Option (Supplément)
-                    </button>
-                </div>
+                    <p style={{ marginTop: 12, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+                        Le badge (PRIX FIXE / SUPPLÉMENT) se change en cliquant dessus.
+                    </p>
+                </>
             ) : (
-                <div style={{
-                    marginTop: 16, padding: '10px 14px',
-                    background: 'rgba(100, 116, 139, 0.1)',
-                    border: '1px solid rgba(100, 116, 139, 0.2)',
-                    borderRadius: 10, fontSize: 12, color: '#94a3b8', textAlign: 'center'
-                }}>
-                    Limite atteinte : {MAX_VARIANT_GROUPS} groupes de variantes maximum
-                </div>
+                <>
+                    <AnimatePresence>
+                        {variants.map(group => (
+                            <VariantGroupEditor
+                                key={group.id}
+                                group={group}
+                                categoryConfig={CATEGORY_CONFIG}
+                                currencySymbol={currencySymbol}
+                                uploadingOptionKey={uploadingOptionKey}
+                                updateGroup={updateGroup}
+                                removeGroup={removeGroup}
+                                addOption={addOption}
+                                updateOption={updateOption}
+                                removeOption={removeOption}
+                                handleImageUpload={handleImageUpload}
+                            />
+                        ))}
+                    </AnimatePresence>
+
+                    {/* Add Group Buttons */}
+                    {variants.length < MAX_VARIANT_GROUPS ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+                            <button
+                                type="button"
+                                onClick={() => addGroup('fixed')}
+                                style={{
+                                    padding: 12,
+                                    borderRadius: 10,
+                                    background: 'rgba(59, 130, 246, 0.1)',
+                                    border: '1px dashed #3b82f6',
+                                    color: '#60a5fa',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    fontSize: 14,
+                                    fontWeight: 500
+                                }}
+                            >
+                                <Plus size={16} />
+                                Variante (Prix Fixe)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => addGroup('additive')}
+                                style={{
+                                    padding: 12,
+                                    borderRadius: 10,
+                                    background: 'rgba(168, 85, 247, 0.1)',
+                                    border: '1px dashed #a855f7',
+                                    color: '#c084fc',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    fontSize: 14,
+                                    fontWeight: 500
+                                }}
+                            >
+                                <Plus size={16} />
+                                Option (Supplément)
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{
+                            marginTop: 16, padding: '10px 14px',
+                            background: 'rgba(100, 116, 139, 0.1)',
+                            border: '1px solid rgba(100, 116, 139, 0.2)',
+                            borderRadius: 10, fontSize: 12, color: '#94a3b8', textAlign: 'center'
+                        }}>
+                            Limite atteinte : {MAX_VARIANT_GROUPS} groupes de variantes maximum
+                        </div>
+                    )}
+                    <p style={{ marginTop: 12, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+                        Fixe : Remplace le prix global (ex: Taille). <br />
+                        Supplément : S'ajoute au prix global (ex: Fromage).
+                    </p>
+                </>
             )}
-            <p style={{ marginTop: 12, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
-                Fixe : Remplace le prix global (ex: Taille). <br />
-                Supplément : S'ajoute au prix global (ex: Fromage).
-            </p>
 
             {/* ── Combinations section ── */}
             <CombinationsTable

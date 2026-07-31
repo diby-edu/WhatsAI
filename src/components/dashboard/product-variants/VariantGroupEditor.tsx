@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Plus, X, Trash2, ImageIcon, Upload } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { VariantCategory, VariantGroup, VariantOption } from './types'
@@ -16,6 +17,11 @@ interface VariantGroupEditorProps {
     updateOption: (groupId: string, index: number, updates: Partial<VariantOption>) => void
     removeOption: (groupId: string, index: number) => void
     handleImageUpload: (groupId: string, optionIndex: number, file: File) => Promise<void>
+    // Masque le sélecteur de catégorie — utilisé quand la catégorie est déjà fixée par un onglet parent (PhysicalVariantsEditor)
+    hideCategorySelector?: boolean
+    // Puces de valeurs suggérées + ligne "prix pour toutes les valeurs" — opt-in pour ne pas changer l'UI service/digital
+    suggestedValues?: string[]
+    onAddSuggestedValue?: (groupId: string, value: string) => void
 }
 
 export default function VariantGroupEditor({
@@ -29,7 +35,12 @@ export default function VariantGroupEditor({
     updateOption,
     removeOption,
     handleImageUpload,
+    hideCategorySelector,
+    suggestedValues,
+    onAddSuggestedValue,
 }: VariantGroupEditorProps) {
+    const [basePrice, setBasePrice] = useState('')
+    const showBulkTools = !!onAddSuggestedValue
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -46,17 +57,23 @@ export default function VariantGroupEditor({
             {/* Group Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <div style={{
-                        padding: '4px 8px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        background: group.type === 'fixed' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
-                        color: group.type === 'fixed' ? '#60a5fa' : '#c084fc',
-                        border: `1px solid ${group.type === 'fixed' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
-                    }}>
+                    <button
+                        type="button"
+                        onClick={() => updateGroup(group.id, { type: group.type === 'fixed' ? 'additive' : 'fixed' })}
+                        title="Cliquer pour changer"
+                        style={{
+                            padding: '4px 8px',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: group.type === 'fixed' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                            color: group.type === 'fixed' ? '#60a5fa' : '#c084fc',
+                            border: `1px solid ${group.type === 'fixed' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`,
+                            cursor: 'pointer'
+                        }}
+                    >
                         {group.type === 'fixed' ? 'PRIX FIXE' : 'SUPPLÉMENT'}
-                    </div>
+                    </button>
                     <input
                         value={group.name}
                         onChange={(e) => updateGroup(group.id, { name: e.target.value })}
@@ -82,43 +99,45 @@ export default function VariantGroupEditor({
 
             {/* Category Selector */}
             <div style={{ marginBottom: 16 }}>
-                <select
-                    value={group.category || 'custom'}
-                    onChange={(e) => {
-                        const newCat = e.target.value as VariantCategory
-                        const updates: Partial<VariantGroup> = { category: newCat }
-                        if (newCat === 'custom') {
-                            // Catégorie "Autre" → vider le nom pour forcer la saisie manuelle
-                            const genericNames = ['Couleur', 'Supplément', 'Taille', 'Poids', 'Durée',
-                                'Version', 'Format', 'Langue', 'Licence', 'Type de chambre', 'Vue',
-                                'Pension', 'Menu', 'Formule', 'Service', 'Véhicule', 'Option', 'Participants']
-                            if (genericNames.includes(group.name)) {
-                                updates.name = ''
+                {!hideCategorySelector && (
+                    <select
+                        value={group.category || 'custom'}
+                        onChange={(e) => {
+                            const newCat = e.target.value as VariantCategory
+                            const updates: Partial<VariantGroup> = { category: newCat }
+                            if (newCat === 'custom') {
+                                // Catégorie "Autre" → vider le nom pour forcer la saisie manuelle
+                                const genericNames = ['Couleur', 'Supplément', 'Taille', 'Poids', 'Durée',
+                                    'Version', 'Format', 'Langue', 'Licence', 'Type de chambre', 'Vue',
+                                    'Pension', 'Menu', 'Formule', 'Service', 'Véhicule', 'Option', 'Participants']
+                                if (genericNames.includes(group.name)) {
+                                    updates.name = ''
+                                }
+                            } else {
+                                // Catégorie standard → auto-remplir le nom pour éviter {name:"Couleur", category:"size"}
+                                updates.name = CATEGORY_DEFAULT_NAMES[newCat] || group.name
                             }
-                        } else {
-                            // Catégorie standard → auto-remplir le nom pour éviter {name:"Couleur", category:"size"}
-                            updates.name = CATEGORY_DEFAULT_NAMES[newCat] || group.name
-                        }
-                        updateGroup(group.id, updates)
-                    }}
-                    style={{
-                        width: '100%',
-                        background: 'rgba(30, 41, 59, 0.5)',
-                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                        borderRadius: 10,
-                        padding: '10px 14px',
-                        color: 'white',
-                        fontSize: 14,
-                        cursor: 'pointer',
-                        outline: 'none'
-                    }}
-                >
-                    {Object.entries(categoryConfig).map(([key, config]) => (
-                        <option key={key} value={key} style={{ background: '#1e293b' }}>
-                            {config.label}
-                        </option>
-                    ))}
-                </select>
+                            updateGroup(group.id, updates)
+                        }}
+                        style={{
+                            width: '100%',
+                            background: 'rgba(30, 41, 59, 0.5)',
+                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                            borderRadius: 10,
+                            padding: '10px 14px',
+                            color: 'white',
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            outline: 'none'
+                        }}
+                    >
+                        {Object.entries(categoryConfig).map(([key, config]) => (
+                            <option key={key} value={key} style={{ background: '#1e293b' }}>
+                                {config.label}
+                            </option>
+                        ))}
+                    </select>
+                )}
                 {group.category === 'custom' && (
                     <div style={{ marginTop: 8 }}>
                         <input
@@ -159,6 +178,74 @@ export default function VariantGroupEditor({
                     </div>
                 )}
             </div>
+
+            {/* Bulk price apply — mettre le même prix sur toutes les valeurs d'un coup */}
+            {showBulkTools && group.options.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <label style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                        Prix pour toutes les valeurs :
+                    </label>
+                    <input
+                        type="number"
+                        value={basePrice}
+                        onChange={(e) => setBasePrice(e.target.value)}
+                        placeholder="5000"
+                        style={{
+                            flex: 1, maxWidth: 120,
+                            background: 'rgba(30, 41, 59, 0.5)',
+                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                            borderRadius: 8, padding: '6px 10px',
+                            color: 'white', fontSize: 13, outline: 'none'
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!basePrice) return
+                            const price = parseFloat(basePrice) || 0
+                            group.options.forEach((_, idx) => updateOption(group.id, idx, { price }))
+                        }}
+                        style={{
+                            padding: '6px 12px', borderRadius: 8,
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            color: '#10b981', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                        }}
+                    >
+                        Appliquer à toutes
+                    </button>
+                </div>
+            )}
+
+            {/* Suggested values — puces cliquables pour remplir vite */}
+            {showBulkTools && suggestedValues && suggestedValues.length > 0 && (() => {
+                const remaining = suggestedValues.filter(s => !group.options.some(o => o.value === s))
+                if (!remaining.length) return null
+                return (
+                    <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Valeurs suggérées
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {remaining.map(s => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => onAddSuggestedValue?.(group.id, s)}
+                                    style={{
+                                        padding: '5px 10px', borderRadius: 8,
+                                        background: 'rgba(148, 163, 184, 0.08)',
+                                        border: '1px dashed rgba(148, 163, 184, 0.3)',
+                                        color: '#cbd5e1', fontSize: 12, cursor: 'pointer'
+                                    }}
+                                >
+                                    + {s}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )
+            })()}
 
             {/* Options List */}
             <div style={{ display: 'grid', gap: 12 }}>

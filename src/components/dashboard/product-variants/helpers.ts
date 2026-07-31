@@ -27,6 +27,14 @@ export const CATEGORY_DEFAULT_NAMES: Record<string, string> = {
     license: 'Licence',
 }
 
+// Valeurs suggérées par catégorie — affichées comme puces cliquables pour
+// remplir rapidement une variante physique sans tout taper à la main.
+export const CATEGORY_VALUE_SUGGESTIONS: Record<string, string[]> = {
+    visual: ['Rouge', 'Bleu', 'Vert', 'Noir', 'Blanc', 'Jaune', 'Rose', 'Gris'],
+    size: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
+    weight: ['100g', '250g', '500g', '1kg', '2kg', '5kg'],
+}
+
 // Default category configuration (for products)
 // v2.30: needsImage=true pour TOUTES les catégories (l'image est optionnelle mais toujours disponible)
 export const DEFAULT_CATEGORY_CONFIG: Record<string, { label: string; icon: any; needsImage: boolean; color: string }> = {
