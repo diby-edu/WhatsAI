@@ -73,18 +73,22 @@ export async function PUT(
         const restaurantMenuFields = normalizeRestaurantMenuFields(body)
         const targetAgentId = body.agent_id || null
 
-        if (targetAgentId) {
-            const { data: agentCheck } = await supabase
-                .from('agents')
-                .select('mission, ecommerce_mode')
-                .eq('id', targetAgentId)
-                .eq('user_id', user.id)
-                .single()
+        // Un produit doit toujours etre rattache a un agent — c'est la mission de
+        // cet agent qui determine le type de produit (Physique/Numerique/Restaurant/Hotel).
+        if (!targetAgentId) {
+            return errorResponse('Agent vendeur requis', 400)
+        }
 
-            const blockedReason = getManualProductsBlockedReason(agentCheck)
-            if (blockedReason) {
-                return errorResponse(blockedReason, 400)
-            }
+        const { data: agentCheck } = await supabase
+            .from('agents')
+            .select('mission, ecommerce_mode')
+            .eq('id', targetAgentId)
+            .eq('user_id', user.id)
+            .single()
+
+        const blockedReason = getManualProductsBlockedReason(agentCheck)
+        if (blockedReason) {
+            return errorResponse(blockedReason, 400)
         }
 
         const { data: product, error } = await supabase

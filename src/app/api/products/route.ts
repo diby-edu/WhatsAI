@@ -74,24 +74,28 @@ export async function POST(request: NextRequest) {
 
         const restaurantMenuFields = normalizeRestaurantMenuFields(body)
 
+        // Un produit doit toujours etre rattache a un agent — c'est la mission de
+        // cet agent qui determine le type de produit (Physique/Numerique/Restaurant/Hotel).
+        if (!body.agent_id) {
+            return errorResponse('Agent vendeur requis', 400)
+        }
+
         // v2.19: Mandatory service_subtype validation
         if (body.product_type === 'service' && !body.service_subtype) {
             return errorResponse('CatÃ©gorie de service obligatoire', 400)
         }
 
         // Bloquer l'ajout de produit sur un agent Support Client ou external_sync
-        if (body.agent_id) {
-            const { data: agentCheck } = await supabase
-                .from('agents')
-                .select('mission, ecommerce_mode')
-                .eq('id', body.agent_id)
-                .eq('user_id', user.id)
-                .single()
+        const { data: agentCheck } = await supabase
+            .from('agents')
+            .select('mission, ecommerce_mode')
+            .eq('id', body.agent_id)
+            .eq('user_id', user.id)
+            .single()
 
-            const blockedReason = getManualProductsBlockedReason(agentCheck)
-            if (blockedReason) {
-                return errorResponse(blockedReason, 400)
-            }
+        const blockedReason = getManualProductsBlockedReason(agentCheck)
+        if (blockedReason) {
+            return errorResponse(blockedReason, 400)
         }
 
         const { data: product, error } = await supabase

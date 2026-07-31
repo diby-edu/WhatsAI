@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction, RefObject } from 'react'
 import { motion } from 'framer-motion'
 import { DollarSign, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 import type { ProductFormData } from '../../types'
 
 const RESTAURANT_MENU_SECTIONS = [
@@ -24,7 +23,7 @@ interface Step0BasicsProps {
     formData: ProductFormData
     setFormData: Dispatch<SetStateAction<ProductFormData>>
     featureFlags: Record<string, boolean>
-    selectProductType: (nextType: string) => void
+    selectAgent: (agentId: string) => void
     getServicePlaceholders: () => { name: string; category: string; descFull: string; content: string; features: string }
     fileInputRef: RefObject<HTMLInputElement | null>
     uploading: boolean
@@ -39,7 +38,7 @@ export function Step0Basics({
     formData,
     setFormData,
     featureFlags,
-    selectProductType,
+    selectAgent,
     getServicePlaceholders,
     fileInputRef,
     uploading,
@@ -51,42 +50,52 @@ export function Step0Basics({
 }: Step0BasicsProps) {
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-            {/* Product Type Selection */}
+            {/* Agent Vendeur — determine entierement le type de produit */}
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                <label className="block text-slate-300 font-medium mb-3">Type de produit</label>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    {[
-                        { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
-                        { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
-                        { id: 'restaurant', label: '🍽️ Restaurant / Bar', desc: 'Menu, table, livraison' },
-                        { id: 'hotel', label: '🏨 Hôtel / Hébergement', desc: 'Chambres, réservations' },
-                    ].map(type => {
-                        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', restaurant: 'product_service', hotel: 'product_service' }
-                        const flagKey = flagMap[type.id]
-                        const isSelected = (type.id === 'product' || type.id === 'digital')
-                            ? formData.product_type === type.id
-                            : formData.product_type === 'service' && formData.service_subtype === type.id
-                        const isSoon = flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false && !isSelected
-                        return (
-                        <button
-                            key={type.id}
-                            type="button"
-                            disabled={!!isSoon}
-                            onClick={() => !isSoon && selectProductType(type.id)}
-                            style={{ position: 'relative', opacity: isSoon ? 0.45 : 1, cursor: isSoon ? 'not-allowed' : 'pointer' }}
-                            className={`p-4 rounded-lg border text-center transition-all ${isSelected ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900/30 border-slate-700 hover:border-slate-500'}`}
-                        >
-                            {isSoon && (
-                                <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 6px', borderRadius: 20, letterSpacing: '0.05em' }}>
-                                    BIENTÔT
-                                </span>
+                <label className="block text-slate-300 font-medium mb-1">Agent Vendeur</label>
+                <p className="text-xs text-slate-400 mb-3">Le type de produit se déduit automatiquement de la mission de l'agent choisi.</p>
+                {(() => {
+                    const MISSION_TYPE_META: Record<string, { label: string; icon: string; flagKey: string }> = {
+                        ecommerce_physical: { label: 'Physique', icon: '📦', flagKey: 'product_physical' },
+                        ecommerce_digital: { label: 'Numérique', icon: '💻', flagKey: 'product_digital' },
+                        restaurant: { label: 'Restaurant / Bar', icon: '🍽️', flagKey: 'product_service' },
+                        hotel: { label: 'Hôtel / Hébergement', icon: '🏨', flagKey: 'product_service' },
+                    }
+                    const sellableAgents = agents.filter(a => a.mission && MISSION_TYPE_META[a.mission])
+                    const selectedAgent = agents.find(a => a.id === formData.agent_id)
+                    const selectedMeta = selectedAgent?.mission ? MISSION_TYPE_META[selectedAgent.mission] : null
+
+                    return (
+                        <>
+                            <select
+                                value={formData.agent_id}
+                                onChange={e => selectAgent(e.target.value)}
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                            >
+                                <option value="">— Choisir un agent —</option>
+                                {sellableAgents.map(a => {
+                                    const meta = MISSION_TYPE_META[a.mission!]
+                                    const isSoon = Object.keys(featureFlags).length > 0 && featureFlags[meta.flagKey] === false
+                                    return (
+                                        <option key={a.id} value={a.id} disabled={isSoon}>
+                                            {a.name} — {meta.label}{isSoon ? ' (bientôt disponible)' : ''}
+                                        </option>
+                                    )
+                                })}
+                            </select>
+                            {sellableAgents.length === 0 && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    ⛔ Aucun agent Physique, Numérique, Restaurant ou Hôtel pour le moment. Créez-en un d'abord.
+                                </p>
                             )}
-                            <div className="text-lg">{type.label}</div>
-                            <div className="text-xs text-slate-400 mt-1">{type.desc}</div>
-                        </button>
-                        )
-                    })}
-                </div>
+                            {selectedMeta && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#6ee7b7', background: 'rgba(16,185,129,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    {selectedMeta.icon} Type de produit : <strong>{selectedMeta.label}</strong>
+                                </p>
+                            )}
+                        </>
+                    )
+                })()}
             </div>
 
             {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
@@ -207,49 +216,6 @@ export function Step0Basics({
                             placeholder={getServicePlaceholders().category}
                             className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                         />
-                    </div>
-                    <div>
-                        <label className="block text-slate-300 font-medium mb-1">Agent Responsable</label>
-                        {(() => {
-                            // Un produit ne peut etre propose que par un agent de la meme mission
-                            // (Physique -> agent Physique, Restaurant -> agent Restaurant, etc).
-                            const expectedMission = formData.product_type === 'service'
-                                ? (formData.service_subtype === 'restaurant' ? 'restaurant' : formData.service_subtype === 'hotel' ? 'hotel' : null)
-                                : ({ product: 'ecommerce_physical', digital: 'ecommerce_digital' } as Record<string, string>)[formData.product_type] || null
-                            const matchingAgents = expectedMission ? agents.filter(a => a.mission === expectedMission) : agents
-                            const typeLabel = expectedMission === 'ecommerce_physical' ? 'Physique'
-                                : expectedMission === 'ecommerce_digital' ? 'Numérique'
-                                : expectedMission === 'restaurant' ? 'Restaurant'
-                                : expectedMission === 'hotel' ? 'Hôtel'
-                                : ''
-
-                            return (
-                                <>
-                                    <select
-                                        value={formData.agent_id}
-                                        onChange={e => setFormData({ ...formData, agent_id: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    >
-                                        <option value="">Tous les agents {typeLabel && `(${typeLabel})`}</option>
-                                        {matchingAgents.map(a => (
-                                            <option key={a.id} value={a.id} disabled={!!getManualProductsBlockedReason(a)}>
-                                                {a.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {matchingAgents.length === 0 && (
-                                        <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                                            ⛔ Aucun agent {typeLabel ? `"${typeLabel}"` : 'correspondant'} pour le moment. Créez-en un d'abord pour lui attribuer ce produit.
-                                        </p>
-                                    )}
-                                    {!formData.agent_id && matchingAgents.length > 1 && (
-                                        <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                                            ⚠️ Ce produit sera proposé par <strong>tous vos agents {typeLabel}</strong>. Sélectionnez un agent pour le restreindre.
-                                        </p>
-                                    )}
-                                </>
-                            )
-                        })()}
                     </div>
                     <div className="pt-4 flex justify-between items-center">
                         <button onClick={handleDelete} className="text-red-400 hover:text-red-300 text-sm flex items-center gap-2">

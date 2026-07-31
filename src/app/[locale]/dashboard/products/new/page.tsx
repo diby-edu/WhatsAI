@@ -45,7 +45,6 @@ export default function NewProductPage() {
     const [currency, setCurrency] = useState('USD')
     const [analyzing, setAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState<any>(null)
-    const [existingProductTypes, setExistingProductTypes] = useState<string[]>([])
     const [batchMode, setBatchMode] = useState(false)
     const [batchItems, setBatchItems] = useState<{ name: string; price: string }[]>([
         { name: '', price: '' },
@@ -226,13 +225,31 @@ export default function NewProductPage() {
     useEffect(() => {
         loadAgents()
         fetchProfile()
-        checkExistingProductTypes()
-        // Restaurer le dernier sous-service sélectionné
-        const lastSubtype = localStorage.getItem('product_last_service_subtype')
-        if (lastSubtype) {
-            setFormData(prev => ({ ...prev, service_subtype: lastSubtype, product_type: 'service' }))
-        }
     }, [])
+
+    // Le type de produit se deduit entierement de la mission de l'agent choisi
+    // (Physique/Numerique/Restaurant/Hotel) — un agent = un type, pas de choix
+    // manuel independant. "Tous les agents" n'existe plus : agent_id est requis.
+    const MISSION_PRODUCT_TYPE: Record<string, { product_type: string; service_subtype: string }> = {
+        ecommerce_physical: { product_type: 'product', service_subtype: '' },
+        ecommerce_digital: { product_type: 'digital', service_subtype: '' },
+        restaurant: { product_type: 'service', service_subtype: 'restaurant' },
+        hotel: { product_type: 'service', service_subtype: 'hotel' },
+    }
+
+    const selectAgent = (agentId: string) => {
+        const agent = agents.find(a => a.id === agentId)
+        const mapped = agent?.mission ? MISSION_PRODUCT_TYPE[agent.mission] : undefined
+        if (agentId) localStorage.setItem('product_last_agent_id', agentId)
+        setFormData(prev => ({
+            ...prev,
+            agent_id: agentId,
+            product_type: mapped?.product_type || prev.product_type,
+            service_subtype: mapped?.service_subtype || '',
+            menu_section_slug: mapped?.service_subtype === 'restaurant' ? prev.menu_section_slug : '',
+            menu_sort_order: mapped?.service_subtype === 'restaurant' ? prev.menu_sort_order : '',
+        }))
+    }
 
     // Restaurer le dernier agent après chargement de la liste
     useEffect(() => {
@@ -240,94 +257,9 @@ export default function NewProductPage() {
         const lastAgentId = localStorage.getItem('product_last_agent_id')
         const lastAgent = agents.find(a => a.id === lastAgentId)
         if (lastAgentId && lastAgent && !getManualProductsBlockedReason(lastAgent)) {
-            setFormData(prev => ({ ...prev, agent_id: lastAgentId }))
+            selectAgent(lastAgentId)
         }
     }, [agents])
-
-    // "restaurant"/"hotel" sont des cartes "Type de produit" à part entière côté UI,
-    // mais restent stockés comme product_type='service' + service_subtype en base
-    // (le moteur de reservation/menu existant repose sur cette combinaison).
-    const selectProductType = (nextType: string) => {
-        if (nextType === 'restaurant' || nextType === 'hotel') {
-            localStorage.setItem('product_last_service_subtype', nextType)
-            setFormData(prev => ({
-                ...prev,
-                product_type: 'service',
-                service_subtype: nextType,
-                menu_section_slug: nextType === 'restaurant' ? prev.menu_section_slug : '',
-                menu_sort_order: nextType === 'restaurant' ? prev.menu_sort_order : '',
-            }))
-            return
-        }
-
-        setFormData(prev => ({
-            ...prev,
-            product_type: nextType,
-            service_subtype: '',
-            menu_section_slug: '',
-            menu_sort_order: '',
-        }))
-    }
-
-    // v2.30: Check if user already has services or products to enforce isolation
-    const checkExistingProductTypes = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-
-            const { data: products } = await supabase
-                .from('products')
-                .select('product_type, service_subtype')
-                .eq('user_id', user.id)
-                .limit(50)
-
-            if (products && products.length > 0) {
-                const types = [...new Set(products.map((p: { product_type: string }) => p.product_type))]
-                setExistingProductTypes(types)
-
-                // Auto-switch selection if current default is invalid
-                const hasService = types.includes('service')
-                if (hasService) {
-                    const existingSubtype = products.find((p: { product_type: string; service_subtype: string | null }) => p.product_type === 'service')?.service_subtype || ''
-                    setFormData(prev => ({ ...prev, product_type: 'service', service_subtype: existingSubtype }))
-                }
-            }
-        } catch (e) {
-            console.error('Error checking existing products:', e)
-        }
-    }
-
-    // v2.30: Check if a product type should be disabled based on isolation rules + feature flags
-    const isProductTypeDisabled = (typeId: string) => {
-        // Vérifier le feature flag (si flags chargés et flag = false → grisé)
-        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', restaurant: 'product_service', hotel: 'product_service' }
-        const flagKey = flagMap[typeId]
-        if (flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false) return true
-
-        if (existingProductTypes.length === 0) return false
-        const isServiceType = typeId === 'restaurant' || typeId === 'hotel'
-        const hasService = existingProductTypes.includes('service')
-        const hasNonService = existingProductTypes.some(t => t === 'product' || t === 'digital')
-        if (hasService && (typeId === 'product' || typeId === 'digital')) return true
-        if (hasNonService && isServiceType) return true
-        return false
-    }
-
-    const isProductTypeSoon = (typeId: string) => {
-        const flagMap: Record<string, string> = { product: 'product_physical', digital: 'product_digital', restaurant: 'product_service', hotel: 'product_service' }
-        const flagKey = flagMap[typeId]
-        return flagKey && Object.keys(featureFlags).length > 0 && featureFlags[flagKey] === false
-    }
-
-    const getDisabledReason = () => {
-        if (existingProductTypes.includes('service')) {
-            return '⚠️ Vous avez déjà des Services. Les produits physiques/numériques ne peuvent pas être mélangés avec les services.'
-        }
-        if (existingProductTypes.some(t => t === 'product' || t === 'digital')) {
-            return '⚠️ Vous avez déjà des Produits. Les services doivent être créés sur un compte séparé.'
-        }
-        return null
-    }
 
     const fetchProfile = async () => {
         try {
@@ -462,6 +394,11 @@ export default function NewProductPage() {
     }
 
     const handleSave = async () => {
+        if (!formData.agent_id) {
+            toast.error('Veuillez sélectionner un agent vendeur — le type de produit en dépend.')
+            setCurrentStep(0)
+            return
+        }
         // v2.19: Validate mandatory service_subtype for Services
         if (formData.product_type === 'service' && !formData.service_subtype) {
             toast.error('Veuillez sélectionner une catégorie de service (Hôtel, Restaurant, etc.)')
@@ -531,6 +468,10 @@ export default function NewProductPage() {
     }
 
     const handleSaveBatch = async () => {
+        if (!formData.agent_id) {
+            toast.error('Veuillez sélectionner un agent vendeur.')
+            return
+        }
         const validItems = batchItems.filter(item => item.name.trim() !== '')
         if (validItems.length === 0) {
             toast.error('Ajoutez au moins un article avec un nom.')
@@ -554,7 +495,7 @@ export default function NewProductPage() {
                             service_subtype: 'restaurant',
                             menu_section_slug: formData.menu_section_slug,
                             menu_sort_order: null,
-                            agent_id: formData.agent_id || null,
+                            agent_id: formData.agent_id,
                             is_available: true,
                             category: 'Restauration',
                             images: [],
@@ -655,10 +596,8 @@ export default function NewProductPage() {
                         labelStyle={labelStyle}
                         inputStyle={inputStyle}
                         buttonPrimaryStyle={buttonPrimaryStyle}
-                        getDisabledReason={getDisabledReason}
-                        isProductTypeDisabled={isProductTypeDisabled}
-                        isProductTypeSoon={isProductTypeSoon}
-                        selectProductType={selectProductType}
+                        featureFlags={featureFlags}
+                        selectAgent={selectAgent}
                         batchMode={batchMode}
                         setBatchMode={setBatchMode}
                         batchItems={batchItems}

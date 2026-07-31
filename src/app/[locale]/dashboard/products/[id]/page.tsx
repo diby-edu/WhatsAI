@@ -126,27 +126,26 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
-    // "restaurant"/"hotel" sont des cartes "Type de produit" à part entière côté UI,
-    // mais restent stockés comme product_type='service' + service_subtype en base
-    // (le moteur de reservation/menu existant repose sur cette combinaison).
-    const selectProductType = (nextType: string) => {
-        if (nextType === 'restaurant' || nextType === 'hotel') {
-            setFormData(prev => ({
-                ...prev,
-                product_type: 'service',
-                service_subtype: nextType,
-                menu_section_slug: nextType === 'restaurant' ? prev.menu_section_slug : '',
-                menu_sort_order: nextType === 'restaurant' ? prev.menu_sort_order : '',
-            }))
-            return
-        }
+    // Le type de produit se deduit entierement de la mission de l'agent choisi
+    // (Physique/Numerique/Restaurant/Hotel) — un agent = un type, pas de choix
+    // manuel independant. "Tous les agents" n'existe plus : agent_id est requis.
+    const MISSION_PRODUCT_TYPE: Record<string, { product_type: string; service_subtype: string }> = {
+        ecommerce_physical: { product_type: 'product', service_subtype: '' },
+        ecommerce_digital: { product_type: 'digital', service_subtype: '' },
+        restaurant: { product_type: 'service', service_subtype: 'restaurant' },
+        hotel: { product_type: 'service', service_subtype: 'hotel' },
+    }
 
+    const selectAgent = (agentId: string) => {
+        const agent = agents.find(a => a.id === agentId)
+        const mapped = agent?.mission ? MISSION_PRODUCT_TYPE[agent.mission] : undefined
         setFormData(prev => ({
             ...prev,
-            product_type: nextType,
-            service_subtype: '',
-            menu_section_slug: '',
-            menu_sort_order: '',
+            agent_id: agentId,
+            product_type: mapped?.product_type || prev.product_type,
+            service_subtype: mapped?.service_subtype || '',
+            menu_section_slug: mapped?.service_subtype === 'restaurant' ? prev.menu_section_slug : '',
+            menu_sort_order: mapped?.service_subtype === 'restaurant' ? prev.menu_sort_order : '',
         }))
     }
 
@@ -305,6 +304,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     }
 
     const handleSave = async (silent = false) => {
+        if (!formData.agent_id) {
+            toast.error('Veuillez sélectionner un agent vendeur — le type de produit en dépend.')
+            return
+        }
         if (!silent) setSaving(true)
         try {
             const variantsInFcfa = formData.variants.map((v: any) => ({
@@ -389,7 +392,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         formData={formData}
                         setFormData={setFormData}
                         featureFlags={featureFlags}
-                        selectProductType={selectProductType}
+                        selectAgent={selectAgent}
                         getServicePlaceholders={getServicePlaceholders}
                         fileInputRef={fileInputRef}
                         uploading={uploading}

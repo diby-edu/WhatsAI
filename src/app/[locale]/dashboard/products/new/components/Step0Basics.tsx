@@ -2,7 +2,6 @@ import type { CSSProperties, Dispatch, SetStateAction, RefObject } from 'react'
 import { Plus, X, Loader2, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { DollarSign } from 'lucide-react'
-import { getManualProductsBlockedReason } from '@/lib/agents/ecommerce-mode'
 import type { ProductFormData } from '../../types'
 
 const RESTAURANT_MENU_SECTIONS = [
@@ -31,10 +30,8 @@ interface Step0BasicsProps {
     labelStyle: CSSProperties
     inputStyle: CSSProperties
     buttonPrimaryStyle: CSSProperties
-    getDisabledReason: () => string | null
-    isProductTypeDisabled: (typeId: string) => boolean
-    isProductTypeSoon: (typeId: string) => boolean | undefined | ''
-    selectProductType: (nextType: string) => void
+    featureFlags: Record<string, boolean>
+    selectAgent: (agentId: string) => void
     batchMode: boolean
     setBatchMode: Dispatch<SetStateAction<boolean>>
     batchItems: BatchItem[]
@@ -56,10 +53,8 @@ export function Step0Basics({
     labelStyle,
     inputStyle,
     buttonPrimaryStyle,
-    getDisabledReason,
-    isProductTypeDisabled,
-    isProductTypeSoon,
-    selectProductType,
+    featureFlags,
+    selectAgent,
     batchMode,
     setBatchMode,
     batchItems,
@@ -76,54 +71,54 @@ export function Step0Basics({
 }: Step0BasicsProps) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {/* Product Type Selection */}
+            {/* Agent Vendeur — determine entierement le type de produit */}
             <div>
-                <label style={labelStyle}>Type de produit</label>
-                {getDisabledReason() && (
-                    <p style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8, padding: '8px 12px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: 8 }}>
-                        {getDisabledReason()}
-                    </p>
-                )}
-                <div className="agent-grid-2">
-                    {[
-                        { id: 'product', label: '📦 Physique', desc: 'Produit livrable' },
-                        { id: 'digital', label: '💻 Numérique', desc: 'Téléchargement' },
-                        { id: 'restaurant', label: '🍽️ Restaurant / Bar', desc: 'Menu, table, livraison' },
-                        { id: 'hotel', label: '🏨 Hôtel / Hébergement', desc: 'Chambres, réservations' },
-                    ].map(type => {
-                        const isDisabled = isProductTypeDisabled(type.id)
-                        const isSoon = isProductTypeSoon(type.id)
-                        const isSelected = (type.id === 'product' || type.id === 'digital')
-                            ? formData.product_type === type.id
-                            : formData.product_type === 'service' && formData.service_subtype === type.id
-                        return (
-                            <button
-                                key={type.id}
-                                type="button"
-                                disabled={isDisabled}
-                                onClick={() => !isDisabled && selectProductType(type.id)}
-                                style={{
-                                    padding: 16,
-                                    borderRadius: 12,
-                                    border: isSelected ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
-                                    background: isSelected ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                                    textAlign: 'center',
-                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                    opacity: isDisabled ? 0.45 : 1,
-                                    position: 'relative' as const
-                                }}
+                <label style={labelStyle}>Agent Vendeur</label>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+                    Le type de produit se déduit automatiquement de la mission de l'agent choisi.
+                </p>
+                {(() => {
+                    const MISSION_TYPE_META: Record<string, { label: string; icon: string; flagKey: string }> = {
+                        ecommerce_physical: { label: 'Physique', icon: '📦', flagKey: 'product_physical' },
+                        ecommerce_digital: { label: 'Numérique', icon: '💻', flagKey: 'product_digital' },
+                        restaurant: { label: 'Restaurant / Bar', icon: '🍽️', flagKey: 'product_service' },
+                        hotel: { label: 'Hôtel / Hébergement', icon: '🏨', flagKey: 'product_service' },
+                    }
+                    const sellableAgents = agents.filter(a => a.mission && MISSION_TYPE_META[a.mission])
+                    const selectedAgent = agents.find(a => a.id === formData.agent_id)
+                    const selectedMeta = selectedAgent?.mission ? MISSION_TYPE_META[selectedAgent.mission] : null
+
+                    return (
+                        <>
+                            <select
+                                value={formData.agent_id}
+                                onChange={e => selectAgent(e.target.value)}
+                                style={inputStyle}
                             >
-                                {isSoon && (
-                                    <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 700, color: '#64748b', background: 'rgba(100,116,139,0.15)', padding: '2px 6px', borderRadius: 20, letterSpacing: '0.05em' }}>
-                                        BIENTÔT
-                                    </span>
-                                )}
-                                <div style={{ fontSize: 18 }}>{type.label}</div>
-                                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{type.desc}</div>
-                            </button>
-                        )
-                    })}
-                </div>
+                                <option value="">— Choisir un agent —</option>
+                                {sellableAgents.map(a => {
+                                    const meta = MISSION_TYPE_META[a.mission!]
+                                    const isSoon = Object.keys(featureFlags).length > 0 && featureFlags[meta.flagKey] === false
+                                    return (
+                                        <option key={a.id} value={a.id} disabled={isSoon}>
+                                            {a.name} — {meta.label}{isSoon ? ' (bientôt disponible)' : ''}
+                                        </option>
+                                    )
+                                })}
+                            </select>
+                            {sellableAgents.length === 0 && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    ⛔ Aucun agent Physique, Numérique, Restaurant ou Hôtel pour le moment. Créez-en un d'abord.
+                                </p>
+                            )}
+                            {selectedMeta && (
+                                <p style={{ marginTop: 6, fontSize: 12, color: '#6ee7b7', background: 'rgba(16,185,129,0.08)', padding: '6px 10px', borderRadius: 8 }}>
+                                    {selectedMeta.icon} Type de produit : <strong>{selectedMeta.label}</strong>
+                                </p>
+                            )}
+                        </>
+                    )
+                })()}
             </div>
 
             {formData.product_type === 'service' && formData.service_subtype === 'restaurant' && (
@@ -436,53 +431,6 @@ export function Step0Basics({
                         style={inputStyle}
                     />
                 </div>
-            </div>
-
-            <div>
-                <label style={labelStyle}>Agent Vendeur</label>
-                {(() => {
-                    // Un produit ne peut etre propose que par un agent de la meme mission
-                    // (Physique -> agent Physique, Restaurant -> agent Restaurant, etc).
-                    const expectedMission = formData.product_type === 'service'
-                        ? (formData.service_subtype === 'restaurant' ? 'restaurant' : formData.service_subtype === 'hotel' ? 'hotel' : null)
-                        : ({ product: 'ecommerce_physical', digital: 'ecommerce_digital' } as Record<string, string>)[formData.product_type] || null
-                    const matchingAgents = expectedMission ? agents.filter(a => a.mission === expectedMission) : agents
-                    const typeLabel = expectedMission === 'ecommerce_physical' ? 'Physique'
-                        : expectedMission === 'ecommerce_digital' ? 'Numérique'
-                        : expectedMission === 'restaurant' ? 'Restaurant'
-                        : expectedMission === 'hotel' ? 'Hôtel'
-                        : ''
-
-                    return (
-                        <>
-                            <select
-                                value={formData.agent_id}
-                                onChange={e => {
-                                    if (e.target.value) localStorage.setItem('product_last_agent_id', e.target.value)
-                                    setFormData({ ...formData, agent_id: e.target.value })
-                                }}
-                                style={inputStyle}
-                            >
-                                <option value="">Tous les agents {typeLabel && `(${typeLabel})`}</option>
-                                {matchingAgents.map(a => (
-                                    <option key={a.id} value={a.id} disabled={!!getManualProductsBlockedReason(a)}>
-                                        {a.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {matchingAgents.length === 0 && (
-                                <p style={{ marginTop: 6, fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                                    ⛔ Aucun agent {typeLabel ? `"${typeLabel}"` : 'correspondant'} pour le moment. Créez-en un d'abord pour lui attribuer ce produit.
-                                </p>
-                            )}
-                            {!formData.agent_id && matchingAgents.length > 1 && (
-                                <p style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                                    ⚠️ Ce produit sera proposé par <strong>tous vos agents {typeLabel}</strong>. Sélectionnez un agent pour le restreindre.
-                                </p>
-                            )}
-                        </>
-                    )
-                })()}
             </div>
         </div >
     )
