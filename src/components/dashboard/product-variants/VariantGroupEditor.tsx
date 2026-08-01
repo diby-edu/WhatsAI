@@ -57,23 +57,27 @@ export default function VariantGroupEditor({
             {/* Group Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <button
-                        type="button"
-                        onClick={() => updateGroup(group.id, { type: group.type === 'fixed' ? 'additive' : 'fixed' })}
-                        title="Cliquer pour changer"
-                        style={{
-                            padding: '4px 8px',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            background: group.type === 'fixed' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
-                            color: group.type === 'fixed' ? '#60a5fa' : '#c084fc',
-                            border: `1px solid ${group.type === 'fixed' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`,
-                            cursor: 'pointer'
-                        }}
-                    >
-                        {group.type === 'fixed' ? 'PRIX FIXE' : 'SUPPLÉMENT'}
-                    </button>
+                    {/* Produits physiques : pas de notion de supplément, toutes les variantes sont
+                        obligatoires — le badge fixe/additif n'a de sens que pour service/digital. */}
+                    {!hideCategorySelector && (
+                        <button
+                            type="button"
+                            onClick={() => updateGroup(group.id, { type: group.type === 'fixed' ? 'additive' : 'fixed' })}
+                            title="Cliquer pour changer"
+                            style={{
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                background: group.type === 'fixed' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                                color: group.type === 'fixed' ? '#60a5fa' : '#c084fc',
+                                border: `1px solid ${group.type === 'fixed' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {group.type === 'fixed' ? 'PRIX FIXE' : 'SUPPLÉMENT'}
+                        </button>
+                    )}
                     {hideCategorySelector ? (
                         // Nom verrouillé : pour les cartes physiques (Couleur/Taille/Poids/Pointure),
                         // le nom doit rester cohérent avec la catégorie. Un type ajouté se renomme
@@ -107,9 +111,7 @@ export default function VariantGroupEditor({
             </div>
             {hideCategorySelector && (
                 <p style={{ margin: '-6px 0 12px', fontSize: 11, color: '#64748b' }}>
-                    {group.type === 'fixed'
-                        ? 'Le client doit choisir une valeur avant de commander.'
-                        : 'Optionnel — le bot ne le demande jamais automatiquement.'}
+                    Le client doit choisir une valeur avant de commander.
                 </p>
             )}
 

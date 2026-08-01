@@ -189,6 +189,8 @@ export default function ProductVariantsEditor({
 
     // Type de variante ajouté librement par le marchand (ex: Matière, Modèle) — toujours
     // catégorie 'custom', nommé dès la création pour éviter tout groupe sans nom.
+    // Toujours 'fixed' (obligatoire) : pas de notion de supplément pour les produits
+    // physiques, un type ajouté est traité au même titre que les 4 cartes fixes.
     // L'id est fourni par l'appelant pour pouvoir activer l'onglet immédiatement,
     // sans dépendre du nom (qui peut être modifié ensuite).
     const addCustomVariantType = (name: string, id: string) => {
@@ -200,7 +202,7 @@ export default function ProductVariantsEditor({
         const newGroup: VariantGroup = {
             id,
             name: trimmed,
-            type: 'additive',
+            type: 'fixed',
             category: 'custom',
             customName: trimmed,
             options: []
@@ -282,9 +284,6 @@ export default function ProductVariantsEditor({
                         removeOption={removeOption}
                         handleImageUpload={handleImageUpload}
                     />
-                    <p style={{ marginTop: 12, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
-                        Le badge (PRIX FIXE / SUPPLÉMENT) se change en cliquant dessus.
-                    </p>
                 </>
             ) : (
                 <>
