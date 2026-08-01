@@ -30,6 +30,16 @@ function normalizeServiceSubtype(body: any) {
     return body.product_type === 'service' ? (body.service_subtype || null) : null
 }
 
+// Garde-fou serveur : un produit physique n'a jamais de variante "additive" (supplément
+// optionnel) — toute variante est obligatoire. Force type="fixed" quelle que soit la
+// source (saisie manuelle, extraction IA, requête API directe).
+function sanitizeVariantsForProductType(body: any): any[] {
+    const variants = Array.isArray(body.variants) ? body.variants : []
+    // Même valeur par défaut que le champ product_type effectivement stocké ci-dessous.
+    if ((body.product_type || 'product') !== 'product') return variants
+    return variants.map((v: any) => ({ ...v, type: 'fixed' }))
+}
+
 // GET - List all products for user
 export async function GET(request: NextRequest) {
     const supabase = await createApiClient()
@@ -115,7 +125,7 @@ export async function POST(request: NextRequest) {
                 is_available: body.is_available ?? true,
                 stock_quantity: body.stock_quantity ?? -1,
                 lead_fields: body.lead_fields || [],
-                variants: body.variants || [],
+                variants: sanitizeVariantsForProductType(body),
                 combinations: body.combinations ?? null,
                 // New structured fields
                 short_pitch: body.short_pitch || null,

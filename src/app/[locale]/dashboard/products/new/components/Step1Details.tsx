@@ -101,6 +101,7 @@ export function Step1Details({
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
                                         description: formData.description,
+                                        product_type: formData.product_type,
                                         existingData: {
                                             price: convertToFcfa(Number(formData.price) || 0, currency),
                                             features: formData.features,

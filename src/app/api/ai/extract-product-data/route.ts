@@ -11,13 +11,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { description, existingData } = await request.json()
+    const { description, existingData, product_type } = await request.json()
 
     if (!description || description.trim().length < 10) {
       return NextResponse.json({
         error: 'Description trop courte (minimum 10 caractères)'
       }, { status: 400 })
     }
+
+    const isPhysical = product_type === 'product'
+
+    // Produit physique : aucune notion de supplément — toute variante est obligatoire
+    // (Couleur/Taille/Poids/Pointure ou un type ajouté), jamais "additive".
+    const variantTypeRules = isPhysical
+      ? `- Ce produit est PHYSIQUE : chaque groupe de variantes doit TOUJOURS avoir "type": "fixed". N'utilise JAMAIS "additive" — il n'existe pas de supplément optionnel pour un produit physique, toute variante est obligatoire au moment de la commande.
+- Chaque groupe de variantes doit avoir: {"name": "Nom", "type": "fixed", "category": "...", "options": [...]}`
+      : `- Si la description contient des OPTIONS avec des PRIX DIFFÉRENTS, c'est une variante de type "fixed"
+- Chaque groupe de variantes doit avoir: {"name": "Nom", "type": "fixed" ou "additive", "category": "...", "options": [...]}`
+
+    const categoryRules = isPhysical
+      ? `CATÉGORIES DE VARIANTES (produit physique — n'utilise QUE celles-ci) :
+- "visual" : Couleur, Style, Design, Motif, Finition, Thème
+- "size" : Taille de vêtement (S, M, L, XL, etc.)
+- "weight" : Poids, Volume, Quantité, Capacité (100g, 500ml, 1kg, etc.)
+- "shoe_size" : Pointure (36, 37, 38... chaussures)
+- "custom" : Tout autre type de variante (Matière, Modèle, Édition...)`
+      : `CATÉGORIES DE VARIANTES (NOUVEAU - TRÈS IMPORTANT):
+Détecte automatiquement la catégorie selon le nom de la variante:
+- "visual" : Couleur, Style, Design, Motif, Finition, Thème, Modèle visuel
+- "size" : Taille, Dimension, Pointure, Format (S, M, L, XL, etc.)
+- "weight" : Poids, Volume, Quantité, Capacité (100g, 500ml, 1kg, etc.)
+- "duration" : Durée, Période, Abonnement, Mois, Semaine (1 mois, 6 mois, etc.)
+- "custom" : Tout autre type de variante (Pack, Niveau, Type, etc.)`
 
     const systemPrompt = `Tu es un assistant qui analyse des descriptions de produits pour extraire les données structurées.
 
@@ -35,17 +60,10 @@ TÂCHE: Analyse la description fournie et extrait les éléments dans le format 
 }
 
 RÈGLES POUR LES VARIANTES (TRÈS IMPORTANT):
-- Si la description contient des OPTIONS avec des PRIX DIFFÉRENTS, c'est une variante de type "fixed"
-- Chaque groupe de variantes doit avoir: {"name": "Nom", "type": "fixed" ou "additive", "category": "...", "options": [...]}
+${variantTypeRules}
 - Chaque option doit avoir: {"value": "Nom complet avec détails", "price": nombre}
 
-CATÉGORIES DE VARIANTES (NOUVEAU - TRÈS IMPORTANT):
-Détecte automatiquement la catégorie selon le nom de la variante:
-- "visual" : Couleur, Style, Design, Motif, Finition, Thème, Modèle visuel
-- "size" : Taille, Dimension, Pointure, Format (S, M, L, XL, etc.)
-- "weight" : Poids, Volume, Quantité, Capacité (100g, 500ml, 1kg, etc.)
-- "duration" : Durée, Période, Abonnement, Mois, Semaine (1 mois, 6 mois, etc.)
-- "custom" : Tout autre type de variante (Pack, Niveau, Type, etc.)
+${categoryRules}
 
 NETTOYAGE DE DESCRIPTION (NOUVEAU - TRÈS IMPORTANT):
 La "cleaned_description" doit être DÉBARRASSÉE de:
@@ -76,13 +94,13 @@ EXEMPLE SORTIE:
       },
       {
         "name": "Taille",
-        "type": "additive",
+        "type": "fixed",
         "category": "size",
         "options": [
-          {"value": "S", "price": 0},
-          {"value": "M", "price": 0},
-          {"value": "L", "price": 500},
-          {"value": "XL", "price": 1000}
+          {"value": "S", "price": 15000},
+          {"value": "M", "price": 15000},
+          {"value": "L", "price": 15500},
+          {"value": "XL", "price": 16000}
         ]
       }
     ]
@@ -91,8 +109,7 @@ EXEMPLE SORTIE:
   "warnings": []
 }
 
-- Si type="fixed", le prix de l'option REMPLACE le prix de base
-- Si type="additive", le prix de l'option S'AJOUTE au prix de base
+- Si type="fixed", le prix de l'option REMPLACE le prix de base${isPhysical ? '' : '\n- Si type="additive", le prix de l\'option S\'AJOUTE au prix de base'}
 - Si une option n'a pas de prix, METS 0 et ajoute un warning
 
 DONNÉES EXISTANTES (ne pas dupliquer):
@@ -122,11 +139,30 @@ IMPORTANT: Réponds UNIQUEMENT avec le JSON valide, pas d'explication.`
 
     // Ensure proper structure with null safety + ADD UNIQUE IDs
     const rawVariants = parsed.extracted?.variants ?? parsed.variants ?? []
-    const variantsWithIds = rawVariants.map((v: any, idx: number) => ({
-      ...v,
-      id: `${Date.now()}_${idx}`,  // Unique ID for each variant
-      category: v.category || v.type === 'fixed' ? 'visual' : 'custom'  // Default category
-    }))
+    const PHYSICAL_ALLOWED_CATEGORIES = new Set(['visual', 'size', 'weight', 'shoe_size', 'custom'])
+    const variantsWithIds = rawVariants.map((v: any, idx: number) => {
+      // Bug corrigé : la priorité des opérateurs faisait écraser toute catégorie déjà
+      // fournie (ex: "weight") par "visual", faute de parenthèses.
+      const category = v.category || (v.type === 'fixed' ? 'visual' : 'custom')
+      if (isPhysical) {
+        // Garde-fou serveur : même si le modèle désobéit, un produit physique ne
+        // ressort jamais avec type="additive" ni une catégorie hors de celles gérées
+        // par les cartes Couleur/Taille/Poids/Pointure + types ajoutés ("custom").
+        const safeCategory = PHYSICAL_ALLOWED_CATEGORIES.has(category) ? category : 'custom'
+        return {
+          ...v,
+          id: `${Date.now()}_${idx}`,
+          type: 'fixed',
+          category: safeCategory,
+          customName: safeCategory === 'custom' ? (v.customName || v.name) : v.customName,
+        }
+      }
+      return {
+        ...v,
+        id: `${Date.now()}_${idx}`,
+        category,
+      }
+    })
 
     const result = {
       extracted: {
