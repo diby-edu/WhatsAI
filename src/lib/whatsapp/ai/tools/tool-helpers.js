@@ -111,6 +111,7 @@ const VARIANT_CATEGORY_LABELS = {
     visual: 'couleur',
     size: 'taille',
     weight: 'poids',
+    shoe_size: 'pointure',
     duration: 'durée',
     room_type: 'type de chambre',
     view: 'vue',

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { VariantCategory, VariantOption, VariantGroup, ProductCombination } from './product-variants/types'
 import {
     MAX_VARIANT_GROUPS,
+    MAX_PHYSICAL_VARIANT_TYPES,
     CATEGORY_DEFAULT_NAMES,
     DEFAULT_CATEGORY_CONFIG,
     DIGITAL_CATEGORY_CONFIG,
@@ -150,10 +151,11 @@ export default function ProductVariantsEditor({
     }
 
     const addGroup = (type: 'fixed' | 'additive', category?: VariantCategory) => {
-        // Catégorie explicite (cartes Couleur/Taille/Poids/Autre) : pas de plafond MAX_VARIANT_GROUPS —
-        // il n'y a jamais plus de 4 cartes possibles, et une seule par catégorie.
+        // Catégorie explicite (cartes Couleur/Taille/Poids/Pointure) : une seule par catégorie,
+        // plafonnée à MAX_PHYSICAL_VARIANT_TYPES au total (avec les types ajoutés librement).
         if (category) {
             if (variants.some(v => v.category === category)) return
+            if (variants.length >= MAX_PHYSICAL_VARIANT_TYPES) return
         } else if (variants.length >= MAX_VARIANT_GROUPS) {
             return
         }
@@ -180,6 +182,27 @@ export default function ProductVariantsEditor({
                 : (type === 'fixed' ? (CATEGORY_DEFAULT_NAMES[defaultCategory] || defaultCategory) : 'Supplément'),
             type: type,
             category: defaultCategory,
+            options: []
+        }
+        onChange([...variants, newGroup])
+    }
+
+    // Type de variante ajouté librement par le marchand (ex: Matière, Modèle) — toujours
+    // catégorie 'custom', nommé dès la création pour éviter tout groupe sans nom.
+    // L'id est fourni par l'appelant pour pouvoir activer l'onglet immédiatement,
+    // sans dépendre du nom (qui peut être modifié ensuite).
+    const addCustomVariantType = (name: string, id: string) => {
+        const trimmed = name.trim()
+        if (!trimmed) return
+        if (variants.length >= MAX_PHYSICAL_VARIANT_TYPES) return
+        const alreadyExists = variants.some(v => v.category === 'custom' && v.customName?.toLowerCase() === trimmed.toLowerCase())
+        if (alreadyExists) return
+        const newGroup: VariantGroup = {
+            id,
+            name: trimmed,
+            type: 'additive',
+            category: 'custom',
+            customName: trimmed,
             options: []
         }
         onChange([...variants, newGroup])
@@ -250,6 +273,7 @@ export default function ProductVariantsEditor({
                         currencySymbol={currencySymbol}
                         uploadingOptionKey={uploadingOptionKey}
                         addGroup={addGroup}
+                        addCustomVariantType={addCustomVariantType}
                         updateGroup={updateGroup}
                         removeGroup={removeGroup}
                         addOption={addOption}

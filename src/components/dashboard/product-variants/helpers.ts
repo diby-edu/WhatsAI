@@ -3,6 +3,9 @@ import type { VariantGroup, ProductCombination } from './types'
 
 export const MAX_VARIANT_GROUPS = 3
 export const MAX_COMBINATIONS = 100
+// Produits physiques uniquement : Couleur/Taille/Poids/Pointure + types ajoutés librement.
+// Au-delà, trop de questions obligatoires alourdiraient la conversation WhatsApp.
+export const MAX_PHYSICAL_VARIANT_TYPES = 6
 
 // Nom par défaut à stocker en DB pour chaque catégorie standard.
 // Synchronisé avec VARIANT_CATEGORY_LABELS dans tool-helpers.js (minuscules).
@@ -11,6 +14,7 @@ export const CATEGORY_DEFAULT_NAMES: Record<string, string> = {
     visual: 'Couleur',
     size: 'Taille',
     weight: 'Poids',
+    shoe_size: 'Pointure',
     duration: 'Durée',
     room_type: 'Type de chambre',
     view: 'Vue',
@@ -33,6 +37,7 @@ export const CATEGORY_VALUE_SUGGESTIONS: Record<string, string[]> = {
     visual: ['Rouge', 'Bleu', 'Vert', 'Noir', 'Blanc', 'Jaune', 'Rose', 'Gris'],
     size: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
     weight: ['100g', '250g', '500g', '1kg', '2kg', '5kg'],
+    shoe_size: ['38', '39', '40', '41', '42', '43', '44', '45'],
 }
 
 // Default category configuration (for products)
@@ -41,6 +46,7 @@ export const DEFAULT_CATEGORY_CONFIG: Record<string, { label: string; icon: any;
     visual: { label: '🎨 Couleur / Style', icon: Palette, needsImage: true, color: '#f59e0b' },
     size: { label: '📏 Taille', icon: Ruler, needsImage: true, color: '#3b82f6' },
     weight: { label: '⚖️ Poids / Volume', icon: Scale, needsImage: true, color: '#8b5cf6' },
+    shoe_size: { label: '👞 Pointure', icon: Ruler, needsImage: true, color: '#3b82f6' },
     duration: { label: '⏱️ Durée', icon: Clock, needsImage: true, color: '#10b981' },
     custom: { label: '⚙️ Autre', icon: Settings, needsImage: true, color: '#64748b' }
 }

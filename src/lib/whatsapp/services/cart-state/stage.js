@@ -9,6 +9,7 @@ const { CART_STAGE, cloneItem, cloneCartLine, cloneAwaitingField, cloneCartState
 const VARIANT_PRIORITY = {
     visual: 10,   // Couleur en premier
     size: 20,     // Taille en second
+    shoe_size: 25, // Pointure — exclusive avec Taille en pratique
     weight: 30,
     version: 40,
     format: 50,

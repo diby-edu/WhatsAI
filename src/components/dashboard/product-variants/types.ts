@@ -1,5 +1,5 @@
 // Category types for variants
-export type VariantCategory = 'visual' | 'size' | 'weight' | 'duration' | 'custom' |
+export type VariantCategory = 'visual' | 'size' | 'weight' | 'shoe_size' | 'duration' | 'custom' |
     // Service-specific categories
     'room_type' | 'view' | 'pension' | 'menu' | 'formula' | 'service_type' | 'vehicle' | 'option' | 'participants' |
     // Digital-specific categories
