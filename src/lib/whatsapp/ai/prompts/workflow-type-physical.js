@@ -94,9 +94,11 @@ function buildPhysicalWorkflow(orders, agent) {
     
     (⛔ INTERDIT de mettre "(Veuillez préciser)" dans la liste.)
     🚨 ANTI-HALLUCINATION : Si le CATALOGUE transmis en début de prompt est VIDE, dis simplement : "Désolé, aucun produit n'est configuré pour le moment."
-    
+
+    🚫 LIMITE DE LONGUEUR : Si le panier compte plus de 6 lignes de variantes au total (tous produits confondus), ne détaille pas chaque variante individuellement : regroupe par produit avec la quantité totale et le sous-total uniquement (ex: "T-shirt (4 articles, plusieurs tailles) = 24,000 FCFA"). Le détail complet reste dans le panier système, inutile de tout répéter au client.
+
     💰 Total : (Somme des sous-totaux) FCFA
-    
+
     - Demander "On continue ?"
 
 ÉTAPE 4 - INFOS LIVRAISON:
@@ -130,9 +132,10 @@ ${deliveryFeeSection}
     - ⛔ JAMAIS "Je note que vous n'avez pas d'instruction." → dire "Aucun problème !" ou passer directement au récap.
 
 ÉTAPE 7 - RÉCAP FINAL:
+    (Même limite de longueur qu'à l'ÉTAPE 3 : au-delà de 6 lignes de variantes au total, condense par produit.)
     "Récapitulatif :
     📦 *Détails*:
-    
+
     *<Nom Exact du Produit 1>* :
     - Variante A [Qty] X [PrixU] = [TotalLigne] FCFA
     - Variante B [Qty] X [PrixU] = [TotalLigne] FCFA

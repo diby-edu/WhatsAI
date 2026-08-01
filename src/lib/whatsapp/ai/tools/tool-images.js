@@ -40,6 +40,39 @@ function fuzzyIncludes(haystack, needle) {
     })
 }
 
+/**
+ * Cherche l'image d'une combinaison précise (ex: "Rouge + L") — plus spécifique
+ * qu'une simple image de couleur. Retourne null si aucune variante n'est connue
+ * ou si la combinaison trouvée n'a pas d'image propre.
+ */
+function findMatchingCombinationImage(product, selected_variants, variant_value) {
+    if (!Array.isArray(product.combinations) || product.combinations.length === 0) return null
+    if (!Array.isArray(product.variants)) return null
+
+    const attrMap = {}
+    for (const variant of product.variants) {
+        let targetValue = null
+        if (selected_variants) {
+            const entry = Object.entries(selected_variants).find(([k]) => k.toLowerCase() === variant.name.toLowerCase())
+            if (entry) targetValue = entry[1]
+        }
+        if (!targetValue && variant_value) targetValue = variant_value
+        if (targetValue) {
+            const option = findMatchingOption(variant, targetValue)
+            if (option && option.id) attrMap[variant.id] = option.id
+        }
+    }
+
+    const selectedGroupIds = Object.keys(attrMap)
+    if (selectedGroupIds.length === 0) return null
+
+    const matchingCombo = product.combinations.find(c =>
+        c.attributes && selectedGroupIds.every(gId => c.attributes[gId] === attrMap[gId])
+    )
+
+    return matchingCombo && matchingCombo.image ? matchingCombo.image : null
+}
+
 async function handleSendImage(args, products, relevantDocs, userMessage) {
     try {
         console.log('🛠️ Executing tool: send_image')
@@ -159,20 +192,29 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
         let foundVariantName = null
 
         if (product.variants && (selected_variants || variant_value)) {
-            for (const variant of product.variants) {
-                let targetValue = null
-                if (selected_variants) {
-                    const entry = Object.entries(selected_variants).find(([k]) => k.toLowerCase() === variant.name.toLowerCase())
-                    if (entry) targetValue = entry[1]
-                }
-                if (!targetValue && variant_value) targetValue = variant_value
-                if (targetValue) {
-                    const validOption = findMatchingOption(variant, targetValue)
-                    if (validOption && typeof validOption === 'object' && validOption.image) {
-                        imageUrl = validOption.image
-                        foundVariantName = getOptionValue(validOption)
-                        console.log(`✅ Image variante trouvée pour "${variant.name}": ${foundVariantName}`)
-                        break
+            // Priorité 1 : image de la combinaison exacte (ex: "Rouge + L"), plus précise
+            // qu'une image de couleur seule quand le marchand l'a configurée.
+            const comboImage = findMatchingCombinationImage(product, selected_variants, variant_value)
+            if (comboImage) {
+                imageUrl = comboImage
+                foundVariantName = Object.values(selected_variants || {}).filter(Boolean).join(', ') || variant_value || null
+                console.log(`✅ Image combinaison trouvée: ${foundVariantName}`)
+            } else {
+                for (const variant of product.variants) {
+                    let targetValue = null
+                    if (selected_variants) {
+                        const entry = Object.entries(selected_variants).find(([k]) => k.toLowerCase() === variant.name.toLowerCase())
+                        if (entry) targetValue = entry[1]
+                    }
+                    if (!targetValue && variant_value) targetValue = variant_value
+                    if (targetValue) {
+                        const validOption = findMatchingOption(variant, targetValue)
+                        if (validOption && typeof validOption === 'object' && validOption.image) {
+                            imageUrl = validOption.image
+                            foundVariantName = getOptionValue(validOption)
+                            console.log(`✅ Image variante trouvée pour "${variant.name}": ${foundVariantName}`)
+                            break
+                        }
                     }
                 }
             }
