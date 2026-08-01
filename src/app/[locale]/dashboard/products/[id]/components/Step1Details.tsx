@@ -1,6 +1,5 @@
-import type { Dispatch, SetStateAction } from 'react'
-import { motion } from 'framer-motion'
-import { Loader2, Package, Plus, Sparkles, Tag, Layers, X } from 'lucide-react'
+import type { CSSProperties, Dispatch, SetStateAction } from 'react'
+import { Loader2, Plus, Sparkles, Layers, X } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { convertToFcfa, convertFromFcfa } from '@/lib/currency'
 import { useToast } from '@/components/ui/Toast'
@@ -11,6 +10,9 @@ const ProductVariantsEditor = dynamic(() => import('@/components/dashboard/Produ
 interface Step1DetailsProps {
     formData: ProductFormData
     setFormData: Dispatch<SetStateAction<ProductFormData>>
+    labelStyle: CSSProperties
+    inputStyle: CSSProperties
+    buttonSecondaryStyle: CSSProperties
     getServicePlaceholders: () => { name: string; category: string; descFull: string; content: string; features: string }
     toast: ReturnType<typeof useToast>
     analyzing: boolean
@@ -35,6 +37,9 @@ interface Step1DetailsProps {
 export function Step1Details({
     formData,
     setFormData,
+    labelStyle,
+    inputStyle,
+    buttonSecondaryStyle,
     getServicePlaceholders,
     toast,
     analyzing,
@@ -56,25 +61,26 @@ export function Step1Details({
     setLicenseKeysInput,
 }: Step1DetailsProps) {
     return (
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {/* Description with AI Analysis */}
-            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Sparkles className="text-emerald-400" /> {formData.product_type === 'service' ? 'Description du service' : 'Description du produit'}
-                </h2>
-                <p className="text-sm text-slate-400 mb-3">
+            <div>
+                <label style={labelStyle}>
+                    {formData.product_type === 'service' ? 'Description du service' : 'Description du produit'}
+                </label>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
                     {formData.product_type === 'service'
                         ? "Décrivez votre service en détail. L'IA adaptera les questions au type de service."
-                        : "Décrivez librement votre produit. L'IA extraira automatiquement les informations structurées."}
+                        : "Décrivez librement votre produit. L'IA extraira automatiquement les informations structurées."
+                    }
                 </p>
                 <textarea
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
                     placeholder={getServicePlaceholders().descFull}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none min-h-[120px]"
+                    style={{ ...inputStyle, minHeight: 120, fontFamily: 'inherit' }}
                     maxLength={2000}
                 />
-                <div className="flex justify-between mt-2">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                     <button
                         type="button"
                         onClick={async () => {
@@ -136,42 +142,66 @@ export function Step1Details({
                             }
                         }}
                         disabled={analyzing}
-                        className="px-4 py-2 rounded-lg border border-purple-500/30 bg-purple-500/20 text-purple-300 flex items-center gap-2 text-sm"
+                        style={{
+                            padding: '8px 16px',
+                            borderRadius: 8,
+                            border: '1px solid rgba(168, 85, 247, 0.3)',
+                            background: analyzing ? 'rgba(168, 85, 247, 0.1)' : 'rgba(168, 85, 247, 0.2)',
+                            color: '#d8b4fe',
+                            cursor: analyzing ? 'wait' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            fontSize: 13
+                        }}
                     >
                         {analyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                         {analyzing ? 'Analyse...' : '🔍 Analyser & Corriger'}
                     </button>
-                    <span className="text-xs text-slate-500">{formData.description.length}/500</span>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>{formData.description.length}/2000</span>
                 </div>
+
                 {analysisResult && (
-                    <div className="mt-3 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                        <div className="text-sm text-emerald-400">✅ Données extraites et appliquées</div>
+                    <div style={{ marginTop: 12, padding: 12, background: 'rgba(16, 185, 129, 0.1)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        <div style={{ fontSize: 12, color: '#34d399', marginBottom: 8 }}>✅ Données extraites et appliquées</div>
                         {analysisResult.warnings?.length > 0 && (
-                            <div className="text-xs text-yellow-400 mt-1">⚠️ {analysisResult.warnings.join(', ')}</div>
+                            <div style={{ fontSize: 11, color: '#fbbf24' }}>⚠️ {analysisResult.warnings.join(', ')}</div>
                         )}
                     </div>
                 )}
             </div>
 
             {/* Content Included (+ Features fusionnés pour les services) */}
-            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Package className="text-blue-400" /> {formData.product_type === 'service' ? 'Inclus & Caractéristiques' : 'Contenu inclus'}
-                </h2>
-                <p className="text-sm text-slate-400 mb-3">
+            <div>
+                <label style={labelStyle}>
+                    {formData.product_type === 'service' ? 'Inclus & Caractéristiques' : 'Contenu inclus'}
+                </label>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
                     {formData.product_type === 'service'
                         ? "Listez ce qui est inclus et les caractéristiques de votre service"
                         : "Listez ce qui est inclus dans le produit (pour logiciels, packs, etc.)"}
                 </p>
-                <div className="flex gap-2 mb-3 flex-wrap">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                     {formData.content_included.map((c, i) => (
-                        <span key={i} className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm flex items-center gap-2">
-                            {c} <X size={14} className="cursor-pointer hover:text-white" onClick={() => setFormData(p => ({ ...p, content_included: p.content_included.filter((_, idx) => idx !== i) }))} />
+                        <span key={i} style={{
+                            padding: '4px 12px',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            borderRadius: 20,
+                            fontSize: 12,
+                            color: '#60a5fa',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6
+                        }}>
+                            {c}
+                            <X size={12} style={{ cursor: 'pointer' }} onClick={() => setFormData(p => ({ ...p, content_included: p.content_included.filter((_, idx) => idx !== i) }))} />
                         </span>
                     ))}
                 </div>
-                <div className="flex gap-2">
+                <div style={{ display: 'flex', gap: 8 }}>
                     <input
+                        type="text"
                         value={contentInput}
                         onChange={e => setContentInput(e.target.value)}
                         onKeyDown={e => {
@@ -180,8 +210,8 @@ export function Step1Details({
                                 setContentInput('')
                             }
                         }}
-                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
                         placeholder={getServicePlaceholders().content}
+                        style={inputStyle}
                     />
                     <button
                         onClick={() => {
@@ -190,43 +220,64 @@ export function Step1Details({
                                 setContentInput('')
                             }
                         }}
-                        className="bg-slate-700 p-3 rounded-lg text-white"
-                    ><Plus /></button>
+                        style={{ ...buttonSecondaryStyle, padding: '0 16px' }}
+                    >
+                        <Plus size={20} />
+                    </button>
                 </div>
             </div>
 
             {/* Features/Tags — masqué pour les services (fusionné avec content_included) */}
             {formData.product_type !== 'service' && (
-            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Tag className="text-emerald-400" /> Caractéristiques (Tags)
-                </h2>
-                <div className="flex gap-2 mb-3 flex-wrap">
-                    {formData.features.map((f, i) => (
-                        <span key={i} className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-sm flex items-center gap-2">
-                            {f} <X size={14} className="cursor-pointer hover:text-white" onClick={() => setFormData(p => ({ ...p, features: p.features.filter((_, idx) => idx !== i) }))} />
-                        </span>
-                    ))}
+                <div>
+                    <label style={labelStyle}>
+                        Caractéristiques (Tags)
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                        {formData.features.map((f, i) => (
+                            <span key={i} style={{
+                                padding: '4px 12px',
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                                borderRadius: 20,
+                                fontSize: 12,
+                                color: '#34d399',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6
+                            }}>
+                                {f}
+                                <X size={12} style={{ cursor: 'pointer' }} onClick={() => setFormData(p => ({ ...p, features: p.features.filter((_, idx) => idx !== i) }))} />
+                            </span>
+                        ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                            type="text"
+                            value={featureInput}
+                            onChange={e => setFeatureInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addFeature()}
+                            placeholder={getServicePlaceholders().features}
+                            style={inputStyle}
+                        />
+                        <button onClick={addFeature} style={{ ...buttonSecondaryStyle, padding: '0 16px' }}>
+                            <Plus size={20} />
+                        </button>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <input
-                        value={featureInput}
-                        onChange={e => setFeatureInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && addFeature()}
-                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none"
-                        placeholder={getServicePlaceholders().features}
-                    />
-                    <button onClick={addFeature} className="bg-slate-700 p-3 rounded-lg text-white"><Plus /></button>
-                </div>
-            </div>
             )}
 
             {/* Variants — masqué pour les produits numériques */}
             {formData.product_type !== 'digital' && (
-            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Layers className="text-blue-400" /> Variantes (Optionnel)
-                </h2>
+            <div style={{
+                padding: 20,
+                background: 'rgba(30, 41, 59, 0.3)',
+                borderRadius: 12,
+                border: '1px solid rgba(148, 163, 184, 0.1)'
+            }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: 'white', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Layers size={16} className="text-blue-400" /> Variantes (Optionnel)
+                </h3>
                 <ProductVariantsEditor
                     variants={formData.variants}
                     onChange={v => setFormData({ ...formData, variants: v })}
@@ -240,18 +291,23 @@ export function Step1Details({
             </div>
             )}
 
-            {/* Digital Delivery Section */}
+            {/* Digital Delivery Section — only for digital products */}
             {formData.product_type === 'digital' && (
-                <div className="bg-emerald-500/5 p-6 rounded-xl border border-emerald-500/20">
-                    <h2 className="text-lg font-bold text-emerald-400 mb-1 flex items-center gap-2">
+                <div style={{
+                    padding: 20,
+                    background: 'rgba(16, 185, 129, 0.05)',
+                    borderRadius: 12,
+                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: '#34d399', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                         💻 Livraison numérique automatique
-                    </h2>
-                    <p className="text-sm text-slate-500 mb-4">
-                        Contenu envoyé automatiquement au client par WhatsApp après le paiement.
+                    </h3>
+                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+                        Le contenu sera envoyé automatiquement au client par WhatsApp après le paiement.
                     </p>
 
-                    {/* Mode toggle */}
-                    <div className="flex gap-2 mb-4">
+                    {/* Mode selector */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                         {[
                             { id: 'fixed_content', label: '📄 Contenu fixe', desc: 'Même lien/texte pour tous' },
                             { id: 'license_keys', label: '🔑 Clés de licence', desc: 'Clé unique par acheteur' }
@@ -260,58 +316,69 @@ export function Step1Details({
                                 key={mode.id}
                                 type="button"
                                 onClick={() => setDigitalDeliveryType(mode.id as 'fixed_content' | 'license_keys')}
-                                className={`flex-1 p-3 rounded-lg text-left transition-all border ${digitalDeliveryType === mode.id ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-700 bg-transparent'}`}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 12px',
+                                    borderRadius: 10,
+                                    border: digitalDeliveryType === mode.id ? '2px solid #10b981' : '1px solid rgba(148, 163, 184, 0.2)',
+                                    background: digitalDeliveryType === mode.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                    textAlign: 'center',
+                                    cursor: 'pointer'
+                                }}
                             >
-                                <div className="text-sm text-white font-medium">{mode.label}</div>
-                                <div className="text-xs text-slate-400 mt-0.5">{mode.desc}</div>
+                                <div style={{ fontSize: 13, color: 'white', fontWeight: 500 }}>{mode.label}</div>
+                                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{mode.desc}</div>
                             </button>
                         ))}
                     </div>
 
                     {digitalDeliveryType === 'fixed_content' ? (
-                        <div>
-                            <label className="block text-slate-300 text-sm font-medium mb-2">Lien ou contenu à envoyer</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <label style={{ ...labelStyle, marginBottom: 0 }}>Lien de téléchargement ou contenu à envoyer</label>
                             <textarea
                                 value={digitalContent}
                                 onChange={e => setDigitalContent(e.target.value)}
                                 placeholder="Ex: https://drive.google.com/file/d/... ou code d'activation XXXX-YYYY-ZZZZ"
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none min-h-[80px]"
+                                style={{ ...inputStyle, minHeight: 80, fontFamily: 'inherit' }}
                             />
-                            <p className="text-xs text-slate-500 mt-1">Sera envoyé tel quel à chaque acheteur.</p>
+                            <p style={{ fontSize: 11, color: '#64748b' }}>Sera envoyé tel quel à chaque acheteur.</p>
                         </div>
                     ) : (
                         <div>
                             {/* Show existing keys */}
                             {existingLicenseKeys.length > 0 && (
-                                <div className="mb-4">
-                                    <label className="block text-slate-300 text-sm font-medium mb-2">
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ ...labelStyle, marginBottom: 6 }}>
                                         Clés existantes ({existingLicenseKeys.filter(k => !k.used).length} disponibles / {existingLicenseKeys.length} total)
                                     </label>
-                                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 160, overflowY: 'auto' }}>
                                         {existingLicenseKeys.map((k, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-xs font-mono">
-                                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${k.used ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                                                <span className={k.used ? 'text-slate-500 line-through' : 'text-slate-300'}>{k.key}</span>
-                                                {k.used && <span className="text-slate-600">utilisée</span>}
+                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontFamily: 'monospace' }}>
+                                                <span style={{
+                                                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                                                    background: k.used ? '#ef4444' : '#10b981'
+                                                }} />
+                                                <span style={{ color: k.used ? '#64748b' : '#cbd5e1', textDecoration: k.used ? 'line-through' : 'none' }}>{k.key}</span>
+                                                {k.used && <span style={{ color: '#475569' }}>utilisée</span>}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
-                            <label className="block text-slate-300 text-sm font-medium mb-2">Ajouter de nouvelles clés (une par ligne)</label>
+                            <label style={{ ...labelStyle, marginBottom: 6 }}>Ajouter de nouvelles clés (une par ligne)</label>
                             <textarea
                                 value={licenseKeysInput}
                                 onChange={e => setLicenseKeysInput(e.target.value)}
                                 placeholder={"XXXX-YYYY-ZZZZ-4\nXXXX-YYYY-ZZZZ-5"}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-white outline-none min-h-[80px] font-mono text-sm"
+                                style={{ ...inputStyle, minHeight: 80, fontFamily: 'monospace', fontSize: 13 }}
                             />
-                            <p className="text-xs text-slate-500 mt-1">
+                            <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
                                 {licenseKeysInput.split('\n').filter(k => k.trim()).length} nouvelle(s) clé(s) à ajouter au pool.
                             </p>
                         </div>
                     )}
                 </div>
             )}
-        </motion.div>
+        </div>
     )
 }

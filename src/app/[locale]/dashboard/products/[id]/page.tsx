@@ -5,15 +5,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
     ArrowLeft,
+    ArrowRight,
     Check,
     Loader2,
-    Upload,
     Package,
     Layers,
     Bot,
-    ImageIcon,
-    ChevronLeft,
-    ChevronRight,
     Save,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -274,18 +271,20 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const addMarketingTag = (tag: string) => {
         if (!formData.marketing_tags.includes(tag)) {
             setFormData(prev => ({ ...prev, marketing_tags: [...prev.marketing_tags, tag] }))
+        } else {
+            setFormData(prev => ({ ...prev, marketing_tags: prev.marketing_tags.filter(t => t !== tag) }))
         }
     }
 
-    const handleSave = async (silent = false) => {
+    const handleSave = async (silent = false): Promise<boolean> => {
         if (!formData.agent_id) {
             toast.error('Veuillez sélectionner un agent vendeur — le type de produit en dépend.')
-            return
+            return false
         }
         if (!formData.name?.trim()) {
             toast.error('Le nom du produit est requis.')
             setCurrentStep(0)
-            return
+            return false
         }
         if (!silent) setSaving(true)
         try {
@@ -344,8 +343,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 throw new Error(errData?.error || 'Failed')
             }
             if (!silent) toast.success('Produit sauvegardé.')
+            return true
         } catch (error: any) {
             if (!silent) toast.error(`Erreur sauvegarde : ${error?.message || 'inconnue'}`)
+            return false
         } finally {
             if (!silent) setSaving(false)
         }
@@ -360,9 +361,70 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         } catch (e) { }
     }
 
-    if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-900"><Loader2 className="animate-spin text-emerald-400" /></div>
+    // --- STYLES (identiques au wizard de création) ---
+    const cardStyle = {
+        background: 'rgba(15, 23, 42, 0.6)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRadius: 16,
+        padding: 24
+    }
 
-    // Render Steps (Identical to NewProductPage for basics, but populated)
+    const inputStyle = {
+        width: '100%',
+        padding: '12px 16px',
+        fontSize: 15,
+        color: 'white',
+        backgroundColor: 'rgba(30, 41, 59, 0.5)',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRadius: 12,
+        outline: 'none'
+    }
+
+    const buttonPrimaryStyle = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '12px 24px',
+        fontSize: 15,
+        fontWeight: 600,
+        color: 'white',
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        border: 'none',
+        borderRadius: 12,
+        cursor: 'pointer'
+    }
+
+    const buttonSecondaryStyle = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '12px 24px',
+        fontSize: 15,
+        fontWeight: 500,
+        color: '#94a3b8',
+        background: 'rgba(30, 41, 59, 0.5)',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRadius: 12,
+        cursor: 'pointer'
+    }
+
+    const labelStyle = {
+        display: 'block',
+        fontSize: 14,
+        fontWeight: 500,
+        color: '#e2e8f0',
+        marginBottom: 8
+    }
+
+    if (loading) {
+        return (
+            <div style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 40, display: 'flex', justifyContent: 'center', paddingTop: 120 }}>
+                <Loader2 className="animate-spin" style={{ color: '#34d399' }} />
+            </div>
+        )
+    }
+
     const renderStep = () => {
         switch (currentStep) {
             case 0:
@@ -370,6 +432,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     <Step0Basics
                         formData={formData}
                         setFormData={setFormData}
+                        labelStyle={labelStyle}
+                        inputStyle={inputStyle}
                         featureFlags={featureFlags}
                         selectAgent={selectAgent}
                         getServicePlaceholders={getServicePlaceholders}
@@ -388,6 +452,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     <Step1Details
                         formData={formData}
                         setFormData={setFormData}
+                        labelStyle={labelStyle}
+                        inputStyle={inputStyle}
+                        buttonSecondaryStyle={buttonSecondaryStyle}
                         getServicePlaceholders={getServicePlaceholders}
                         toast={toast}
                         analyzing={analyzing}
@@ -416,101 +483,147 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         formData={formData}
                         setFormData={setFormData}
                         addMarketingTag={addMarketingTag}
+                        labelStyle={labelStyle}
                     />
                 )
         }
     }
 
     return (
-        <div className="min-h-screen bg-slate-900 pb-20">
-            {/* Top Bar (Same layout) */}
-            <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-                <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard/products" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
-                            <ArrowLeft size={20} />
-                        </Link>
-                        <div>
-                            <h1 className="text-xl font-bold text-white">Modifier Produit</h1>
-                            <p className="text-xs text-slate-400">{STEPS[currentStep].title}</p>
+        <div style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 40 }}>
+            {/* Header */}
+            <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                    <Link
+                        href="/dashboard/products"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: '#94a3b8',
+                            textDecoration: 'none',
+                            marginBottom: 16
+                        }}
+                    >
+                        <ArrowLeft style={{ width: 16, height: 16 }} />
+                        Retour aux produits
+                    </Link>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8 }}>
+                        Modifier le Produit
+                    </h1>
+                    <p style={{ color: '#94a3b8' }}>
+                        {STEPS[currentStep].title}
+                    </p>
+                </div>
+                <button
+                    onClick={() => handleSave(false)}
+                    disabled={saving}
+                    style={{ ...buttonSecondaryStyle, opacity: saving ? 0.7 : 1 }}
+                >
+                    {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                    Sauver
+                </button>
+            </div>
+
+            {/* Progress steps */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32, gap: 8 }}>
+                {STEPS.map((step, index) => (
+                    <div key={step.id} style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: index < currentStep
+                                ? '#10b981'
+                                : index === currentStep
+                                    ? 'rgba(16, 185, 129, 0.2)'
+                                    : 'rgba(51, 65, 85, 0.5)',
+                            color: index <= currentStep ? '#34d399' : '#64748b'
+                        }}>
+                            {index < currentStep ? (
+                                <Check style={{ width: 20, height: 20, color: 'white' }} />
+                            ) : (
+                                <step.icon style={{ width: 20, height: 20 }} />
+                            )}
                         </div>
+                        {index < STEPS.length - 1 && (
+                            <div style={{
+                                width: 40,
+                                height: 4,
+                                background: index < currentStep ? '#10b981' : 'rgba(51, 65, 85, 0.5)',
+                                borderRadius: 2
+                            }} />
+                        )}
                     </div>
-                    <button
-                        onClick={() => handleSave(false)}
-                        disabled={saving}
-                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
-                    >
-                        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        Sauver
-                    </button>
-                </div>
-                {/* Progress Bar */}
-                <div className="max-w-5xl mx-auto px-4 mt-2 mb-0">
-                    <div className="flex justify-between items-center relative">
-                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-0 rounded-full"></div>
-                        <div
-                            className="absolute top-1/2 left-0 h-1 bg-emerald-500/50 -z-0 rounded-full transition-all duration-300"
-                            style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                        ></div>
-
-                        {STEPS.map((step, index) => {
-                            const isActive = index === currentStep
-                            const isCompleted = index < currentStep
-                            return (
-                                <button
-                                    key={step.id}
-                                    onClick={() => setCurrentStep(index)}
-                                    className={`relative z-10 flex flex-col items-center gap-2 group focus:outline-none`}
-                                >
-                                    <div className={`
-                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                                        ${isActive ? 'bg-slate-900 border-emerald-400 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.3)]' :
-                                            isCompleted ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
-                                                'bg-slate-800 border-slate-700 text-slate-500 group-hover:border-slate-500'}
-                                    `}>
-                                        <step.icon size={18} />
-                                    </div>
-                                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/70' : 'text-slate-600'}`}>
-                                        {step.title}
-                                    </span>
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
+                ))}
             </div>
 
-            <div className="max-w-5xl mx-auto px-4 py-8">
+            {/* Step title */}
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'white' }}>
+                    {STEPS[currentStep].title}
+                </h2>
+            </div>
+
+            {/* Content */}
+            <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                style={cardStyle}
+            >
                 {renderStep()}
-            </div>
+            </motion.div>
 
-            <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 z-20">
-                <div className="max-w-5xl mx-auto flex justify-between items-center">
+            {/* Navigation buttons */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+                <button
+                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                    disabled={currentStep === 0}
+                    style={{
+                        ...buttonSecondaryStyle,
+                        opacity: currentStep === 0 ? 0 : 1,
+                        pointerEvents: currentStep === 0 ? 'none' : 'auto'
+                    }}
+                >
+                    <ArrowLeft style={{ width: 16, height: 16 }} />
+                    Précédent
+                </button>
+
+                {currentStep < STEPS.length - 1 ? (
                     <button
-                        onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
-                        disabled={currentStep === 0}
-                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                        onClick={() => setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))}
+                        disabled={currentStep === 0 && (!formData.agent_id || !formData.name?.trim())}
+                        style={{
+                            ...buttonPrimaryStyle,
+                            opacity: (currentStep === 0 && (!formData.agent_id || !formData.name?.trim())) ? 0.5 : 1,
+                            cursor: (currentStep === 0 && (!formData.agent_id || !formData.name?.trim())) ? 'not-allowed' : 'pointer'
+                        }}
                     >
-                        <ChevronLeft size={20} /> Précédent
+                        Suivant
+                        <ArrowRight style={{ width: 16, height: 16 }} />
                     </button>
-
-                    {currentStep < STEPS.length - 1 ? (
-                        <button
-                            onClick={() => setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))}
-                            disabled={currentStep === 0 && (!formData.agent_id || !formData.name?.trim())}
-                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all ${(currentStep === 0 && (!formData.agent_id || !formData.name?.trim())) ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-slate-200'}`}
-                        >
-                            Suivant <ChevronRight size={20} />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => router.push('/dashboard/products')}
-                            className="px-6 py-3 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
-                        >
-                            <Check size={20} /> Terminer
-                        </button>
-                    )}
-                </div>
+                ) : (
+                    <button
+                        onClick={async () => {
+                            const ok = await handleSave(false)
+                            if (ok) router.push('/dashboard/products')
+                        }}
+                        disabled={saving}
+                        style={{
+                            ...buttonPrimaryStyle,
+                            opacity: saving ? 0.7 : 1
+                        }}
+                    >
+                        {saving ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
+                        Enregistrer les modifications
+                    </button>
+                )}
             </div>
         </div>
     )
