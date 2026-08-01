@@ -6,11 +6,14 @@ import type { VariantCategory, VariantGroup, VariantOption } from './types'
 import { CATEGORY_VALUE_SUGGESTIONS } from './helpers'
 import VariantGroupEditor from './VariantGroupEditor'
 
-const PHYSICAL_TABS: { category: VariantCategory; icon: string; label: string }[] = [
-    { category: 'visual', icon: '🎨', label: 'Couleur' },
-    { category: 'size', icon: '📏', label: 'Taille' },
-    { category: 'weight', icon: '⚖️', label: 'Poids' },
-    { category: 'custom', icon: '✨', label: 'Autre' },
+// Couleur/Taille/Poids sont obligatoires par défaut (le bot les demande au client
+// avant de valider la commande) ; Autre reste un supplément optionnel par défaut.
+// Le badge PRIX FIXE / SUPPLÉMENT dans le panneau permet de changer ce réglage.
+const PHYSICAL_TABS: { category: VariantCategory; icon: string; label: string; defaultType: 'fixed' | 'additive' }[] = [
+    { category: 'visual', icon: '🎨', label: 'Couleur', defaultType: 'fixed' },
+    { category: 'size', icon: '📏', label: 'Taille', defaultType: 'fixed' },
+    { category: 'weight', icon: '⚖️', label: 'Poids', defaultType: 'fixed' },
+    { category: 'custom', icon: '✨', label: 'Autre', defaultType: 'additive' },
 ]
 
 interface PhysicalVariantsEditorProps {
@@ -52,7 +55,8 @@ export default function PhysicalVariantsEditor({
     const selectTab = (category: VariantCategory) => {
         setActiveTab(category)
         if (!groupFor(category)) {
-            addGroup('additive', category)
+            const defaultType = PHYSICAL_TABS.find(t => t.category === category)?.defaultType || 'additive'
+            addGroup(defaultType, category)
         }
     }
 
