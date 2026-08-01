@@ -282,6 +282,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             toast.error('Veuillez sélectionner un agent vendeur — le type de produit en dépend.')
             return
         }
+        if (!formData.name?.trim()) {
+            toast.error('Le nom du produit est requis.')
+            setCurrentStep(0)
+            return
+        }
         if (!silent) setSaving(true)
         try {
             const variantsInFcfa = formData.variants.map((v: any) => ({
@@ -492,8 +497,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     {currentStep < STEPS.length - 1 ? (
                         <button
                             onClick={() => setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))}
-                            disabled={currentStep === 0 && !formData.agent_id}
-                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all ${(currentStep === 0 && !formData.agent_id) ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-slate-200'}`}
+                            disabled={currentStep === 0 && (!formData.agent_id || !formData.name?.trim())}
+                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all ${(currentStep === 0 && (!formData.agent_id || !formData.name?.trim())) ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-slate-200'}`}
                         >
                             Suivant <ChevronRight size={20} />
                         </button>

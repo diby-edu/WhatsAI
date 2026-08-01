@@ -74,20 +74,29 @@ export default function VariantGroupEditor({
                     >
                         {group.type === 'fixed' ? 'PRIX FIXE' : 'SUPPLÉMENT'}
                     </button>
-                    <input
-                        value={group.name}
-                        onChange={(e) => updateGroup(group.id, { name: e.target.value })}
-                        placeholder="Nom (ex: Couleur)"
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'white',
-                            fontSize: 16,
-                            fontWeight: 600,
-                            width: '100%',
-                            outline: 'none'
-                        }}
-                    />
+                    {hideCategorySelector ? (
+                        // Nom verrouillé : pour les cartes physiques (Couleur/Taille/Poids/Pointure),
+                        // le nom doit rester cohérent avec la catégorie. Un type ajouté se renomme
+                        // via le champ "Nom personnalisé" ci-dessous.
+                        <span style={{ color: 'white', fontSize: 16, fontWeight: 600 }}>
+                            {group.category === 'custom' ? (group.customName || group.name) : group.name}
+                        </span>
+                    ) : (
+                        <input
+                            value={group.name}
+                            onChange={(e) => updateGroup(group.id, { name: e.target.value })}
+                            placeholder="Nom (ex: Couleur)"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'white',
+                                fontSize: 16,
+                                fontWeight: 600,
+                                width: '100%',
+                                outline: 'none'
+                            }}
+                        />
+                    )}
                 </div>
                 <button
                     onClick={() => removeGroup(group.id)}
@@ -96,6 +105,13 @@ export default function VariantGroupEditor({
                     <Trash2 size={16} />
                 </button>
             </div>
+            {hideCategorySelector && (
+                <p style={{ margin: '-6px 0 12px', fontSize: 11, color: '#64748b' }}>
+                    {group.type === 'fixed'
+                        ? 'Le client doit choisir une valeur avant de commander.'
+                        : 'Optionnel — le bot ne le demande jamais automatiquement.'}
+                </p>
+            )}
 
             {/* Category Selector */}
             <div style={{ marginBottom: 16 }}>

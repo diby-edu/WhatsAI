@@ -316,6 +316,11 @@ export default function NewProductPage() {
             setCurrentStep(0)
             return
         }
+        if (!formData.name?.trim()) {
+            toast.error('Le nom du produit est requis.')
+            setCurrentStep(0)
+            return
+        }
         // v2.19: Validate mandatory service_subtype for Services
         if (formData.product_type === 'service' && !formData.service_subtype) {
             toast.error('Veuillez sélectionner une catégorie de service (Hôtel, Restaurant, etc.)')
@@ -674,11 +679,11 @@ export default function NewProductPage() {
                 {currentStep < steps.length - 1 ? (
                     <button
                         onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
-                        disabled={currentStep === 0 && !formData.agent_id}
+                        disabled={currentStep === 0 && (!formData.agent_id || !formData.name?.trim())}
                         style={{
                             ...buttonPrimaryStyle,
-                            opacity: (currentStep === 0 && !formData.agent_id) ? 0.5 : 1,
-                            cursor: (currentStep === 0 && !formData.agent_id) ? 'not-allowed' : 'pointer'
+                            opacity: (currentStep === 0 && (!formData.agent_id || !formData.name?.trim())) ? 0.5 : 1,
+                            cursor: (currentStep === 0 && (!formData.agent_id || !formData.name?.trim())) ? 'not-allowed' : 'pointer'
                         }}
                     >
                         Suivant
