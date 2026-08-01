@@ -43,6 +43,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const [currentStep, setCurrentStep] = useState(0)
+    // Changer d'etape ramene en haut de page — sinon on reste scrolle
+    // a l'endroit ou on etait sur l'etape precedente.
+    const goToStep = (updater: (prev: number) => number) => {
+        setCurrentStep(updater)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
     const toast = useToast()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -583,7 +589,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             {/* Navigation buttons */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
                 <button
-                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                    onClick={() => goToStep(prev => Math.max(0, prev - 1))}
                     disabled={currentStep === 0}
                     style={{
                         ...buttonSecondaryStyle,
@@ -597,7 +603,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
                 {currentStep < STEPS.length - 1 ? (
                     <button
-                        onClick={() => setCurrentStep(prev => Math.min(STEPS.length - 1, prev + 1))}
+                        onClick={() => goToStep(prev => Math.min(STEPS.length - 1, prev + 1))}
                         disabled={currentStep === 0 && (!formData.agent_id || !formData.name?.trim())}
                         style={{
                             ...buttonPrimaryStyle,
