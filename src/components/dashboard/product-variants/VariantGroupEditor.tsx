@@ -40,7 +40,16 @@ export default function VariantGroupEditor({
     onAddSuggestedValue,
 }: VariantGroupEditorProps) {
     const [basePrice, setBasePrice] = useState('')
+    const [addingCustomValue, setAddingCustomValue] = useState(false)
+    const [customValueName, setCustomValueName] = useState('')
     const showBulkTools = !!onAddSuggestedValue
+
+    const confirmCustomValue = () => {
+        const trimmed = customValueName.trim()
+        if (trimmed) onAddSuggestedValue?.(group.id, trimmed)
+        setCustomValueName('')
+        setAddingCustomValue(false)
+    }
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -197,11 +206,12 @@ export default function VariantGroupEditor({
                 )}
             </div>
 
-            {/* Bulk price apply — mettre le même prix sur toutes les valeurs d'un coup */}
+            {/* Prix par défaut — ne remplit que les valeurs dont le prix est encore vide,
+                ne touche jamais à un prix déjà renseigné manuellement. */}
             {showBulkTools && group.options.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                     <label style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                        Prix pour toutes les valeurs :
+                        Prix par défaut :
                     </label>
                     <input
                         type="number"
@@ -222,7 +232,9 @@ export default function VariantGroupEditor({
                         onClick={() => {
                             if (!basePrice) return
                             const price = parseFloat(basePrice) || 0
-                            group.options.forEach((_, idx) => updateOption(group.id, idx, { price }))
+                            group.options.forEach((opt, idx) => {
+                                if (!opt.price) updateOption(group.id, idx, { price })
+                            })
                         }}
                         style={{
                             padding: '6px 12px', borderRadius: 8,
@@ -231,21 +243,26 @@ export default function VariantGroupEditor({
                             color: '#10b981', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
                         }}
                     >
-                        Appliquer à toutes
+                        Remplir les valeurs vides
                     </button>
                 </div>
             )}
+            {showBulkTools && group.options.length > 0 && (
+                <p style={{ margin: '0 0 12px', fontSize: 11, color: '#64748b' }}>
+                    Ne remplit que les valeurs sans prix — celles déjà renseignées ne sont pas modifiées.
+                </p>
+            )}
 
-            {/* Suggested values — puces cliquables pour remplir vite */}
-            {showBulkTools && suggestedValues && suggestedValues.length > 0 && (() => {
-                const remaining = suggestedValues.filter(s => !group.options.some(o => o.value === s))
-                if (!remaining.length) return null
+            {/* Valeurs suggérées + puce "+ Autre" pour un nom libre — meme mecanisme pour tous
+                les types, avec ou sans suggestions (ex: un type ajoute n'en a aucune). */}
+            {showBulkTools && (() => {
+                const remaining = (suggestedValues || []).filter(s => !group.options.some(o => o.value === s))
                 return (
                     <div style={{ marginBottom: 12 }}>
                         <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Valeurs suggérées
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                             {remaining.map(s => (
                                 <button
                                     key={s}
@@ -261,6 +278,53 @@ export default function VariantGroupEditor({
                                     + {s}
                                 </button>
                             ))}
+                            {addingCustomValue ? (
+                                <span style={{ display: 'inline-flex', gap: 4 }}>
+                                    <input
+                                        autoFocus
+                                        value={customValueName}
+                                        onChange={(e) => setCustomValueName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') confirmCustomValue()
+                                            if (e.key === 'Escape') { setAddingCustomValue(false); setCustomValueName('') }
+                                        }}
+                                        placeholder="Nom"
+                                        style={{
+                                            width: 100, padding: '5px 8px', borderRadius: 8,
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            border: '1px solid rgba(148, 163, 184, 0.3)',
+                                            color: 'white', fontSize: 12, outline: 'none'
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={confirmCustomValue}
+                                        disabled={!customValueName.trim()}
+                                        style={{
+                                            padding: '5px 10px', borderRadius: 8,
+                                            background: customValueName.trim() ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.1)',
+                                            border: `1px solid ${customValueName.trim() ? 'rgba(16, 185, 129, 0.4)' : 'rgba(100, 116, 139, 0.2)'}`,
+                                            color: customValueName.trim() ? '#10b981' : '#64748b',
+                                            fontSize: 12, cursor: customValueName.trim() ? 'pointer' : 'not-allowed'
+                                        }}
+                                    >
+                                        OK
+                                    </button>
+                                </span>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setAddingCustomValue(true)}
+                                    style={{
+                                        padding: '5px 10px', borderRadius: 8,
+                                        background: 'transparent',
+                                        border: '1px dashed rgba(148, 163, 184, 0.4)',
+                                        color: '#94a3b8', fontSize: 12, cursor: 'pointer'
+                                    }}
+                                >
+                                    + Autre
+                                </button>
+                            )}
                         </div>
                     </div>
                 )
@@ -279,21 +343,34 @@ export default function VariantGroupEditor({
                             padding: 12
                         }}>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <input
-                                    value={option.value}
-                                    onChange={(e) => updateOption(group.id, idx, { value: e.target.value })}
-                                    placeholder={needsImage ? "Option (ex: Rouge)" : "Option (ex: L)"}
-                                    style={{
+                                {hideCategorySelector ? (
+                                    // Nom verrouillé : choisi via suggestion ou "+ Autre", jamais retapable
+                                    // pour éviter tout risque de désync avec ce qui a été proposé/validé.
+                                    <span style={{
                                         flex: 1,
-                                        background: 'rgba(30, 41, 59, 0.5)',
-                                        border: '1px solid rgba(148, 163, 184, 0.1)',
-                                        borderRadius: 10,
                                         padding: '10px 14px',
                                         color: 'white',
                                         fontSize: 14,
-                                        outline: 'none'
-                                    }}
-                                />
+                                    }}>
+                                        {option.value}
+                                    </span>
+                                ) : (
+                                    <input
+                                        value={option.value}
+                                        onChange={(e) => updateOption(group.id, idx, { value: e.target.value })}
+                                        placeholder={needsImage ? "Option (ex: Rouge)" : "Option (ex: L)"}
+                                        style={{
+                                            flex: 1,
+                                            background: 'rgba(30, 41, 59, 0.5)',
+                                            border: '1px solid rgba(148, 163, 184, 0.1)',
+                                            borderRadius: 10,
+                                            padding: '10px 14px',
+                                            color: 'white',
+                                            fontSize: 14,
+                                            outline: 'none'
+                                        }}
+                                    />
+                                )}
                                 <div style={{ position: 'relative', width: 120 }}>
                                     <input
                                         type="number"
@@ -410,26 +487,30 @@ export default function VariantGroupEditor({
                         </div>
                     )
                 })}
-                <button
-                    onClick={() => addOption(group.id)}
-                    style={{
-                        marginTop: 8,
-                        fontSize: 13,
-                        color: '#94a3b8',
-                        background: 'transparent',
-                        border: '1px dashed rgba(148, 163, 184, 0.3)',
-                        borderRadius: 12,
-                        padding: 10,
-                        cursor: 'pointer',
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8
-                    }}
-                >
-                    <Plus size={14} /> Ajouter un choix
-                </button>
+                {/* Produits physiques : l'ajout se fait via les puces "Valeurs suggérées" / "+ Autre"
+                    ci-dessus, pas ici — évite un deuxième mécanisme d'ajout redondant. */}
+                {!hideCategorySelector && (
+                    <button
+                        onClick={() => addOption(group.id)}
+                        style={{
+                            marginTop: 8,
+                            fontSize: 13,
+                            color: '#94a3b8',
+                            background: 'transparent',
+                            border: '1px dashed rgba(148, 163, 184, 0.3)',
+                            borderRadius: 12,
+                            padding: 10,
+                            cursor: 'pointer',
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8
+                        }}
+                    >
+                        <Plus size={14} /> Ajouter un choix
+                    </button>
+                )}
             </div>
         </motion.div>
     )

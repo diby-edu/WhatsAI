@@ -34,10 +34,10 @@ export const CATEGORY_DEFAULT_NAMES: Record<string, string> = {
 // Valeurs suggérées par catégorie — affichées comme puces cliquables pour
 // remplir rapidement une variante physique sans tout taper à la main.
 export const CATEGORY_VALUE_SUGGESTIONS: Record<string, string[]> = {
-    visual: ['Rouge', 'Bleu', 'Vert', 'Noir', 'Blanc', 'Jaune', 'Rose', 'Gris'],
-    size: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
-    weight: ['100g', '250g', '500g', '1kg', '2kg', '5kg'],
-    shoe_size: ['38', '39', '40', '41', '42', '43', '44', '45'],
+    visual: ['Rouge', 'Bleu', 'Vert', 'Noir', 'Blanc', 'Jaune', 'Rose', 'Gris', 'Orange', 'Violet', 'Marron', 'Beige'],
+    size: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'],
+    weight: ['50g', '100g', '250g', '500g', '750g', '1kg', '2kg', '5kg', '10kg'],
+    shoe_size: ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'],
 }
 
 // Default category configuration (for products)
