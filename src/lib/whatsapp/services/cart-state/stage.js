@@ -1475,40 +1475,50 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
                 completedItem.quantity = current.quantity
                 const lineResult = buildLineFromDraft(product, completedItem, 1)
 
-                if (!lineResult.error) {
-                    const newPendingLines = [...(pending_lines || []), lineResult.line]
-                    const nextIndex = current_index + 1
-
-                    if (nextIndex >= queue.length) {
-                        // Tous les items complétés → récap final
-                        for (const line of newPendingLines) {
-                            state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
-                        }
-                        state.draft_item = null
-                        state.stage = CART_STAGE.CART_RECAP
-                        state.awaiting_field = buildCartActionField()
-                        state.last_prompt_kind = CART_STAGE.CART_RECAP
-                        state.last_prompt_text = normalized
-                        return {
-                            state, capturedFields,
-                            stateChanged: true, shouldBypassAI: true,
-                            directReply: buildBatchCartReply(state, currency),
-                        }
+                if (lineResult.error) {
+                    // Toutes les variantes sont sélectionnées : l'erreur n'est donc pas une
+                    // variante manquante (ex: combinaison désactivée, stock insuffisant).
+                    // La signaler directement — reboucler sur buildVariantQuestion renverrait
+                    // null puisqu'il n'y a plus rien à demander.
+                    return {
+                        state, capturedFields,
+                        stateChanged: false, shouldBypassAI: true,
+                        directReply: lineResult.error,
                     }
+                }
 
-                    // Passer à l'item suivant
-                    const next = queue[nextIndex]
-                    state.awaiting_field = {
-                        ...state.awaiting_field,
-                        current_index: nextIndex,
-                        pending_lines: newPendingLines,
+                const newPendingLines = [...(pending_lines || []), lineResult.line]
+                const nextIndex = current_index + 1
+
+                if (nextIndex >= queue.length) {
+                    // Tous les items complétés → récap final
+                    for (const line of newPendingLines) {
+                        state.cart_items = mergeOrAppendCartLine(state.cart_items, line, products)
                     }
-                    const question = buildVariantQuestion(product, next.item, next.quantity, next.known_label)
+                    state.draft_item = null
+                    state.stage = CART_STAGE.CART_RECAP
+                    state.awaiting_field = buildCartActionField()
+                    state.last_prompt_kind = CART_STAGE.CART_RECAP
+                    state.last_prompt_text = normalized
                     return {
                         state, capturedFields,
                         stateChanged: true, shouldBypassAI: true,
-                        directReply: question,
+                        directReply: buildBatchCartReply(state, currency),
                     }
+                }
+
+                // Passer à l'item suivant
+                const next = queue[nextIndex]
+                state.awaiting_field = {
+                    ...state.awaiting_field,
+                    current_index: nextIndex,
+                    pending_lines: newPendingLines,
+                }
+                const question = buildVariantQuestion(product, next.item, next.quantity, next.known_label)
+                return {
+                    state, capturedFields,
+                    stateChanged: true, shouldBypassAI: true,
+                    directReply: question,
                 }
             }
 
@@ -1538,45 +1548,86 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         const currentProduct = findProductById(products, product_ids[current_index])
 
         if (currentProduct) {
-            const rawQty = extractQuantityFromSegment(normalized) || (Number(normalized) > 0 ? Number(normalized) : null)
-            if (rawQty && rawQty > 0) {
-                const qty = normalizeQuantityForProduct(currentProduct, rawQty)
-                const draftItem = createDraftItem(currentProduct)
-                draftItem.quantity = qty
-                const completedItem = normalizeDraftItemForProduct(currentProduct, draftItem)
+            // Item de travail pour le produit courant : reprend la quantite/variantes deja
+            // captees sur un tour precedent (ex: quantite donnee, couleur encore manquante).
+            let workingItem = state.awaiting_field.current_item
+                ? cloneItem(state.awaiting_field.current_item)
+                : createDraftItem(currentProduct)
+
+            if (!workingItem.quantity) {
+                const rawQty = extractQuantityFromSegment(normalized) || (Number(normalized) > 0 ? Number(normalized) : null)
+                if (rawQty && rawQty > 0) {
+                    workingItem.quantity = normalizeQuantityForProduct(currentProduct, rawQty)
+                }
+            }
+
+            // Toujours tenter de capter une variante dans la reponse (utile si le client
+            // donne quantite + variante en une fois, ex: "5 bleu").
+            const probe = extractVariantsFromText(currentProduct, normalized, workingItem)
+            workingItem = probe.item
+
+            if (workingItem.quantity && hasAllRequiredVariants(currentProduct, workingItem)) {
+                const completedItem = normalizeDraftItemForProduct(currentProduct, workingItem)
                 const lineResult = buildLineFromDraft(currentProduct, completedItem, (state.cart_items || []).length + 1)
 
-                if (!lineResult.error) {
-                    state.cart_items = mergeOrAppendCartLine(state.cart_items || [], lineResult.line, products)
-                    const nextIndex = current_index + 1
-
-                    if (nextIndex < product_ids.length) {
-                        const nextProduct = findProductById(products, product_ids[nextIndex])
-                        state.awaiting_field = { ...state.awaiting_field, current_index: nextIndex }
-                        return {
-                            state, capturedFields,
-                            stateChanged: true, shouldBypassAI: true,
-                            directReply: `Et pour ${nextProduct.name}, quelle quantité ?`,
-                        }
-                    }
-
-                    // Tous les produits ont leur quantité → CHECKOUT direct (pas de RÉCAP 1)
-                    state.draft_item = null
-                    state.awaiting_field = null
-                    if (isDigitalOnlyCartItems(state.cart_items, products)) {
-                        state.stage = CART_STAGE.CHECKOUT
-                        state.last_prompt_kind = CART_STAGE.CHECKOUT
-                    } else {
-                        state.stage = CART_STAGE.CART_RECAP
-                        state.awaiting_field = buildCartActionField()
-                        state.last_prompt_kind = CART_STAGE.CART_RECAP
-                    }
-                    state.last_prompt_text = normalized
+                if (lineResult.error) {
+                    // Erreur non liee a une variante manquante (ex: combinaison desactivee,
+                    // stock insuffisant) → informer le client au lieu de reboucler sans fin.
                     return {
                         state, capturedFields,
-                        stateChanged: true, shouldBypassAI: false, directReply: null,
+                        stateChanged: false, shouldBypassAI: true,
+                        directReply: lineResult.error,
                     }
                 }
+
+                state.cart_items = mergeOrAppendCartLine(state.cart_items || [], lineResult.line, products)
+                const nextIndex = current_index + 1
+
+                if (nextIndex < product_ids.length) {
+                    const nextProduct = findProductById(products, product_ids[nextIndex])
+                    state.awaiting_field = { type: 'multi_product_sequential', product_ids, current_index: nextIndex, current_item: null }
+                    return {
+                        state, capturedFields,
+                        stateChanged: true, shouldBypassAI: true,
+                        directReply: `Et pour ${nextProduct.name}, quelle quantité ?`,
+                    }
+                }
+
+                // Tous les produits ont leur quantité (et variantes) → CHECKOUT direct (pas de RÉCAP 1)
+                state.draft_item = null
+                state.awaiting_field = null
+                if (isDigitalOnlyCartItems(state.cart_items, products)) {
+                    state.stage = CART_STAGE.CHECKOUT
+                    state.last_prompt_kind = CART_STAGE.CHECKOUT
+                } else {
+                    state.stage = CART_STAGE.CART_RECAP
+                    state.awaiting_field = buildCartActionField()
+                    state.last_prompt_kind = CART_STAGE.CART_RECAP
+                }
+                state.last_prompt_text = normalized
+                return {
+                    state, capturedFields,
+                    stateChanged: true, shouldBypassAI: false, directReply: null,
+                }
+            }
+
+            if (workingItem.quantity) {
+                // Quantité connue mais variante(s) requise(s) manquante(s) → sauvegarder la
+                // progression et poser la question ciblée (au lieu de redemander la quantité).
+                state.awaiting_field = { ...state.awaiting_field, current_item: workingItem }
+                const knownVals = Object.values(workingItem.selected_variants || {}).filter(Boolean)
+                const knownLabel = knownVals.length > 0 ? knownVals.join(' / ') : null
+                const question = buildVariantQuestion(currentProduct, workingItem, workingItem.quantity, knownLabel)
+                if (question) {
+                    return {
+                        state, capturedFields,
+                        stateChanged: true, shouldBypassAI: true,
+                        directReply: question,
+                    }
+                }
+            } else if (probe.captured && probe.captured.length > 0) {
+                // Variante captée mais quantité toujours inconnue → conserver avant de redemander.
+                state.awaiting_field = { ...state.awaiting_field, current_item: workingItem }
             }
         }
 
@@ -1687,6 +1738,30 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
                 stateChanged: true,
                 shouldBypassAI: true,
                 directReply: buildBatchCartReply(state, currency),
+            }
+        }
+
+        // Produit avec variante(s) requise(s) déjà identifié dans le message → le demander
+        // directement au lieu de tomber sur le flux "quantité" générique qui l'ignorerait.
+        if (multiBatchParse.status === 'missing_variants' && multiBatchParse.product) {
+            const variantNames = getRequiredVariants(multiBatchParse.product)
+                .filter(v => !getSelectedVariantValue(createDraftItem(multiBatchParse.product), v.id))
+                .map(v => getVariantLabel(v).toLowerCase())
+                .join(', ')
+            return {
+                state, capturedFields,
+                stateChanged: false, shouldBypassAI: true,
+                directReply: `Pour "${multiBatchParse.product.name}", précisez : ${variantNames || 'les variantes requises'} (ex : "2 ${multiBatchParse.product.name.split(' ')[0]} Noire L").`,
+            }
+        }
+
+        // Erreur explicite (ex: combinaison désactivée, stock insuffisant) → informer le
+        // client directement plutôt que de l'ignorer et redemander une quantité.
+        if (multiBatchParse.status === 'error' && multiBatchParse.error) {
+            return {
+                state, capturedFields,
+                stateChanged: false, shouldBypassAI: true,
+                directReply: multiBatchParse.error,
             }
         }
 
