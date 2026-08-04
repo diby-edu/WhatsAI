@@ -60,10 +60,22 @@ COHERENCE METIER DU CATALOGUE (PRIORITE ABSOLUE) :
 `.trim()
 }
 
+// Cote d'Ivoire (+225) uniquement : regroupe les 10 chiffres locaux par paires
+// (+2250102108216 -> +225 01 02 10 82 16). Pour tout autre indicatif, on ne
+// devine pas sa longueur (variable selon les pays) — retourne le numero tel quel.
+function formatPhoneWithSpaces(phone) {
+    if (!phone) return phone
+    const trimmed = String(phone).trim()
+    const match = trimmed.match(/^\+225(\d{10})$/)
+    if (!match) return trimmed
+    const pairs = match[1].match(/.{1,2}/g) || []
+    return `+225 ${pairs.join(' ')}`
+}
+
 function buildWelcomeInteractionHint(agent) {
     const baseLine = 'Pour une meilleure prise en charge, vous pouvez repondre directement a la question affichee.'
     if (agent?.escalation_phone) {
-        return `${baseLine} Pour toute autre demande, contactez le service client au ${agent.escalation_phone}.`
+        return `${baseLine}\nPour toute autre demande, contactez le service client au ${formatPhoneWithSpaces(agent.escalation_phone)}.`
     }
 
     return baseLine
@@ -272,9 +284,9 @@ ${activeEngine === 'RESTAURANT'
 ⛔ NE PAS afficher la carte complète ni les prix au premier message.
 ⛔ NE PAS demander le mode (sur place/emporter/livraison) au premier message.
 ⛔ SI le client formule déjà une demande précise (ex: "Je veux réserver une table demain à 21h pour 3 personnes avec 2 plats" ou "Je veux commander 2 plats à emporter"), NE RÉAFFICHE PAS le menu principal. Réponds directement à sa demande concrète ou laisse le système structuré poursuivre le parcours.` 
-    : `2. AFFICHER LA CARTE / CATALOGUE (noms uniquement)
-3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ? (répondez par nom ou numéro)'}"
-4. AJOUTER cette phrase, exactement : "${welcomeInteractionHint}"`}
+    : `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).
+3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ? (répondez par son nom ou son numéro)'}"
+4. AJOUTER ce texte, exactement (avec le retour à la ligne) : "${welcomeInteractionHint}"`}
 ⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher la carte. Tu es un VENDEUR.
 
 🔢 RÈGLE SÉLECTION PRODUIT :

@@ -51,6 +51,6 @@ describe('Prompt Builder Welcome Guidance', () => {
             formattedHours
         )
 
-        expect(prompt).toContain('Pour toute autre demande, contactez le service client au +2250102030405.')
+        expect(prompt).toContain('Pour toute autre demande, contactez le service client au +225 01 02 03 04 05.')
     })
 })

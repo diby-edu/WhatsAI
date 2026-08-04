@@ -102,18 +102,18 @@ function buildCatalogueSection(products, currency) {
     }
 
     // Standard : liste numérotée — nom et prix en gras, description pour les produits numériques.
-    // Le prix affiche une fourchette quand les variantes/combinaisons font varier le total
-    // (ex: Gourde 9 000 - 10 000 FCFA selon la couleur) plutôt que le seul prix de base.
+    // Le prix affiche une fourchette ("De X à Y") quand les variantes/combinaisons font varier
+    // le total (ex: Gourde 9 000 à 10 000 FCFA selon la couleur), sinon le prix unique.
     const formatCatalogPrice = (range) => {
         if (!range) return ''
         if (currency === 'USD' || currency === 'EUR') {
             const min = Math.round(range.min / 700)
             const max = Math.round(range.max / 700)
-            return min === max ? ` — *${min} ${currency}*` : ` — *${min} - ${max} ${currency}*`
+            return min === max ? ` 💰 *${min} ${currency}*` : ` 💰 *De ${min} à ${max} ${currency}*`
         }
         const minStr = Number(range.min).toLocaleString('fr-FR')
         const maxStr = Number(range.max).toLocaleString('fr-FR')
-        return range.min === range.max ? ` — *${minStr} FCFA*` : ` — *${minStr} - ${maxStr} FCFA*`
+        return range.min === range.max ? ` 💰 *${minStr} FCFA*` : ` 💰 *De ${minStr} à ${maxStr} FCFA*`
     }
 
     const catalogueItems = products.map((p, index) => {
