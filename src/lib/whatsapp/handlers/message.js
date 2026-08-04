@@ -934,7 +934,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // d'accueil "Voici notre carte : 1. X 2. Y"), plusieurs noms de produits apparaissent
         // dans le même texte — sans cette limite, ce filet de sécurité renvoyait les images de
         // TOUS les produits mentionnés, y compris lors d'un simple listing non sollicité.
-        if (!isSupportClientMode && orderableProducts.length > 0 && aiResponse.content) {
+        // Exclut aussi les réponses du flux déterministe (structuredReply, ex: "Pour Gourde
+        // pour enfant, quelle quantité ?") : le nom du produit y apparaît systématiquement sans
+        // rapport avec une demande de photo, ce qui envoyait une image à chaque question.
+        if (!isSupportClientMode && !structuredReply && orderableProducts.length > 0 && aiResponse.content) {
             const responseTextLower = aiResponse.content.toLowerCase()
             const mentionedProductImages = orderableProducts
                 .filter(p => p.image_url && p.name && responseTextLower.includes(p.name.toLowerCase()))

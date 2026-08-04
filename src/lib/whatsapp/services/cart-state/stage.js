@@ -344,8 +344,14 @@ function extractQuantity(text) {
  *   "Chaussettes 41-43 3" → 3 (fin isolée)
  */
 function extractQuantityFromSegment(text) {
-    const normalized = normalizeText(text)
+    let normalized = normalizeText(text)
     if (!normalized) return null
+
+    // Purge un préambule d'intention courant en tête de segment (ex: "je veux 3 gourdes"
+    // → "3 gourdes") pour ne pas rater une quantité qui suit une formule de politesse/intention.
+    // Ne touche pas au reste du segment : la logique "début/fin isolée" garde son rôle
+    // de ne jamais confondre une quantité avec une taille au milieu (ex: "41-43").
+    normalized = normalized.replace(/^(?:je\s+(?:veux|voudrais|souhaite|souhaiterais|prends|prendrais)|j'aimerais|il\s+me\s+faut|j'ai\s+besoin\s+de|donnez[\s-]?moi|donne[\s-]?moi)\s+/, '')
 
     // Cas 1 : nombre au DÉBUT suivi d'au moins un caractère non-chiffre
     const startMatch = normalized.match(/^(\d{1,3})(?:\s|$)/)
@@ -983,7 +989,9 @@ function parseMultiProductBatchLines(products, text) {
 
         // Les produits digitaux sans variante requise passent directement
         if (!hasAllRequiredVariants(targetProduct, completedItem)) {
-            return { status: 'missing_variants', segment, product: targetProduct, lines: [] }
+            // Conserve la quantité et les variantes déjà captées pour ce segment — sans ça,
+            // l'appelant devrait tout redemander depuis zéro (quantité comprise).
+            return { status: 'missing_variants', segment, product: targetProduct, quantity, item: completedItem, lines: [] }
         }
 
         const lineResult = buildLineFromDraft(targetProduct, completedItem, lines.length + 1)
@@ -1742,15 +1750,40 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         }
 
         // Produit avec variante(s) requise(s) déjà identifié dans le message → le demander
-        // directement au lieu de tomber sur le flux "quantité" générique qui l'ignorerait.
+        // directement (quantité déjà connue conservée) au lieu de tomber sur le flux
+        // "quantité" générique qui l'ignorerait et redemanderait tout depuis zéro.
         if (multiBatchParse.status === 'missing_variants' && multiBatchParse.product) {
+            const productIds = idleMultiProducts.map(p => p.id)
+            const currentIndex = Math.max(0, productIds.indexOf(multiBatchParse.product.id))
+            state.stage = CART_STAGE.COLLECTING_ITEM
+            state.awaiting_field = {
+                type: 'multi_product_sequential',
+                product_ids: productIds,
+                current_index: currentIndex,
+                current_item: multiBatchParse.item || null,
+            }
+            state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
+            state.last_prompt_text = normalized
+
+            const knownVals = Object.values(multiBatchParse.item?.selected_variants || {}).filter(Boolean)
+            const knownLabel = knownVals.length > 0 ? knownVals.join(' / ') : null
+            const question = buildVariantQuestion(multiBatchParse.product, multiBatchParse.item, multiBatchParse.quantity, knownLabel)
+            if (question) {
+                return {
+                    state, capturedFields,
+                    stateChanged: true, shouldBypassAI: true,
+                    directReply: question,
+                }
+            }
+
+            // Filet de sécurité si buildVariantQuestion ne trouve rien à demander
             const variantNames = getRequiredVariants(multiBatchParse.product)
                 .filter(v => !getSelectedVariantValue(createDraftItem(multiBatchParse.product), v.id))
                 .map(v => getVariantLabel(v).toLowerCase())
                 .join(', ')
             return {
                 state, capturedFields,
-                stateChanged: false, shouldBypassAI: true,
+                stateChanged: true, shouldBypassAI: true,
                 directReply: `Pour "${multiBatchParse.product.name}", précisez : ${variantNames || 'les variantes requises'} (ex : "2 ${multiBatchParse.product.name.split(' ')[0]} Noire L").`,
             }
         }
