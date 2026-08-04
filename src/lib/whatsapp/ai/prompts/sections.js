@@ -77,20 +77,46 @@ function buildCatalogueSection(products, currency) {
         return carte
     }
 
-    // Standard : liste numérotée — enrichie avec prix + description pour les produits numériques
-    const formatCatalogPrice = (priceFcfa) => {
-        if (!priceFcfa) return ''
-        if (currency === 'USD' || currency === 'EUR') return ` — ${Math.round(priceFcfa / 700)} ${currency}`
-        return ` — ${Number(priceFcfa).toLocaleString('fr-FR')} FCFA`
+    // Standard : liste numérotée — nom et prix en gras, description pour les produits numériques.
+    // Le prix affiche une fourchette quand les variantes/combinaisons font varier le total
+    // (ex: Gourde 9 000 - 10 000 FCFA selon la couleur) plutôt que le seul prix de base.
+    const getProductPriceRange = (product) => {
+        if (Array.isArray(product.combinations) && product.combinations.length > 0) {
+            const prices = product.combinations
+                .filter(c => c.available !== false && typeof c.price === 'number' && c.price > 0)
+                .map(c => c.price)
+            if (prices.length > 0) return { min: Math.min(...prices), max: Math.max(...prices) }
+        }
+        if (Array.isArray(product.variants)) {
+            const fixedPrices = product.variants
+                .filter(v => v.type === 'fixed')
+                .flatMap(v => (v.options || []).map(o => o.price))
+                .filter(p => typeof p === 'number' && p > 0)
+            if (fixedPrices.length > 0) return { min: Math.min(...fixedPrices), max: Math.max(...fixedPrices) }
+        }
+        if (product.price_fcfa) return { min: product.price_fcfa, max: product.price_fcfa }
+        return null
+    }
+
+    const formatCatalogPrice = (range) => {
+        if (!range) return ''
+        if (currency === 'USD' || currency === 'EUR') {
+            const min = Math.round(range.min / 700)
+            const max = Math.round(range.max / 700)
+            return min === max ? ` — *${min} ${currency}*` : ` — *${min} - ${max} ${currency}*`
+        }
+        const minStr = Number(range.min).toLocaleString('fr-FR')
+        const maxStr = Number(range.max).toLocaleString('fr-FR')
+        return range.min === range.max ? ` — *${minStr} FCFA*` : ` — *${minStr} - ${maxStr} FCFA*`
     }
 
     const catalogueItems = products.map((p, index) => {
+        const price = formatCatalogPrice(getProductPriceRange(p))
         if (p.product_type === 'digital' || p.product_type === 'virtual') {
-            const price = formatCatalogPrice(p.price_fcfa)
             const desc = p.description ? `\n   ${String(p.description).slice(0, 80)}` : ''
-            return `${index + 1}. 💻 ${p.name}${price}${desc}`
+            return `${index + 1}. 💻 *${p.name}*${price}${desc}`
         }
-        return `${index + 1}. ${p.name}`
+        return `${index + 1}. *${p.name}*${price}`
     }).join('\n')
 
     return `
