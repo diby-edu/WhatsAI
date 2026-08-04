@@ -1337,8 +1337,11 @@ function buildVariantQuestion(product, partialItem, quantity, knownLabel) {
     const optsStr = opts.join(', ')
     const example = opts[0] || '?'
     const varLabel = getVariantLabel(firstMissing)
-    const articleLabel = knownLabel && knownLabel !== '?' ? knownLabel : 'cet article'
-    const quantityPrefix = quantity > 1 ? `les ${quantity} × ${articleLabel}` : `le ${articleLabel}`
+    // Le nom du produit (quand connu) évite "le cet article" (double article) et
+    // "les 4 × cet article" (peu clair) — on ne sait pas le genre du nom, donc pas
+    // d'article ("le"/"la") devant quand ce n'est pas le générique "cet article".
+    const articleLabel = knownLabel && knownLabel !== '?' ? knownLabel : (product?.name || 'cet article')
+    const quantityPrefix = quantity > 1 ? `les ${quantity} × ${articleLabel}` : articleLabel
 
     return `Quelle ${varLabel.toLowerCase()} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
 }

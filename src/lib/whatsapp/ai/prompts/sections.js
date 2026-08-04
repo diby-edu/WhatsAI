@@ -12,6 +12,30 @@ function convertFromFcfa(priceFcfa, currency) {
 }
 
 /**
+ * Calcule la fourchette de prix RÉELLE d'un produit (en FCFA), en tenant compte des
+ * variantes "Prix Fixe" (le prix de l'option remplace le prix de base) et des
+ * combinaisons. Sans ça, un produit à un seul groupe de variante (ex: juste "Couleur")
+ * affiche le prix de base partout, alors que chaque couleur peut coûter différemment.
+ */
+function getProductPriceRange(product) {
+    if (Array.isArray(product.combinations) && product.combinations.length > 0) {
+        const prices = product.combinations
+            .filter(c => c.available !== false && typeof c.price === 'number' && c.price > 0)
+            .map(c => c.price)
+        if (prices.length > 0) return { min: Math.min(...prices), max: Math.max(...prices) }
+    }
+    if (Array.isArray(product.variants)) {
+        const fixedPrices = product.variants
+            .filter(v => v.type === 'fixed')
+            .flatMap(v => (v.options || []).map(o => o.price))
+            .filter(p => typeof p === 'number' && p > 0)
+        if (fixedPrices.length > 0) return { min: Math.min(...fixedPrices), max: Math.max(...fixedPrices) }
+    }
+    if (product.price_fcfa) return { min: product.price_fcfa, max: product.price_fcfa }
+    return null
+}
+
+/**
  * ═══════════════════════════════════════════════════════════════
  * CATALOGUE - Numéroté avec gras et prix intelligents
  * ═══════════════════════════════════════════════════════════════
@@ -80,24 +104,6 @@ function buildCatalogueSection(products, currency) {
     // Standard : liste numérotée — nom et prix en gras, description pour les produits numériques.
     // Le prix affiche une fourchette quand les variantes/combinaisons font varier le total
     // (ex: Gourde 9 000 - 10 000 FCFA selon la couleur) plutôt que le seul prix de base.
-    const getProductPriceRange = (product) => {
-        if (Array.isArray(product.combinations) && product.combinations.length > 0) {
-            const prices = product.combinations
-                .filter(c => c.available !== false && typeof c.price === 'number' && c.price > 0)
-                .map(c => c.price)
-            if (prices.length > 0) return { min: Math.min(...prices), max: Math.max(...prices) }
-        }
-        if (Array.isArray(product.variants)) {
-            const fixedPrices = product.variants
-                .filter(v => v.type === 'fixed')
-                .flatMap(v => (v.options || []).map(o => o.price))
-                .filter(p => typeof p === 'number' && p > 0)
-            if (fixedPrices.length > 0) return { min: Math.min(...fixedPrices), max: Math.max(...fixedPrices) }
-        }
-        if (product.price_fcfa) return { min: product.price_fcfa, max: product.price_fcfa }
-        return null
-    }
-
     const formatCatalogPrice = (range) => {
         if (!range) return ''
         if (currency === 'USD' || currency === 'EUR') {
@@ -350,16 +356,37 @@ function buildProductsCatalogSection(products, currency) {
                 variantsInfo += `\n   ❌ INDISPONIBLES : ${unavailable.map(resolveLabel).join(', ')}`
             }
         } else if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+            // Un seul groupe de variante (pas de combinations générées) : sans le prix par
+            // valeur ici, l'IA ne connaît que le prix de base et peut l'annoncer à tort
+            // (ex: "10 000 FCFA" alors que Bleu coûte 9 000 et Rose 10 000).
             const vInfo = p.variants.map(v => {
                 const label = groupLabel(v, v.name)
-                const opts = (v.options || []).map(o => o.value || o.name).join(', ')
+                const isFixed = v.type === 'fixed'
+                const opts = (v.options || []).map(o => {
+                    const val = o.value || o.name
+                    return (isFixed && o.price > 0)
+                        ? `${val} (${toDisplay(o.price).toLocaleString('fr-FR')} ${currencySymbol})`
+                        : val
+                }).join(', ')
                 return `${label} (${opts})`
             }).join(' | ')
             variantsInfo = `\n   🎨 VARIANTES : ${vInfo}`
+            if (p.variants.some(v => v.type === 'fixed')) {
+                variantsInfo += `\n   ⚠️ COLLECTE : le prix indiqué pour chaque valeur REMPLACE le prix de base — ne jamais annoncer le prix de base seul avant de connaître le choix du client.`
+            }
         }
 
+        // Prix affiché en tête : fourchette réelle si des variantes "Prix Fixe" ou des
+        // combinaisons font varier le total, sinon le prix de base seul.
+        const priceRange = getProductPriceRange(p)
+        const rangeMin = priceRange ? toDisplay(priceRange.min) : displayPrice
+        const rangeMax = priceRange ? toDisplay(priceRange.max) : displayPrice
+        const displayPriceLabel = rangeMin === rangeMax
+            ? `${rangeMin.toLocaleString('fr-FR')} ${currencySymbol}`
+            : `${rangeMin.toLocaleString('fr-FR')} - ${rangeMax.toLocaleString('fr-FR')} ${currencySymbol}`
+
         const typeTag = p.product_type === 'digital' ? ' 💻 [NUMÉRIQUE]' : ''
-        return `🔹 ${p.name}${typeTag} — ${displayPrice.toLocaleString('fr-FR')} ${currencySymbol}${variantsInfo}\n   📝 ${p.description || ''}`
+        return `🔹 ${p.name}${typeTag} — ${displayPriceLabel}${variantsInfo}\n   📝 ${p.description || ''}`
     }).filter(Boolean).join('\n\n')
 
     return `
