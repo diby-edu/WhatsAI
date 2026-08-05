@@ -519,7 +519,15 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     const delay = Math.min(5000 * Math.pow(2, attempt - 1), 60000) // Max 1 minute
                     console.log(`📡 Reconnecting in ${delay / 1000}s (Attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})...`)
 
+                    // ⭐ FIX RACE CONDITION : réserve le slot dès la mise en attente (pas seulement
+                    // quand le délai expire), sinon checkAgents() (toutes les 5s) peut voir cet agent
+                    // comme "libre" pendant le backoff et lancer une 2e connexion WhatsApp en parallèle
+                    // pour le même numéro — ce qui fait boucler les déconnexions (double socket).
+                    context?.scheduledConnections?.add(agentId)
+
                     setTimeout(async () => {
+                        context?.scheduledConnections?.delete(agentId)
+
                         // ⭐ FIX: Vérifier si l'agent veut toujours être connecté avant de reconnecter
                         // Évite que la reconnexion auto remette whatsapp_connected=true après une déco volontaire
                         const { data: agentCheck } = await supabase

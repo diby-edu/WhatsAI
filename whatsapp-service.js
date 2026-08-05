@@ -204,7 +204,7 @@ async function checkAgents() {
     try {
         console.log('🔄 Checking for agents...')
 
-        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts, serviceState }
+        const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, scheduledConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts, serviceState }
 
         // 1. D'abord restaurer les agents qui étaient connectés (priorité absolue)
         const { data: connectedAgents } = await supabase
@@ -530,7 +530,7 @@ async function main() {
     // Context for cron jobs and Realtime
     // - supabase (alias supabaseAdmin): pour les opérations DB
     // - supabaseRealtime: pour les subscriptions Realtime
-    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts, serviceState }
+    const context = { supabase, supabaseRealtime, activeSessions, pendingConnections, scheduledConnections, openai, CinetPay, scheduleSessionInit, markSetupPhaseActivity, clearSetupPhaseActivity, qrAttemptCounts, serviceState }
 
     // ═══════════════════════════════════════════════════════════
     // ⚡ REALTIME & ADAPTIVE POLLING

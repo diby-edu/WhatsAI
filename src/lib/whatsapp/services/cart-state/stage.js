@@ -1327,7 +1327,11 @@ function resolveBatchProduct(products, state, text) {
     return null
 }
 
-function buildVariantQuestion(product, partialItem, quantity, knownLabel) {
+function pluralizeFrench(word) {
+    return /[sxz]$/i.test(word) ? word : `${word}s`
+}
+
+function buildVariantQuestion(product, partialItem, quantity, knownLabel, isRetry = false) {
     const missingVars = getRequiredVariants(product)
         .filter(v => !getSelectedVariantValue(partialItem, v.id))
     const firstMissing = missingVars[0]
@@ -1336,14 +1340,23 @@ function buildVariantQuestion(product, partialItem, quantity, knownLabel) {
     const opts = (firstMissing.options || []).map(o => getOptionValue(o)).filter(Boolean)
     const optsStr = opts.join(', ')
     const example = opts[0] || '?'
-    const varLabel = getVariantLabel(firstMissing)
+    const varLabel = getVariantLabel(firstMissing).toLowerCase()
     // Le nom du produit (quand connu) évite "le cet article" (double article) et
     // "les 4 × cet article" (peu clair) — on ne sait pas le genre du nom, donc pas
     // d'article ("le"/"la") devant quand ce n'est pas le générique "cet article".
     const articleLabel = knownLabel && knownLabel !== '?' ? knownLabel : (product?.name || 'cet article')
     const quantityPrefix = quantity > 1 ? `les ${quantity} × ${articleLabel}` : articleLabel
 
-    return `Quelle ${varLabel.toLowerCase()} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
+    if (isRetry) {
+        // Le client a répondu sans qu'on capte de nouvelle info (question du type "quelles
+        // sont les couleurs ?", ou valeur non reconnue) → répéter le texte identique donne
+        // l'impression que le bot ignore le message. On répond d'abord explicitement, puis
+        // on repose la même question (garde "Quelle" comme le cas normal — le genre du nom
+        // n'est pas connu ici, cf. articleLabel plus haut).
+        return `Les ${pluralizeFrench(varLabel)} disponibles sont : ${optsStr}.\nQuelle ${varLabel} pour ${quantityPrefix} ? (répondez simplement ex : "${example}")`
+    }
+
+    return `Quelle ${varLabel} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
 }
 
 function updateCartStateFromUserMessage(previousState, text, products = [], currency = 'XOF', options = {}) {
@@ -1544,7 +1557,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
             // Demander la prochaine variante manquante (sur l'item mis à jour)
             const itemForQuestion = capturedSomething ? completedItem : current.item
-            const question = buildVariantQuestion(product, itemForQuestion, current.quantity, current.known_label)
+            const question = buildVariantQuestion(product, itemForQuestion, current.quantity, current.known_label, !capturedSomething)
             return {
                 state, capturedFields,
                 stateChanged: capturedSomething, shouldBypassAI: true,
@@ -1564,6 +1577,9 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
             let workingItem = state.awaiting_field.current_item
                 ? cloneItem(state.awaiting_field.current_item)
                 : createDraftItem(currentProduct)
+            // Si on avait déjà une quantité au tour précédent, c'est qu'on avait déjà posé
+            // la question de variante — sert à détecter une réponse qui n'a rien fait avancer.
+            const hadQuantityBefore = !!(state.awaiting_field.current_item && state.awaiting_field.current_item.quantity)
 
             if (!workingItem.quantity) {
                 const rawQty = extractQuantityFromSegment(normalized) || (Number(normalized) > 0 ? Number(normalized) : null)
@@ -1628,7 +1644,8 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
                 state.awaiting_field = { ...state.awaiting_field, current_item: workingItem }
                 const knownVals = Object.values(workingItem.selected_variants || {}).filter(Boolean)
                 const knownLabel = knownVals.length > 0 ? knownVals.join(' / ') : null
-                const question = buildVariantQuestion(currentProduct, workingItem, workingItem.quantity, knownLabel)
+                const capturedSomething = probe.captured && probe.captured.length > 0
+                const question = buildVariantQuestion(currentProduct, workingItem, workingItem.quantity, knownLabel, hadQuantityBefore && !capturedSomething)
                 if (question) {
                     return {
                         state, capturedFields,
