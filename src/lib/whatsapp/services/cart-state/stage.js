@@ -947,6 +947,9 @@ function parseMultiProductBatchLines(products, text) {
         .filter(Boolean)
 
     const lines = []
+    // productId -> item complet (quantité connue) en attente d'une variante manquante
+    const pendingItems = {}
+    let firstIncomplete = null
 
     for (const segment of segments) {
         if (!segment) continue
@@ -989,14 +992,33 @@ function parseMultiProductBatchLines(products, text) {
 
         // Les produits digitaux sans variante requise passent directement
         if (!hasAllRequiredVariants(targetProduct, completedItem)) {
-            // Conserve la quantité et les variantes déjà captées pour ce segment — sans ça,
-            // l'appelant devrait tout redemander depuis zéro (quantité comprise).
-            return { status: 'missing_variants', segment, product: targetProduct, quantity, item: completedItem, lines: [] }
+            // Ne pas interrompre le parcours ici : continuer à traiter les segments suivants
+            // pour ne pas perdre leur quantité/variantes (ex: "10 sacs et 4 gourdes" où seul
+            // le sac a besoin d'une couleur — la quantité "4" des gourdes doit être conservée).
+            pendingItems[targetProduct.id] = completedItem
+            if (!firstIncomplete) {
+                firstIncomplete = { segment, product: targetProduct, quantity, item: completedItem }
+            }
+            continue
         }
 
         const lineResult = buildLineFromDraft(targetProduct, completedItem, lines.length + 1)
         if (lineResult.error) return { status: 'error', error: lineResult.error, lines: [] }
         lines.push(lineResult.line)
+    }
+
+    if (firstIncomplete) {
+        // Conserve les lignes déjà complètes (lines) et les items partiels des autres
+        // produits (pendingItems) — sans ça l'appelant redemanderait tout depuis zéro.
+        return {
+            status: 'missing_variants',
+            segment: firstIncomplete.segment,
+            product: firstIncomplete.product,
+            quantity: firstIncomplete.quantity,
+            item: firstIncomplete.item,
+            lines,
+            pendingItems,
+        }
     }
 
     if (lines.length === 0) return { status: 'invalid', lines: [] }
@@ -1568,7 +1590,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
     // Handler multi_product_sequential : quantités demandées UN PAR UN pour chaque produit
     if (state.awaiting_field?.type === 'multi_product_sequential') {
-        const { product_ids, current_index } = state.awaiting_field
+        const { product_ids, current_index, pending_items: pendingItemsMap = {} } = state.awaiting_field
         const currentProduct = findProductById(products, product_ids[current_index])
 
         if (currentProduct) {
@@ -1612,7 +1634,31 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
 
                 if (nextIndex < product_ids.length) {
                     const nextProduct = findProductById(products, product_ids[nextIndex])
-                    state.awaiting_field = { type: 'multi_product_sequential', product_ids, current_index: nextIndex, current_item: null }
+                    // Si la quantité du produit suivant avait déjà été donnée dans le message
+                    // initial (ex: "10 sacs et 4 gourdes"), ne pas la redemander — poser
+                    // directement la question de variante manquante.
+                    const nextPending = nextProduct ? pendingItemsMap[nextProduct.id] : null
+                    state.awaiting_field = {
+                        type: 'multi_product_sequential',
+                        product_ids,
+                        current_index: nextIndex,
+                        current_item: nextPending || null,
+                        pending_items: pendingItemsMap,
+                    }
+
+                    if (nextPending && nextPending.quantity) {
+                        const knownVals = Object.values(nextPending.selected_variants || {}).filter(Boolean)
+                        const knownLabel = knownVals.length > 0 ? knownVals.join(' / ') : null
+                        const question = buildVariantQuestion(nextProduct, nextPending, nextPending.quantity, knownLabel)
+                        if (question) {
+                            return {
+                                state, capturedFields,
+                                stateChanged: true, shouldBypassAI: true,
+                                directReply: question,
+                            }
+                        }
+                    }
+
                     return {
                         state, capturedFields,
                         stateChanged: true, shouldBypassAI: true,
@@ -1773,7 +1819,15 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         // directement (quantité déjà connue conservée) au lieu de tomber sur le flux
         // "quantité" générique qui l'ignorerait et redemanderait tout depuis zéro.
         if (multiBatchParse.status === 'missing_variants' && multiBatchParse.product) {
-            const productIds = idleMultiProducts.map(p => p.id)
+            // Les segments déjà complets (autre produit sans variante manquante) sont ajoutés
+            // au panier tout de suite et retirés de la séquence pour ne pas les redemander.
+            const completedProductIds = new Set((multiBatchParse.lines || []).map(l => l.product_id))
+            if (multiBatchParse.lines && multiBatchParse.lines.length > 0) {
+                for (const line of multiBatchParse.lines) {
+                    state.cart_items = mergeOrAppendCartLine(state.cart_items || [], line, products)
+                }
+            }
+            const productIds = idleMultiProducts.map(p => p.id).filter(id => !completedProductIds.has(id))
             const currentIndex = Math.max(0, productIds.indexOf(multiBatchParse.product.id))
             state.stage = CART_STAGE.COLLECTING_ITEM
             state.awaiting_field = {
@@ -1781,6 +1835,7 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
                 product_ids: productIds,
                 current_index: currentIndex,
                 current_item: multiBatchParse.item || null,
+                pending_items: multiBatchParse.pendingItems || {},
             }
             state.last_prompt_kind = CART_STAGE.COLLECTING_ITEM
             state.last_prompt_text = normalized
