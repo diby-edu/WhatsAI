@@ -1381,6 +1381,17 @@ function buildVariantQuestion(product, partialItem, quantity, knownLabel, isRetr
     return `Quelle ${varLabel} pour ${quantityPrefix} ?\n(${optsStr} — répondez simplement ex : "${example}")`
 }
 
+// Même logique que le isRetry de buildVariantQuestion, pour le flux mono-produit générique
+// (buildAwaitingField) : la réponse du client n'a rien capté (ex: couleur inexistante) → au
+// lieu de reposer la question à l'identique, répondre d'abord explicitement.
+function buildVariantRetryPrompt(product, awaitingField) {
+    const variant = (product.variants || []).find(v => v.id === awaitingField.variant_id)
+    const opts = (variant?.options || []).map(o => getOptionValue(o)).filter(Boolean).join(', ')
+    if (!opts) return awaitingField.prompt
+    const label = (awaitingField.label || '').toLowerCase()
+    return `Les ${pluralizeFrench(label)} disponibles sont : ${opts}.\nQuelle ${label} souhaitez-vous ?`
+}
+
 function updateCartStateFromUserMessage(previousState, text, products = [], currency = 'XOF', options = {}) {
     const { allowKnowledgeInterrupt = false } = options
     const state = cloneCartState(previousState)
@@ -2336,9 +2347,22 @@ function updateCartStateFromUserMessage(previousState, text, products = [], curr
         shouldBypassAI = true
     }
 
-    const directReply = shouldBypassAI
-        ? buildStructuredCartReply(state, products, capturedFields, currency)
-        : null
+    // Rien de nouveau capté et on repose exactement la même question de variante qu'au tour
+    // précédent (ex: le client a répondu une couleur qui n'existe pas) → répondre explicitement
+    // au lieu de laisser directReply=null (l'IA improviserait une réponse moins fiable) ou de
+    // répéter le message à l'identique.
+    const isRepeatedVariantQuestion = !shouldBypassAI &&
+        state.awaiting_field?.type === 'variant' &&
+        previousAwaiting?.type === 'variant' &&
+        previousAwaiting?.variant_id === state.awaiting_field?.variant_id
+
+    if (isRepeatedVariantQuestion) {
+        shouldBypassAI = true
+    }
+
+    const directReply = isRepeatedVariantQuestion
+        ? buildVariantRetryPrompt(product, state.awaiting_field)
+        : (shouldBypassAI ? buildStructuredCartReply(state, products, capturedFields, currency) : null)
 
     const awaitingChanged = JSON.stringify(previousAwaiting) !== JSON.stringify(state.awaiting_field)
 
