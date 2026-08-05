@@ -440,6 +440,9 @@ async function generateAIResponse(options, dependencies) {
         // 3. Construire le System Prompt
         // external_sync : produits dans agent_external_data (pas dans products) → jamais support client
         const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase && agent.ecommerce_mode !== 'external_sync'
+        // Mode Lead Only : catalogue conservé (produits/images/variantes), mais aucun outil
+        // transactionnel — la conversation se termine par capture_lead au lieu de create_order.
+        const isLeadOnlyMode = agent.conversation_mode === 'lead_only'
         const activeEngineHint =
             hasRestaurantServiceProduct(products || []) && hasRestaurantStateData(restaurantState)
                 ? 'RESTAURANT'
@@ -536,16 +539,21 @@ async function generateAIResponse(options, dependencies) {
         // capture_lead est conservé uniquement si lead_collection_enabled
         const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'create_booking', 'find_order', 'create_restaurant_checkout']
         const RESTAURANT_DISABLED_TOOLS = ['create_order', 'create_booking']
-        const activeTools = isSupportClientMode
-            ? TOOLS.filter(t => {
-                if (SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name)) return false
-                if (FLAG_DISABLED_TOOLS.includes(t.function?.name)) return false
-                if (t.function?.name === 'capture_lead' && !agent.lead_collection_enabled) return false
-                return true
-            })
-            : isRestaurantMode
-                ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name) && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
-                : TOOLS.filter(t => t.function?.name !== 'capture_lead' && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
+        const activeTools = isLeadOnlyMode
+            // Mêmes outils transactionnels désactivés que le mode support client, mais
+            // capture_lead reste toujours actif ici (pas conditionné à lead_collection_enabled,
+            // qui a une sémantique différente : capturer un lead EN PLUS d'une commande normale).
+            ? TOOLS.filter(t => !SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name) && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
+            : isSupportClientMode
+                ? TOOLS.filter(t => {
+                    if (SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name)) return false
+                    if (FLAG_DISABLED_TOOLS.includes(t.function?.name)) return false
+                    if (t.function?.name === 'capture_lead' && !agent.lead_collection_enabled) return false
+                    return true
+                })
+                : isRestaurantMode
+                    ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name) && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
+                    : TOOLS.filter(t => t.function?.name !== 'capture_lead' && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
         const toolsConfig = activeTools.length > 0
             ? { tools: activeTools, tool_choice: 'auto' }
             : {}

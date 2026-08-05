@@ -6,9 +6,27 @@ interface Step2StrategyProps {
     formData: ProductFormData
     addMarketingTag: (tag: string) => void
     labelStyle: CSSProperties
+    hideMarketingTags?: boolean
 }
 
-export function Step2Strategy({ formData, addMarketingTag, labelStyle }: Step2StrategyProps) {
+export function Step2Strategy({ formData, addMarketingTag, labelStyle, hideMarketingTags = false }: Step2StrategyProps) {
+    if (hideMarketingTags) {
+        // Agent lead_only : les arguments marketing vivent dans la Base de Connaissance.
+        return (
+            <div style={{
+                padding: 20,
+                border: '1px dashed rgba(148, 163, 184, 0.2)',
+                borderRadius: 12,
+                textAlign: 'center'
+            }}>
+                <Bot size={24} style={{ color: '#94a3b8', margin: '0 auto 8px' }} />
+                <p style={{ fontSize: 13, color: '#64748b' }}>
+                    Ajoutez l'argumentaire de vente et les informations complémentaires dans la Base de Connaissance de l'agent.
+                </p>
+            </div>
+        )
+    }
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div>

@@ -35,6 +35,7 @@ interface Step1DetailsProps {
     handleDigitalFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
     licenseKeysInput: string
     setLicenseKeysInput: Dispatch<SetStateAction<string>>
+    hideDescription?: boolean
 }
 
 export function Step1Details({
@@ -65,10 +66,12 @@ export function Step1Details({
     handleDigitalFileUpload,
     licenseKeysInput,
     setLicenseKeysInput,
+    hideDescription = false,
 }: Step1DetailsProps) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {/* Description with AI Analysis */}
+            {/* Description with AI Analysis — masquée pour les agents lead_only (info dans la Base de Connaissance) */}
+            {!hideDescription && (
             <div>
                 <label style={labelStyle}>
                     {formData.product_type === 'service' ? 'Description du service' : 'Description du produit'}
@@ -178,6 +181,7 @@ export function Step1Details({
                     </div>
                 )}
             </div>
+            )}
 
             {/* Content Included (+ Features fusionnés pour les services) */}
             <div>

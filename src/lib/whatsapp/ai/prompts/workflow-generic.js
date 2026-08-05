@@ -2,6 +2,7 @@
 const { buildPhysicalWorkflow } = require('./workflow-type-physical')
 const { buildDigitalWorkflow } = require('./workflow-type-digital')
 const { buildMixedWorkflow } = require('./workflow-mixed')
+const { buildLeadOnlyWorkflow } = require('./workflow-lead-only')
 
 /**
  * ORCHESTRATEUR DE FLUX GÉNÉRIQUE
@@ -11,6 +12,12 @@ const { buildMixedWorkflow } = require('./workflow-mixed')
  * @param {Object} agent - Agent (nécessaire pour les frais de livraison en mode physique)
  */
 function buildGenericWorkflow(orders, products, agent) {
+  // Mode lead_only : catalogue conservé, mais capture_lead remplace create_order —
+  // ce dispatch prioritaire évite tout le flux commande/paiement structuré ci-dessous.
+  if (agent?.conversation_mode === 'lead_only') {
+    return buildLeadOnlyWorkflow()
+  }
+
   if (!products || products.length === 0) {
     // Aucun produit configuré : interdire toute invention
     return `

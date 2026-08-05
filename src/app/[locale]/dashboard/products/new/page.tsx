@@ -39,7 +39,7 @@ export default function NewProductPage() {
     }
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
-    const [agents, setAgents] = useState<{ id: string, name: string, mission?: string, ecommerce_mode?: string | null }[]>([])
+    const [agents, setAgents] = useState<{ id: string, name: string, mission?: string, ecommerce_mode?: string | null, conversation_mode?: string | null }[]>([])
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
 
     useEffect(() => {
@@ -213,7 +213,7 @@ export default function NewProductPage() {
 
     const loadAgents = async () => {
         try {
-            const { data } = await supabase.from('agents').select('id, name, mission, ecommerce_mode')
+            const { data } = await supabase.from('agents').select('id, name, mission, ecommerce_mode, conversation_mode')
             if (data) setAgents(data)
         } catch (e) { }
     }
@@ -514,6 +514,11 @@ export default function NewProductPage() {
         marginBottom: 8
     }
 
+    // Agent en mode lead_only : formulaire produit allégé (pas de description ni d'arguments
+    // marketing — ces infos vivent dans la Base de Connaissance). Ne change rien pour les
+    // autres agents.
+    const isLeadOnlyAgent = agents.find(a => a.id === formData.agent_id)?.conversation_mode === 'lead_only'
+
     const renderStepContent = () => {
         switch (currentStep) {
             case 0: // BASICS
@@ -572,6 +577,7 @@ export default function NewProductPage() {
                         handleDigitalFileUpload={handleDigitalFileUpload}
                         licenseKeysInput={licenseKeysInput}
                         setLicenseKeysInput={setLicenseKeysInput}
+                        hideDescription={isLeadOnlyAgent}
                     />
                 )
 
@@ -581,6 +587,7 @@ export default function NewProductPage() {
                         formData={formData}
                         addMarketingTag={addMarketingTag}
                         labelStyle={labelStyle}
+                        hideMarketingTags={isLeadOnlyAgent}
                     />
                 )
         }

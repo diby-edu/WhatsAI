@@ -529,6 +529,14 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // external_sync : produits dans agent_external_data (pas dans products) → jamais support client
         const isSupportClientMode = (products || []).length === 0 && hasKnowledgeBase && agent.ecommerce_mode !== 'external_sync'
 
+        // Mode Lead Only : agent avec catalogue (produits, images, variantes) mais SANS moteur
+        // panier/checkout déterministe — la conversation reste libre côté IA, qui capture un
+        // lead (capture_lead) au lieu de construire une commande structurée (create_order).
+        // Ne remplace isSupportClientMode nulle part ailleurs : uniquement pour sauter les
+        // mises à jour des moteurs panier/restaurant/booking ci-dessous.
+        const isLeadOnlyMode = agent.conversation_mode === 'lead_only'
+        const skipStructuredFlows = isSupportClientMode || isLeadOnlyMode
+
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
         const previousBookingState = getBookingState(conversation.metadata)
@@ -585,30 +593,30 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         let checkoutUpdate = noopCheckoutUpdate
 
         if (!transactionalGuardOwnsReply) {
-            restaurantUpdate = (isSupportClientMode || !hasRestaurantCatalog)
+            restaurantUpdate = (skipStructuredFlows || !hasRestaurantCatalog)
                 ? noopRestaurantUpdate
                 : updateRestaurantStateFromUserMessage(previousRestaurantState, structuredMessageText, restaurantProducts)
-            restaurantFlowActive = !isSupportClientMode && hasRestaurantCatalog && hasRestaurantStateData(restaurantUpdate.state)
+            restaurantFlowActive = !skipStructuredFlows && hasRestaurantCatalog && hasRestaurantStateData(restaurantUpdate.state)
 
-            bookingUpdate = (isSupportClientMode || restaurantFlowActive)
+            bookingUpdate = (skipStructuredFlows || restaurantFlowActive)
                 ? noopBookingUpdate
                 : updateBookingStateFromUserMessage(previousBookingState, structuredMessageText, standardServiceProducts)
-            bookingFlowActive = !isSupportClientMode && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
+            bookingFlowActive = !skipStructuredFlows && !!(previousBookingState.current_booking || bookingUpdate.state.current_booking)
 
-            cartUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
+            cartUpdate = (skipStructuredFlows || restaurantFlowActive || bookingFlowActive)
                 ? noopCartUpdate
                 : updateCartStateFromUserMessage(previousCartState, structuredMessageText, orderableProducts, agentCurrency, {
                     allowKnowledgeInterrupt: hasKnowledgeBase,
                 })
 
             const cartJustEnteredCheckout =
-                !isSupportClientMode &&
+                !skipStructuredFlows &&
                 !restaurantFlowActive &&
                 !bookingFlowActive &&
                 previousCartState.stage !== CART_STAGE.CHECKOUT &&
                 cartUpdate.state.stage === CART_STAGE.CHECKOUT
 
-            checkoutUpdate = (isSupportClientMode || restaurantFlowActive || bookingFlowActive)
+            checkoutUpdate = (skipStructuredFlows || restaurantFlowActive || bookingFlowActive)
                 ? noopCheckoutUpdate
                 : updateCheckoutStateFromUserMessage(previousCheckoutState, structuredMessageText, {
                     cartState: cartUpdate.state,
@@ -621,7 +629,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         if (
             !transactionalGuardOwnsReply &&
-            !isSupportClientMode &&
+            !skipStructuredFlows &&
             !restaurantFlowActive &&
             !bookingFlowActive &&
             !hasCartStateData(previousCartState) &&
@@ -654,7 +662,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
         if (
             !transactionalGuardOwnsReply &&
-            !isSupportClientMode && (
+            !skipStructuredFlows && (
                 JSON.stringify(previousCartState) !== JSON.stringify(cartUpdate.state) ||
                 JSON.stringify(previousCheckoutState) !== JSON.stringify(checkoutState) ||
                 JSON.stringify(previousBookingState) !== JSON.stringify(bookingUpdate.state) ||
@@ -957,7 +965,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             activeTunnelCancellation,
         })
 
-        if (!isSupportClientMode && shouldPersistTransactionalMetadata) {
+        if (!skipStructuredFlows && shouldPersistTransactionalMetadata) {
             let nextMetadata = conversation.metadata
             nextMetadata = clearCartAfterResponse
                 ? clearCartState(nextMetadata)

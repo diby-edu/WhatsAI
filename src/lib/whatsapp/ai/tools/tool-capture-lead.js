@@ -16,7 +16,7 @@ async function handleCaptureLead(args, agentId, customerPhone, supabase) {
         // Récupérer le user_id de l'agent
         const { data: agent, error: agentErr } = await supabase
             .from('agents')
-            .select('user_id')
+            .select('user_id, name')
             .eq('id', agentId)
             .single()
 
@@ -45,6 +45,18 @@ async function handleCaptureLead(args, agentId, customerPhone, supabase) {
         if (error) {
             console.error('capture_lead: erreur insertion', error)
             return JSON.stringify({ success: false, error: 'Erreur enregistrement lead' })
+        }
+
+        // 🔔 NOTIFICATION: Nouveau lead (non-bloquant)
+        try {
+            const { notify } = require('../../../notifications/notify')
+            notify(agent.user_id, 'new_lead', {
+                contactName: lead_name || undefined,
+                contactPhone: lead_phone || undefined,
+                agentName: agent.name,
+            })
+        } catch (notifyError) {
+            console.error('🔔 new_lead notification error (non-blocking):', notifyError)
         }
 
         return JSON.stringify({
