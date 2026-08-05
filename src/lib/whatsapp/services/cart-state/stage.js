@@ -348,26 +348,17 @@ function extractQuantityFromSegment(text) {
     if (!normalized) return null
 
     // Purge un préambule d'intention courant en tête de segment (ex: "je veux 3 gourdes"
-    // → "3 gourdes") pour ne pas rater une quantité qui suit une formule de politesse/intention.
-    // Ne touche pas au reste du segment : la logique "début/fin isolée" garde son rôle
-    // de ne jamais confondre une quantité avec une taille au milieu (ex: "41-43").
+    // → "3 gourdes") — utilisé surtout par le fallback en mots juste en dessous (ex: "un",
+    // "deux"), qui doit rester ancré en tout début/fin de chaîne.
     normalized = normalized.replace(/^(?:je\s+(?:veux|voudrais|souhaite|souhaiterais|prends|prendrais)|j'aimerais|il\s+me\s+faut|j'ai\s+besoin\s+de|donnez[\s-]?moi|donne[\s-]?moi)\s+/, '')
-    // Faute de frappe courante : "je" seul sans verbe juste avant un nombre (ex: "je 10 sac"
-    // au lieu de "je veux 10 sac") — ne retire "je " que si un chiffre suit immédiatement,
-    // pour ne jamais toucher à un segment qui n'a pas cette forme précise.
-    normalized = normalized.replace(/^je\s+(?=\d)/, '')
 
-    // Cas 1 : nombre au DÉBUT suivi d'au moins un caractère non-chiffre
-    const startMatch = normalized.match(/^(\d{1,3})(?:\s|$)/)
-    if (startMatch) {
-        const qty = Number(startMatch[1])
-        if (qty > 0) return qty
-    }
-
-    // Cas 2 : nombre ISOLÉ en FIN (précédé d'un espace ou début de chaîne)
-    const endMatch = normalized.match(/(?:^|\s)(\d{1,3})$/)
-    if (endMatch) {
-        const qty = Number(endMatch[1])
+    // Nombre ISOLÉ (1 à 3 chiffres, entouré d'espaces ou de bornes de chaîne) n'importe où
+    // dans le segment — peu importe ce qui précède (verbe correct, faute de frappe/verbe
+    // tronqué, ou rien du tout). Un chiffre collé à un tiret (ex: "41-43", une pointure)
+    // n'est jamais "isolé" au sens de cette regex, donc jamais confondu avec une quantité.
+    const isolatedMatch = normalized.match(/(?:^|\s)(\d{1,3})(?:\s|$)/)
+    if (isolatedMatch) {
+        const qty = Number(isolatedMatch[1])
         if (qty > 0) return qty
     }
 
@@ -461,7 +452,10 @@ function splitCombinationSegments(text) {
     // Diviser sur le texte BRUT pour préserver les sauts de ligne comme séparateurs
     // (normalizeText collapse les \n avant le split et les perdrait)
     return text
-        .split(/\s*(?:et|puis|\+)\s*|[;,]\s*|\n+\s*/i)
+        // Le "+" n'est un séparateur que s'il est entouré d'espaces des deux côtés (ex:
+        // "2 sacs + 3 gourdes") — sinon il fragmenterait un numéro de téléphone international
+        // du type "+2250101010101" en un segment sans produit, faisant échouer tout le parsing.
+        .split(/\s*(?:et|puis)\s*|\s+\+\s+|[;,]\s*|\n+\s*/i)
         .map(segment => normalizeText(segment))
         .filter(Boolean)
 }
@@ -700,9 +694,27 @@ function buildProductBlock(product, maxCombos = 8, currency = 'XOF') {
 
     // ── N1 : prix uniforme, affichage groupé par variante ──
     if (level === 'N1') {
-        const basePrice = product.price_fcfa != null
+        let basePrice = product.price_fcfa != null
             ? formatPrice(product.price_fcfa, currency)
             : (combos[0]?.price != null ? formatPrice(combos[0].price, currency) : null)
+
+        // N1 signifie "pas de combinations à prix variable" (produit à un seul groupe de
+        // variantes), mais CE groupe peut lui-même avoir un prix différent par option (ex:
+        // couleur à 5000/6000/7000 FCFA) — dans ce cas price_fcfa (le prix de base générique)
+        // ne reflète pas la réalité et affiche un montant faux. Afficher la vraie fourchette.
+        if (requiredVariants.length === 1) {
+            const optionPrices = (requiredVariants[0].options || [])
+                .map(o => o.price)
+                .filter(p => p != null && p > 0)
+            if (optionPrices.length > 0) {
+                const min = Math.min(...optionPrices)
+                const max = Math.max(...optionPrices)
+                basePrice = min === max
+                    ? formatPrice(min, currency)
+                    : `${formatPrice(min, currency)} à ${formatPrice(max, currency)}`
+            }
+        }
+
         const header = basePrice ? `*${product.name}* — ${basePrice}` : `*${product.name}*`
 
         const variantLines = requiredVariants.map(variant => {
@@ -946,7 +958,10 @@ function parseMultiProductBatchLines(products, text) {
     const eligibleProducts = products.filter(p => p.product_type !== 'service')
 
     const segments = text
-        .split(/\s*(?:et|puis|\+)\s*|[;,]\s*|\n+\s*/i)
+        // Le "+" n'est un séparateur que s'il est entouré d'espaces des deux côtés (ex:
+        // "2 sacs + 3 gourdes") — sinon il fragmenterait un numéro de téléphone international
+        // du type "+2250101010101" en un segment sans produit, faisant échouer tout le parsing.
+        .split(/\s*(?:et|puis)\s*|\s+\+\s+|[;,]\s*|\n+\s*/i)
         .map(s => normalizeText(s))
         .filter(Boolean)
 
@@ -978,6 +993,11 @@ function parseMultiProductBatchLines(products, text) {
         }
 
         if (!targetProduct || bestScore === 0) {
+            // Si on a déjà quelque chose d'exploitable (une ligne complète ou un produit en
+            // attente de variante), ce segment est très probablement une info hors-produit
+            // (adresse, téléphone, nom du client) plutôt qu'un article mal identifié — on
+            // l'ignore au lieu d'abandonner tout le parsing des autres segments.
+            if (lines.length > 0 || firstIncomplete) continue
             return { status: 'missing_product', segment, lines: [] }
         }
 
@@ -985,6 +1005,11 @@ function parseMultiProductBatchLines(products, text) {
         // Si absente → toujours déclencher le flux séquentiel (même pour les produits digital_content)
         const rawQty = extractQuantityFromSegment(segment)
         if (rawQty === null) {
+            // Même logique que pour missing_product ci-dessus : un segment hors-produit (nom,
+            // adresse) peut matcher un produit par erreur via le score flou (tolérance aux
+            // fautes de frappe) sans jamais contenir de quantité — si on a déjà quelque chose
+            // d'exploitable, l'ignorer plutôt que tout abandonner.
+            if (lines.length > 0 || firstIncomplete) continue
             return { status: 'missing_quantities_multi', lines: [] }
         }
         const quantity = normalizeQuantityForProduct(targetProduct, rawQty)
