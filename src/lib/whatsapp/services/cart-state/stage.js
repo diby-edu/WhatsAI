@@ -352,6 +352,10 @@ function extractQuantityFromSegment(text) {
     // Ne touche pas au reste du segment : la logique "début/fin isolée" garde son rôle
     // de ne jamais confondre une quantité avec une taille au milieu (ex: "41-43").
     normalized = normalized.replace(/^(?:je\s+(?:veux|voudrais|souhaite|souhaiterais|prends|prendrais)|j'aimerais|il\s+me\s+faut|j'ai\s+besoin\s+de|donnez[\s-]?moi|donne[\s-]?moi)\s+/, '')
+    // Faute de frappe courante : "je" seul sans verbe juste avant un nombre (ex: "je 10 sac"
+    // au lieu de "je veux 10 sac") — ne retire "je " que si un chiffre suit immédiatement,
+    // pour ne jamais toucher à un segment qui n'a pas cette forme précise.
+    normalized = normalized.replace(/^je\s+(?=\d)/, '')
 
     // Cas 1 : nombre au DÉBUT suivi d'au moins un caractère non-chiffre
     const startMatch = normalized.match(/^(\d{1,3})(?:\s|$)/)
