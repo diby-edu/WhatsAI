@@ -231,7 +231,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                             </span>
                         </div>
 
-                        {!formData.lead_collection_enabled && (
+                        {!formData.lead_collection_enabled && formData.conversation_mode !== 'lead_only' && (
                             <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
                                 <p style={{ color: '#f87171', fontWeight: 600, fontSize: 13, margin: '0 0 4px 0' }}>Les leads sont désactivés — vous perdez des prospects.</p>
                                 <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>Chaque client qui contacte votre agent est un prospect. Sans collecte, vous ne saurez jamais qui a écrit.</p>
@@ -240,23 +240,31 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
 
                         <div style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: 16, border: `1px solid ${formData.lead_collection_enabled ? 'rgba(16,185,129,0.25)' : 'rgba(148,163,184,0.1)'}`, borderRadius: 12, background: formData.lead_collection_enabled ? 'rgba(16,185,129,0.06)' : 'rgba(30,41,59,0.5)', marginBottom: 16
+                            padding: 16, border: `1px solid ${(formData.lead_collection_enabled || formData.conversation_mode === 'lead_only') ? 'rgba(16,185,129,0.25)' : 'rgba(148,163,184,0.1)'}`, borderRadius: 12, background: (formData.lead_collection_enabled || formData.conversation_mode === 'lead_only') ? 'rgba(16,185,129,0.06)' : 'rgba(30,41,59,0.5)', marginBottom: 16
                         }}>
                             <div>
                                 <div style={{ fontWeight: 600, color: 'white', fontSize: 14 }}>Activer la collecte de leads</div>
                                 <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
-                                    L'agent récupère automatiquement le contact de chaque client intéressé
+                                    {formData.conversation_mode === 'lead_only'
+                                        ? "Obligatoire pour un agent en mode capture de lead — c'est son seul moyen de convertir une conversation."
+                                        : "L'agent récupère automatiquement le contact de chaque client intéressé"}
                                 </div>
                             </div>
-                            <button type="button"
-                                onClick={() => setFormData({ ...formData, lead_collection_enabled: !formData.lead_collection_enabled })}
-                                style={{ width: 48, height: 28, borderRadius: 14, background: formData.lead_collection_enabled ? '#10b981' : '#334155', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}
-                            >
-                                <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: formData.lead_collection_enabled ? 23 : 3, transition: 'left 0.2s' }} />
-                            </button>
+                            {formData.conversation_mode === 'lead_only' ? (
+                                <div title="Toujours actif pour ce mode" style={{ width: 48, height: 28, borderRadius: 14, background: '#10b981', border: 'none', position: 'relative', flexShrink: 0, opacity: 0.85, cursor: 'not-allowed' }}>
+                                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: 23 }} />
+                                </div>
+                            ) : (
+                                <button type="button"
+                                    onClick={() => setFormData({ ...formData, lead_collection_enabled: !formData.lead_collection_enabled })}
+                                    style={{ width: 48, height: 28, borderRadius: 14, background: formData.lead_collection_enabled ? '#10b981' : '#334155', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}
+                                >
+                                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: formData.lead_collection_enabled ? 23 : 3, transition: 'left 0.2s' }} />
+                                </button>
+                            )}
                         </div>
 
-                        {formData.lead_collection_enabled && (
+                        {(formData.lead_collection_enabled || formData.conversation_mode === 'lead_only') && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
