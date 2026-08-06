@@ -8,6 +8,7 @@ interface StepSettingsProps {
     isSupportClient: boolean
     isExternalSync: boolean
     isPhysicalProduct: boolean
+    isRestaurant: boolean
 }
 
 const DEFAULT_ABIDJAN_COMMUNES = [
@@ -15,7 +16,7 @@ const DEFAULT_ABIDJAN_COMMUNES = [
     'Port-Bouët', 'Abobo', 'Adjamé', 'Attécoubé', 'Bingerville', 'Songon',
 ]
 
-export function StepSettings({ formData, setFormData, isSupportClient, isExternalSync, isPhysicalProduct }: StepSettingsProps) {
+export function StepSettings({ formData, setFormData, isSupportClient, isExternalSync, isPhysicalProduct, isRestaurant }: StepSettingsProps) {
     const selectStyle = {
         width: '100%',
         padding: 12,
@@ -83,6 +84,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {isRestaurant && (
                 <div style={{
                     padding: 16,
                     borderRadius: 12,
@@ -218,6 +220,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                         </div>
                     )}
                 </div>
+                )}
 
                 {/* Section Collecte de Leads (support client + services) */}
                 {isSupportClient && (
@@ -227,9 +230,15 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                 Collecte de leads
                             </label>
                             <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, padding: '2px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Recommandé
+                                {formData.conversation_mode === 'lead_only' ? 'Obligatoire' : 'Recommandé'}
                             </span>
                         </div>
+
+                        {formData.conversation_mode === 'lead_only' && (
+                            <p style={{ fontSize: 13, color: '#e2e8f0', margin: '0 0 14px 0' }}>
+                                <strong>📍 L&apos;adresse de livraison est demandée automatiquement dès que le client choisit d&apos;être livré</strong> — de façon systématique si &quot;Boutique 100% en ligne&quot; est cochée à la création de l&apos;agent (aucun retrait en boutique possible dans ce cas).
+                            </p>
+                        )}
 
                         {!formData.lead_collection_enabled && formData.conversation_mode !== 'lead_only' && (
                             <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
@@ -318,12 +327,11 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                     </div>
                                     <p style={{ fontSize: 12, color: '#475569', margin: '4px 0 0 0' }}>
                                         Toute précision donnée spontanément par le client (allergie, contrainte...) est toujours notée, même sans champ dédié.
-                                        {formData.conversation_mode === 'lead_only' && " L'adresse de livraison est demandée automatiquement dès que le client choisit d'être livré — inutile de la cocher ici."}
                                     </p>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
-                                        Message après enregistrement du lead
+                                        Message de clôture (une fois toutes les informations collectées)
                                     </label>
                                     <input type="text" value={formData.lead_redirect_message}
                                         onChange={e => setFormData({ ...formData, lead_redirect_message: e.target.value })}

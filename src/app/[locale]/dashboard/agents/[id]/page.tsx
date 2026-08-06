@@ -87,6 +87,7 @@ export default function AgentWizardPage({
     const [isExternalSync, setIsExternalSync] = useState(false)
     const isSupportClient = selectedMission === 'support_client' || selectedMission === 'services'
     const isPhysicalProduct = selectedMission === 'ecommerce_physical'
+    const isRestaurant = selectedMission === 'restaurant'
 
     // Handle deep linking to tabs or focus fields
     useEffect(() => {
@@ -248,6 +249,8 @@ export default function AgentWizardPage({
         // External Sync — message envoyé quand un client répond
         external_sync_reply_message: '',
     })
+
+    const isLeadOnly = formData.conversation_mode === 'lead_only'
 
     // Ctrl+S → save
     useEffect(() => {
@@ -433,12 +436,14 @@ export default function AgentWizardPage({
         if (isExternalSync && from === 0) return 4 // skip hours(1), personality(2), rules(3)
         if (isExternalSync && from === 4) return 6 // skip payment(5), sans objet en sync externe
         if (isSupportClient && from === 0) return 2 // skip hours (index 1)
+        if (isLeadOnly && from === 4) return 6 // skip payment(5), pas de paiement en mode capture de leads
         return Math.min(STEPS.length - 1, from + 1)
     }
     const getPrevStep = (from: number) => {
         if (isExternalSync && from === 4) return 0 // skip rules(3), personality(2), hours(1)
         if (isExternalSync && from === 6) return 4 // skip back par-dessus payment(5)
         if (isSupportClient && from === 2) return 0 // skip hours (index 1)
+        if (isLeadOnly && from === 6) return 4 // skip back par-dessus payment(5)
         return Math.max(0, from - 1)
     }
 
@@ -645,7 +650,7 @@ export default function AgentWizardPage({
 
             case 'settings':
                 return (
-                    <StepSettings formData={formData} setFormData={setFormData} isSupportClient={isSupportClient || formData.conversation_mode === 'lead_only'} isExternalSync={isExternalSync} isPhysicalProduct={isPhysicalProduct} />
+                    <StepSettings formData={formData} setFormData={setFormData} isSupportClient={isSupportClient || isLeadOnly} isExternalSync={isExternalSync} isPhysicalProduct={isPhysicalProduct} isRestaurant={isRestaurant} />
                 )
 
             case 'payment':
@@ -701,7 +706,7 @@ export default function AgentWizardPage({
                                 Base de connaissance
                             </Link>
                         )}
-                        {isSupportClient && (
+                        {(isSupportClient || isLeadOnly) && (
                             <Link
                                 href={`/dashboard/agents/${agentId}/leads`}
                                 className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
@@ -734,6 +739,7 @@ export default function AgentWizardPage({
                         {STEPS
                             .map((step, index) => ({ ...step, originalIndex: index }))
                             .filter(step => !isExternalSync || !['hours', 'personality', 'rules', 'payment'].includes(step.id))
+                            .filter(step => !isLeadOnly || step.id !== 'payment')
                             .map((step) => {
                             const isActive = step.originalIndex === currentStep
                             const isCompleted = step.originalIndex < currentStep
