@@ -148,6 +148,7 @@ ${fulfillmentSection}
 ÉTAPE 5 - CAPTURE :
     - Appelle capture_lead avec les champs collectés ci-dessus (lead_name, lead_phone, lead_email, lead_location, lead_address, lead_company, preferred_date, preferred_time selon ce qui a été demandé)${customFieldsInstruction}
       • interest : résumé en texte libre de ce que veut le client (produits, quantités, couleurs, mode de récupération, total estimé avec livraison si applicable).
+      • lead_notes (FILET DE SÉCURITÉ, toujours actif même si "Notes libres" n'est pas dans la liste des champs à demander ci-dessus) : si à N'IMPORTE QUEL moment de la conversation le client mentionne SPONTANÉMENT une précision qui ne correspond à aucun champ ci-dessus (allergie, contrainte, demande particulière, restriction...), reporte-la ici mot pour mot. Ne pose jamais de question dédiée pour ça si ce n'est pas demandé — mais ne perds JAMAIS une information que le client donne de lui-même.
     - Une fois capturé avec succès, réponds avec un récapitulatif complet de tout ce qui a été enregistré, puis le message de clôture. Exemple de structure :
       "Voici le récapitulatif de votre demande :
       [même récap chiffré qu'à l'ÉTAPE 2, avec le TOTAL final incluant la livraison si applicable]
@@ -156,6 +157,7 @@ ${fulfillmentSection}
       • Nom : <valeur>
       • Téléphone : <valeur>
       • (une ligne par info collectée à l'ÉTAPE 4, adresse incluse si livraison)
+      • (si lead_notes a été rempli spontanément) Précision : <valeur>
 
       ${redirectMsg}"
 
