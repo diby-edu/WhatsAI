@@ -16,6 +16,7 @@ const FIELD_LABELS = {
     phone: 'numéro de téléphone (avec indicatif)',
     email: 'email',
     location: 'localisation/quartier',
+    address: 'adresse de livraison complète',
     company: 'entreprise',
     preferred_date: 'date souhaitée',
     preferred_time: 'heure souhaitée',

@@ -563,7 +563,7 @@ export function StepSettings({ t, formData, updateFormData, inputStyle, isExtern
                                     Informations à collecter
                                 </label>
                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }, { key: 'location', label: 'Localisation' }, { key: 'company', label: 'Entreprise' }].map(f => (
+                                    {[{ key: 'name', label: 'Prénom/Nom' }, { key: 'phone', label: 'Téléphone' }, { key: 'email', label: 'Email' }, { key: 'location', label: 'Localisation' }, { key: 'address', label: 'Adresse de livraison' }, { key: 'company', label: 'Entreprise' }].map(f => (
                                         <button key={f.key} type="button"
                                             onClick={() => {
                                                 const cur = formData.lead_collect_fields

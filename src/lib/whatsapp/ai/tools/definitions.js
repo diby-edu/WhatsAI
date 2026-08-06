@@ -234,6 +234,10 @@ Ne pas appeler si le client pose juste une question simple sans intention d'acha
                         type: 'string',
                         description: 'Localisation / quartier / ville du client'
                     },
+                    lead_address: {
+                        type: 'string',
+                        description: 'Adresse de livraison complète du client (rue, quartier, ville) — plus précise que lead_location'
+                    },
                     lead_company: {
                         type: 'string',
                         description: 'Nom de l\'entreprise ou société du client'

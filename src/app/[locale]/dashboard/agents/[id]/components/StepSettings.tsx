@@ -276,6 +276,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                             { key: 'phone', label: 'Téléphone' },
                                             { key: 'email', label: 'Email' },
                                             { key: 'location', label: 'Localisation' },
+                                            { key: 'address', label: 'Adresse de livraison' },
                                             { key: 'company', label: 'Entreprise' },
                                             { key: 'preferred_date', label: 'Date souhaitée' },
                                             { key: 'preferred_time', label: 'Heure souhaitée' },

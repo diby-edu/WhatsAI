@@ -12,6 +12,7 @@ interface Lead {
     lead_phone: string | null
     lead_email: string | null
     lead_location: string | null
+    lead_address: string | null
     lead_company: string | null
     interest: string | null
     created_at: string
@@ -134,6 +135,11 @@ export default function AgentLeadsPage({ params }: { params: Promise<{ id: strin
                                     {lead.lead_location && (
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
                                             <MapPin size={13} color="#f59e0b" /> {lead.lead_location}
+                                        </span>
+                                    )}
+                                    {lead.lead_address && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <MapPin size={13} color="#fb923c" /> {lead.lead_address}
                                         </span>
                                     )}
                                     {lead.lead_company && (

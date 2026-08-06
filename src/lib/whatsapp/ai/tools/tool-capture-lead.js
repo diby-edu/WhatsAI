@@ -9,7 +9,7 @@ async function handleCaptureLead(args, agentId, customerPhone, supabase) {
     try {
         console.log('Executing tool: capture_lead', args)
         const {
-            lead_name, lead_phone, lead_email, lead_location, lead_company,
+            lead_name, lead_phone, lead_email, lead_location, lead_address, lead_company,
             interest, preferred_date, preferred_time, service_requested, lead_notes, custom_fields
         } = args
 
@@ -33,6 +33,7 @@ async function handleCaptureLead(args, agentId, customerPhone, supabase) {
             lead_phone:        lead_phone       || null,
             lead_email:        lead_email       || null,
             lead_location:     lead_location    || null,
+            lead_address:      lead_address     || null,
             lead_company:      lead_company     || null,
             interest:          interest         || null,
             preferred_date:    preferred_date   || null,
