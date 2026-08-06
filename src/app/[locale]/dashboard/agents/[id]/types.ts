@@ -71,6 +71,7 @@ export interface AgentFormData {
     lead_custom_fields: string[]
     lead_redirect_message: string
     lead_collect_fields: string[]
+    conversation_mode: string
 
     fallback_contact_message: string
 

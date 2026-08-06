@@ -239,6 +239,7 @@ export default function AgentWizardPage({
         lead_custom_fields: [] as string[],
         lead_redirect_message: '',
         lead_collect_fields: ['name', 'phone'] as string[],
+        conversation_mode: 'structured',
         // Support
         fallback_contact_message: '',
         // Live Query API
@@ -385,6 +386,7 @@ export default function AgentWizardPage({
                 lead_redirect_message: agent.lead_redirect_message || '',
                 lead_collect_fields: Array.isArray(agent.lead_collect_fields) ? agent.lead_collect_fields : ['name', 'phone'],
                 lead_custom_fields: Array.isArray(agent.lead_custom_fields) ? agent.lead_custom_fields : [],
+                conversation_mode: agent.conversation_mode || 'structured',
                 fallback_contact_message: agent.fallback_contact_message || '',
                 live_query_url: agent.live_query_url || '',
                 live_query_secret: agent.live_query_secret || '',
@@ -643,7 +645,7 @@ export default function AgentWizardPage({
 
             case 'settings':
                 return (
-                    <StepSettings formData={formData} setFormData={setFormData} isSupportClient={isSupportClient} isExternalSync={isExternalSync} isPhysicalProduct={isPhysicalProduct} />
+                    <StepSettings formData={formData} setFormData={setFormData} isSupportClient={isSupportClient || formData.conversation_mode === 'lead_only'} isExternalSync={isExternalSync} isPhysicalProduct={isPhysicalProduct} />
                 )
 
             case 'payment':
