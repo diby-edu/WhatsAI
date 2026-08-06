@@ -499,7 +499,7 @@ export default function AdminLayout({
                                         <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>SUPER ADMIN</div>
                                     </div>
                                 </Link>
-                                <nav style={{ display: 'flex', flexDirection: 'column', flexWrap: 'nowrap', gap: 2, overflowY: 'auto', flex: 1, minHeight: 0, WebkitOverflowScrolling: 'touch', paddingBottom: 'env(safe-area-inset-bottom, 0px)' } as React.CSSProperties}>
+                                <nav style={{ display: 'flex', flexDirection: 'column', flexWrap: 'nowrap', gap: 2, overflowY: 'auto', flex: 1, minHeight: 0, WebkitOverflowScrolling: 'touch', paddingBottom: 'max(20px, env(safe-area-inset-bottom, 0px))' } as React.CSSProperties}>
                                     {adminGroups.map((group, groupIdx) => (
                                         <div key={groupIdx}>
                                             {groupIdx > 0 && (

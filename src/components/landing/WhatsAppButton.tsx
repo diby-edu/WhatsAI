@@ -26,7 +26,7 @@ export default function WhatsAppButton() {
             onClick={handleWhatsAppClick}
             style={{
                 position: 'fixed',
-                bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+                bottom: 'calc(24px + max(20px, env(safe-area-inset-bottom, 0px)))',
                 right: 24,
                 zIndex: 9999,
                 width: 60,

@@ -630,7 +630,7 @@ export default function DashboardLayout({
                                     )
                                 })}
                             </nav>
-                            <div style={{ padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                            <div style={{ padding: '16px 16px calc(16px + max(20px, env(safe-area-inset-bottom, 0px)))', borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 <button
                                     onClick={() => { setMobileMenuOpen(false); handleLogout() }}
                                     style={{

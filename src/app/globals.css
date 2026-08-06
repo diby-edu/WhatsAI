@@ -113,9 +113,12 @@ body {
   padding-top: env(safe-area-inset-top, 0);
   padding-left: env(safe-area-inset-left, 0);
   padding-right: env(safe-area-inset-right, 0);
-  /* Safe area for APK navigation bar (gesture pill/buttons) - was missing,
-     causing the last drawer item and bottom-pinned buttons to sit under it */
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  /* Safe area for APK navigation bar (3-button or gesture). max() guarantees
+     a real minimum even on devices/WebView versions where env() reports 0 for
+     the 3-button nav bar (known Android inconsistency) instead of trusting
+     env()'s own fallback, which only applies when the property is unsupported,
+     not when it resolves to 0. */
+  padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
 }
 
 /* Improve touch scrolling performance */
