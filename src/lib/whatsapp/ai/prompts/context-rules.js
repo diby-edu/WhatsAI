@@ -300,6 +300,9 @@ Si un message contient plusieurs questions dont UNE demande une image :
 ⛔ RÈGLE ANTI-DOUBLON IMAGE :
 Après avoir appelé send_image, ton message texte NE DOIT PAS commencer par "Voici" ni répéter le nom du produit.
 La caption de l'image suffit. Écris uniquement une courte phrase d'invitation (ex: "Avez-vous d'autres questions ?").
+
+⛔ RÈGLE ANTI-HALLUCINATION IMAGE_URL :
+N'INVENTE JAMAIS toi-même une valeur pour le paramètre image_url — même une URL qui semble plausible (ex: https://example.com/produit.jpg). Ce paramètre existe UNIQUEMENT pour recopier une URL réelle déjà visible dans la base de connaissance fournie. Si tu ne vois pas d'URL réelle dans le contexte, appelle send_image avec product_name (et selected_variants si connues) SANS le paramètre image_url — le système ira chercher la bonne image lui-même dans le catalogue.
 `
 
 module.exports = {

@@ -73,6 +73,20 @@ function findMatchingCombinationImage(product, selected_variants, variant_value)
     return matchingCombo && matchingCombo.image ? matchingCombo.image : null
 }
 
+/**
+ * Vérifie qu'une URL "fournie par l'IA" correspond réellement à une image
+ * présente dans la base de connaissance — seule source légitime pour ce
+ * paramètre. Empêche de faire confiance à une URL hallucinée par le modèle.
+ */
+function isKnownDocImageUrl(url, relevantDocs) {
+    if (!url || !Array.isArray(relevantDocs)) return false
+    return relevantDocs.some(doc => {
+        if (doc.image_url === url) return true
+        const extras = Array.isArray(doc.extra_image_urls) ? doc.extra_image_urls : []
+        return extras.some(item => (typeof item === 'string' ? item : item?.url) === url)
+    })
+}
+
 async function handleSendImage(args, products, relevantDocs, userMessage) {
     try {
         console.log('🛠️ Executing tool: send_image')
@@ -89,8 +103,13 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
         }
         // === FIN MOUCHARD ===
 
-        // Cas 1 : URL directe fournie par l'IA (depuis la KB)
-        if (directUrl) {
+        // Cas 1 : URL directe fournie par l'IA (depuis la KB) — mais on ne fait JAMAIS
+        // confiance aveuglément : un modèle peut halluciner une URL plausible
+        // (ex: https://example.com/produit.jpg) quand il n'en a pas de vraie sous les
+        // yeux. On ne l'accepte que si elle correspond réellement à une image présente
+        // dans la base de connaissance fournie — sinon on l'ignore et on retombe sur
+        // les cas suivants (recherche catalogue par nom/variante).
+        if (directUrl && isKnownDocImageUrl(directUrl, relevantDocs)) {
             console.log(`📸 CAS1 Image directe KB: ${directUrl}`)
             return JSON.stringify({
                 success: true,
@@ -98,6 +117,8 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
                 image_url: directUrl,
                 caption: product_name || '',
             })
+        } else if (directUrl) {
+            console.log(`⚠️ image_url fournie par l'IA rejetée (absente de la base de connaissance, probable hallucination) : ${directUrl}`)
         }
 
         // Cas 2 : Chercher dans la KB (mode support) — fuzzy match label ou contenu

@@ -104,4 +104,27 @@ describe('send_image tool', () => {
         expect(result.success).toBe(true)
         expect(result.image_url).toBe('https://cdn.test/sac-base.png')
     })
+
+    test('rejects a hallucinated image_url provided by the AI and falls back to the real catalog image', async () => {
+        // Cas reel observe en production : l'IA invente une URL plausible
+        // (https://example.com/...) alors qu'aucune base de connaissance ne la
+        // justifie. Le paramètre image_url doit être ignoré, pas fait confiance.
+        const result = JSON.parse(await handleSendImage(
+            { product_name: 'goube enfant', selected_variants: { Couleur: 'Rouge' }, image_url: 'https://example.com/goube-enfant.jpg' },
+            PRODUCTS, []
+        ))
+        expect(result.success).toBe(true)
+        expect(result.image_url).toBe('https://cdn.test/goube-rouge.png')
+        expect(result.image_url).not.toBe('https://example.com/goube-enfant.jpg')
+    })
+
+    test('accepts image_url when it genuinely matches an image in the knowledge base', async () => {
+        const relevantDocs = [{ content: 'doc', image_url: 'https://real-kb.test/photo.jpg', image_label: 'Photo boutique' }]
+        const result = JSON.parse(await handleSendImage(
+            { product_name: 'Photo boutique', image_url: 'https://real-kb.test/photo.jpg' },
+            [], relevantDocs
+        ))
+        expect(result.success).toBe(true)
+        expect(result.image_url).toBe('https://real-kb.test/photo.jpg')
+    })
 })
