@@ -947,8 +947,18 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // rapport avec une demande de photo, ce qui envoyait une image à chaque question.
         if (!isSupportClientMode && !structuredReply && orderableProducts.length > 0 && aiResponse.content) {
             const responseTextLower = aiResponse.content.toLowerCase()
+            // Produits déjà illustrés par un appel explicite à send_image (ex: une image par
+            // variante demandée) — ne pas ajouter une 5e image générique par-dessus, ça produit
+            // un doublon (3 images de couleur + 1 image "standard" non désirée par le client).
+            const alreadyIllustratedNames = new Set(
+                (aiResponse.imageActions || [])
+                    .map(a => (a.product_name || '').toLowerCase())
+                    .filter(Boolean)
+            )
             const mentionedProductImages = orderableProducts
-                .filter(p => p.image_url && p.name && responseTextLower.includes(p.name.toLowerCase()))
+                .filter(p => p.image_url && p.name
+                    && responseTextLower.includes(p.name.toLowerCase())
+                    && !alreadyIllustratedNames.has(p.name.toLowerCase()))
                 .map(p => ({
                     image_url: p.image_url,
                     caption: `${p.name}${p.price ? ` — ${Number(p.price).toLocaleString('fr-FR')} FCFA` : ''}`,

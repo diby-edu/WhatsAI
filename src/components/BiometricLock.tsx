@@ -53,11 +53,16 @@ export function BiometricLock({ children }: { children: React.ReactNode }) {
                 const { App } = await import('@capacitor/app')
 
                 listenerHandle = await App.addListener('appStateChange', async ({ isActive }) => {
-                    if (!isActive) {
-                        // App fermée/tuée → effacer la session pour forcer le prompt au prochain lancement
-                        localStorage.removeItem('wazzapai_biometric_session')
-                        return
-                    }
+                    // NE PAS effacer wazzapai_biometric_session ici : appStateChange(isActive:false)
+                    // se déclenche à CHAQUE passage en arrière-plan (changer d'app, verrouiller
+                    // l'écran, tirer le volet de notifications...), pas seulement à la fermeture
+                    // réelle du process. L'effacer ici annulait systématiquement le délai de grâce
+                    // de 30 min ci-dessous (le flag était déjà supprimé au moment de la reprise),
+                    // forçant une re-authentification biométrique à chaque retour dans l'app —
+                    // et en cas d'échec/annulation, l'utilisateur pouvait cliquer "Utiliser mon mot
+                    // de passe", qui déconnecte réellement le compte (supabase.auth.signOut()).
+                    // L'expiration réelle est déjà gérée plus bas via le timestamp de la session.
+                    if (!isActive) return
                     if (isActive && isEnabled) {
                         const SESSION_TIMEOUT = 30 * 60 * 1000
                         const AUTH_SESSION_KEY = 'wazzapai_biometric_session'

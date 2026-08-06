@@ -116,6 +116,36 @@ export async function POST(request: NextRequest) {
     }
 }
 
+// PATCH /api/leads?id=xxx — mettre à jour le statut traité/non traité d'un lead
+export async function PATCH(request: NextRequest) {
+    const supabase = await createApiClient()
+    const { user, error: authError } = await getAuthUser(supabase)
+    if (authError || !user) return errorResponse('Unauthorized', 401)
+
+    const leadId = request.nextUrl.searchParams.get('id')
+    if (!leadId) return errorResponse('id requis', 400)
+
+    try {
+        const body = await request.json()
+        if (typeof body.is_treated !== 'boolean') return errorResponse('is_treated (boolean) requis', 400)
+
+        const { data: lead, error } = await supabase
+            .from('leads')
+            .update({ is_treated: body.is_treated })
+            .eq('id', leadId)
+            .eq('user_id', user.id)
+            .select()
+            .single()
+
+        if (error) throw error
+
+        return successResponse({ lead })
+    } catch (err) {
+        console.error('Error updating lead:', err)
+        return errorResponse('Erreur serveur', 500)
+    }
+}
+
 // DELETE /api/leads?id=xxx — supprimer un lead
 export async function DELETE(request: NextRequest) {
     const supabase = await createApiClient()

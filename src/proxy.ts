@@ -121,7 +121,11 @@ export async function proxy(request: NextRequest) {
 
     const locale = getLocale(pathname)
     const pathnameWithoutLocale = pathname.replace(/^\/(fr|en)(?=\/|$)/, '') || '/'
-    const isAuthPage = pathnameWithoutLocale === '/login' || pathnameWithoutLocale === '/register'
+    // Landing page traitée comme une "auth page" : un utilisateur déjà connecté qui y
+    // atterrit (ex: l'app mobile Capacitor recharge parfois l'URL racine du serveur
+    // après une reprise en arrière-plan) doit être renvoyé vers son espace, pas laissé
+    // sur la page marketing publique — ça a pu donner l'impression d'une déconnexion.
+    const isAuthPage = pathnameWithoutLocale === '/login' || pathnameWithoutLocale === '/register' || pathnameWithoutLocale === '/'
     const isPublicRoute = PUBLIC_ROUTES.has(pathnameWithoutLocale) || pathnameWithoutLocale.startsWith('/api/public')
     const isProtectedRoute = PROTECTED_PREFIXES.some((prefix) => isWithinPath(pathnameWithoutLocale, prefix))
 

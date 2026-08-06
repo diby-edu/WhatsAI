@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
     Users, Phone, Mail, Tag, Calendar, MapPin,
     Building2, Trash2, Search, RefreshCw, Bot, Download, X,
-    Clock, Scissors, FileText
+    Clock, Scissors, FileText, Check
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 
@@ -24,6 +24,7 @@ interface Lead {
     service_requested: string | null
     lead_notes: string | null
     custom_fields: Record<string, string> | null
+    is_treated: boolean
     created_at: string
 }
 
@@ -32,7 +33,10 @@ export default function LeadsPage() {
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [agentFilter, setAgentFilter] = useState('all')
+    const [statusFilter, setStatusFilter] = useState<'all' | 'untreated' | 'treated'>('all')
+    const [sortOrder, setSortOrder] = useState<'recent' | 'oldest'>('recent')
     const [deleting, setDeleting] = useState<string | null>(null)
+    const [updatingId, setUpdatingId] = useState<string | null>(null)
     const toast = useToast()
 
     const fetchLeads = useCallback(async () => {
@@ -65,25 +69,54 @@ export default function LeadsPage() {
         }
     }
 
+    const toggleTreated = async (lead: Lead) => {
+        const nextValue = !lead.is_treated
+        setUpdatingId(lead.id)
+        setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, is_treated: nextValue } : l))
+        try {
+            const res = await fetch(`/api/leads?id=${lead.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_treated: nextValue }),
+            })
+            if (!res.ok) throw new Error('failed')
+        } catch {
+            setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, is_treated: !nextValue } : l))
+            toast.error('Erreur lors de la mise à jour.')
+        } finally {
+            setUpdatingId(null)
+        }
+    }
+
     const agentOptions = Array.from(
         new Map(leads.filter(l => l.agent_id).map(l => [l.agent_id, l.agent_name])).entries()
     ).map(([id, name]) => ({ id, name }))
 
-    const filtered = leads.filter(lead => {
-        const matchAgent = agentFilter === 'all' || lead.agent_id === agentFilter
-        const q = search.toLowerCase()
-        const customStr = lead.custom_fields ? Object.values(lead.custom_fields).join(' ').toLowerCase() : ''
-        const matchSearch = !q ||
-            (lead.lead_name || '').toLowerCase().includes(q) ||
-            (lead.lead_phone || '').includes(q) ||
-            (lead.lead_email || '').toLowerCase().includes(q) ||
-            (lead.lead_company || '').toLowerCase().includes(q) ||
-            (lead.interest || '').toLowerCase().includes(q) ||
-            (lead.service_requested || '').toLowerCase().includes(q) ||
-            (lead.customer_phone || '').includes(q) ||
-            customStr.includes(q)
-        return matchAgent && matchSearch
-    })
+    const untreatedCount = leads.filter(l => !l.is_treated).length
+
+    const filtered = leads
+        .filter(lead => {
+            const matchAgent = agentFilter === 'all' || lead.agent_id === agentFilter
+            const matchStatus = statusFilter === 'all'
+                || (statusFilter === 'untreated' && !lead.is_treated)
+                || (statusFilter === 'treated' && lead.is_treated)
+            const q = search.toLowerCase()
+            const customStr = lead.custom_fields ? Object.values(lead.custom_fields).join(' ').toLowerCase() : ''
+            const matchSearch = !q ||
+                (lead.lead_name || '').toLowerCase().includes(q) ||
+                (lead.lead_phone || '').includes(q) ||
+                (lead.lead_email || '').toLowerCase().includes(q) ||
+                (lead.lead_company || '').toLowerCase().includes(q) ||
+                (lead.interest || '').toLowerCase().includes(q) ||
+                (lead.service_requested || '').toLowerCase().includes(q) ||
+                (lead.customer_phone || '').includes(q) ||
+                customStr.includes(q)
+            return matchAgent && matchStatus && matchSearch
+        })
+        .sort((a, b) => {
+            const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            return sortOrder === 'recent' ? -diff : diff
+        })
 
     const formatDate = (d: string) =>
         new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -159,6 +192,27 @@ export default function LeadsPage() {
             </div>
 
             {/* Barre recherche + filtre */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                {([
+                    { key: 'all', label: 'Tous' },
+                    { key: 'untreated', label: `Non traités${untreatedCount > 0 ? ` (${untreatedCount})` : ''}` },
+                    { key: 'treated', label: 'Traités' },
+                ] as const).map(opt => (
+                    <button
+                        key={opt.key}
+                        onClick={() => setStatusFilter(opt.key)}
+                        style={{
+                            padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                            border: statusFilter === opt.key ? '1px solid #10b981' : '1px solid rgba(148,163,184,0.15)',
+                            background: statusFilter === opt.key ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.03)',
+                            color: statusFilter === opt.key ? '#34d399' : '#94a3b8',
+                        }}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
+
             <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
                     <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#475569', pointerEvents: 'none' }} />
@@ -174,7 +228,7 @@ export default function LeadsPage() {
                         </button>
                     )}
                 </div>
-                {agentOptions.length > 1 && (
+                {agentOptions.length >= 1 && (
                     <select
                         value={agentFilter}
                         onChange={e => setAgentFilter(e.target.value)}
@@ -184,6 +238,14 @@ export default function LeadsPage() {
                         {agentOptions.map(a => <option key={a.id ?? ''} value={a.id ?? ''}>{a.name ?? ''}</option>)}
                     </select>
                 )}
+                <select
+                    value={sortOrder}
+                    onChange={e => setSortOrder(e.target.value as 'recent' | 'oldest')}
+                    style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(148,163,184,0.12)', background: 'rgba(15,23,42,0.8)', color: '#e2e8f0', fontSize: 13, outline: 'none', minWidth: 160 }}
+                >
+                    <option value="recent">Plus récents</option>
+                    <option value="oldest">Plus anciens</option>
+                </select>
             </div>
 
             {(search || agentFilter !== 'all') && !loading && (
@@ -215,9 +277,9 @@ export default function LeadsPage() {
                         const cols = hasExtra ? '1fr 1fr 1fr' : hasDemande ? '1fr 1fr' : '1fr'
 
                         return (
-                            <div key={lead.id} style={{ background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 16, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, transition: 'border-color 0.2s' }}>
+                            <div key={lead.id} style={{ background: 'rgba(15,23,42,0.85)', border: `1px solid ${lead.is_treated ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.1)'}`, borderRadius: 16, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, transition: 'border-color 0.2s', opacity: lead.is_treated ? 0.6 : 1 }}>
 
-                                {/* Ligne 1 : nom + agent + date + supprimer */}
+                                {/* Ligne 1 : nom + agent + date + traite + supprimer */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                                     <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                         <Users size={16} color="#10b981" />
@@ -232,6 +294,20 @@ export default function LeadsPage() {
                                     <span style={{ color: '#475569', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                                         <Calendar size={11} /> {formatDate(lead.created_at)}
                                     </span>
+                                    <button
+                                        onClick={() => toggleTreated(lead)}
+                                        disabled={updatingId === lead.id}
+                                        title={lead.is_treated ? 'Marquer comme non traité' : 'Marquer comme traité'}
+                                        style={{
+                                            width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+                                            opacity: updatingId === lead.id ? 0.5 : 1,
+                                            background: lead.is_treated ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.08)',
+                                            border: lead.is_treated ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(148,163,184,0.2)',
+                                            color: lead.is_treated ? '#10b981' : '#64748b',
+                                        }}
+                                    >
+                                        <Check size={14} />
+                                    </button>
                                     <button
                                         onClick={() => deleteLead(lead.id)}
                                         disabled={deleting === lead.id}
