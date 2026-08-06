@@ -142,6 +142,11 @@ function getPushContent(type, data) {
                 title: '📅 Nouvelle réservation !',
                 body: `${data.customerName || 'Un client'} a réservé ${data.serviceName || 'un service'} le ${data.bookingDate || ''}${data.bookingTime ? ' à ' + data.bookingTime : ''}`
             }
+        case 'new_lead':
+            return {
+                title: '🎯 Nouveau lead !',
+                body: `${data.contactName || data.contactPhone || 'Un client'} intéressé — agent "${data.agentName || ''}"`
+            }
         case 'stock_out':
             return {
                 title: '📦 Stock épuisé',
@@ -254,6 +259,7 @@ const PREF_MAP = {
     order_cancelled: { push: 'push_order_cancelled' },
     payment_received: { push: 'push_payment_received', email: 'email_payment_received' },
     new_booking: { push: 'push_new_booking' },
+    new_lead: { push: 'push_new_lead' },
     new_conversation: { push: 'push_new_conversation' },
     escalation: { push: 'push_escalation' },
     agent_status_change: { push: 'push_agent_status_change', email: 'email_agent_status_change' },
