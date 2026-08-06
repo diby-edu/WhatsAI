@@ -38,4 +38,64 @@ async function reverseGeocode(lat, lon) {
     }
 }
 
-module.exports = { reverseGeocode }
+// Détection d'un lien Google Maps collé en texte libre (copié-collé par le client,
+// distinct du partage de position native WhatsApp géré ailleurs via locationMessage).
+const MAPS_URL_PATTERN = /https?:\/\/(?:www\.)?(?:maps\.app\.goo\.gl\/\S+|goo\.gl\/maps\/\S+|(?:maps\.)?google\.[a-z.]+\/maps\S*)/i
+const SHORT_LINK_PATTERN = /maps\.app\.goo\.gl|goo\.gl\/maps/i
+
+function findGoogleMapsUrl(text) {
+    if (!text) return null
+    const match = String(text).match(MAPS_URL_PATTERN)
+    return match ? match[0] : null
+}
+
+function parseCoordinatesFromUrl(url) {
+    if (!url) return null
+
+    // Formats courants : /@lat,lng,zoom | ?q=lat,lng | ?ll=lat,lng | !3dlat!4dlng
+    const atMatch = url.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
+    if (atMatch) return { latitude: parseFloat(atMatch[1]), longitude: parseFloat(atMatch[2]) }
+
+    const qMatch = url.match(/[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
+    if (qMatch) return { latitude: parseFloat(qMatch[1]), longitude: parseFloat(qMatch[2]) }
+
+    const llMatch = url.match(/[?&]ll=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
+    if (llMatch) return { latitude: parseFloat(llMatch[1]), longitude: parseFloat(llMatch[2]) }
+
+    const dMatch = url.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/)
+    if (dMatch) return { latitude: parseFloat(dMatch[1]), longitude: parseFloat(dMatch[2]) }
+
+    return null
+}
+
+async function resolveGoogleMapsShortLink(url) {
+    // Les liens courts (maps.app.goo.gl, goo.gl/maps) ne contiennent pas les coordonnées
+    // directement dans l'URL — il faut suivre la redirection pour obtenir l'URL complète.
+    try {
+        const res = await fetch(url, {
+            redirect: 'follow',
+            headers: { 'User-Agent': 'WazzapAI/1.0 (https://wazzapai.com)' },
+        })
+        return res.url || url
+    } catch (err) {
+        console.error('resolveGoogleMapsShortLink error:', err?.message || err)
+        return url
+    }
+}
+
+async function extractCoordinatesFromText(text) {
+    const url = findGoogleMapsUrl(text)
+    if (!url) return null
+
+    const directMatch = parseCoordinatesFromUrl(url)
+    if (directMatch) return directMatch
+
+    if (SHORT_LINK_PATTERN.test(url)) {
+        const resolvedUrl = await resolveGoogleMapsShortLink(url)
+        return parseCoordinatesFromUrl(resolvedUrl)
+    }
+
+    return null
+}
+
+module.exports = { reverseGeocode, findGoogleMapsUrl, extractCoordinatesFromText }

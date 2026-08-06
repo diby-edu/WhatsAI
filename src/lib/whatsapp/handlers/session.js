@@ -690,6 +690,22 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     resolvedText = placeLabel
                         ? `Ma position : ${placeLabel} (${mapsLink})`
                         : `Ma position : ${mapsLink}`
+                } else if (inboundPayload.text) {
+                    // Lien Google Maps collé en texte libre (pas un partage de position natif) —
+                    // même traitement : extraire les coordonnées, géocoder, injecter le nom de lieu.
+                    try {
+                        const { extractCoordinatesFromText, reverseGeocode } = require('../utils/geocode')
+                        const coords = await extractCoordinatesFromText(inboundPayload.text)
+                        if (coords) {
+                            const mapsLink = `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`
+                            const placeLabel = await reverseGeocode(coords.latitude, coords.longitude)
+                            resolvedText = placeLabel
+                                ? `Ma position : ${placeLabel} (${mapsLink})`
+                                : `Ma position : ${mapsLink}`
+                        }
+                    } catch (mapsLinkErr) {
+                        console.error(`⚠️ [${agentName}] Google Maps link parsing failed:`, mapsLinkErr?.message || mapsLinkErr)
+                    }
                 }
 
                 // Construct simplified message object or pass full msg?

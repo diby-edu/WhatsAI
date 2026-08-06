@@ -285,7 +285,10 @@ ${activeEngine === 'RESTAURANT'
 ⛔ NE PAS afficher la carte complète ni les prix au premier message.
 ⛔ NE PAS demander le mode (sur place/emporter/livraison) au premier message.
 ⛔ SI le client formule déjà une demande précise (ex: "Je veux réserver une table demain à 21h pour 3 personnes avec 2 plats" ou "Je veux commander 2 plats à emporter"), NE RÉAFFICHE PAS le menu principal. Réponds directement à sa demande concrète ou laisse le système structuré poursuivre le parcours.` 
-    : `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).
+    : agent.conversation_mode === 'lead_only'
+        ? `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).
+3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ?'}" (conversation libre — pas de mention de numéro de menu ni de texte d'aide additionnel)`
+        : `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).
 3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ? (répondez par son nom ou son numéro)'}"
 4. AJOUTER ce texte, exactement (avec le retour à la ligne) : "${welcomeInteractionHint}"`}
 ⛔ INTERDIT de dire juste "Comment puis-je vous aider ?" sans afficher la carte. Tu es un VENDEUR.
