@@ -169,4 +169,4 @@ ${deliveryFeeSection}
 `.trim()
 }
 
-module.exports = { buildPhysicalWorkflow }
+module.exports = { buildPhysicalWorkflow, buildDeliveryFeeSection }

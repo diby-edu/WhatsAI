@@ -671,10 +671,31 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     continue
                 }
 
+                // Position GPS partagée (épingle WhatsApp) : convertir en texte exploitable
+                // par le flux de conversation habituel — géocodage inverse vers un nom de
+                // lieu (commune/ville) pour matcher les zones de livraison configurées,
+                // avec le lien Maps en filet de sécurité si le géocodage échoue.
+                let resolvedText = inboundPayload.text
+                if (inboundPayload.locationMessage) {
+                    const { latitude, longitude, name, address } = inboundPayload.locationMessage
+                    const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`
+                    let placeLabel = null
+                    try {
+                        const { reverseGeocode } = require('../utils/geocode')
+                        placeLabel = await reverseGeocode(latitude, longitude)
+                    } catch (geocodeErr) {
+                        console.error(`⚠️ [${agentName}] reverseGeocode failed:`, geocodeErr?.message || geocodeErr)
+                    }
+                    placeLabel = placeLabel || address || name
+                    resolvedText = placeLabel
+                        ? `Ma position : ${placeLabel} (${mapsLink})`
+                        : `Ma position : ${mapsLink}`
+                }
+
                 // Construct simplified message object or pass full msg?
                 // handleMessage expects { text, from, pushName, audioMessage?, imageMessage?, key }
                 const messagePayload = {
-                    text: inboundPayload.text,
+                    text: resolvedText,
                     from: msg.key.remoteJid,
                     pushName: msg.pushName,
                     key: msg.key,

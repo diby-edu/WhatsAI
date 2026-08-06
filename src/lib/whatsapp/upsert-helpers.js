@@ -152,6 +152,27 @@ function extractInboundMessagePayload(message) {
         }
     }
 
+    // Position ponctuelle (épingle) uniquement — on ignore la position en direct
+    // (isLive) qui se déplace dans le temps, non pertinente pour une adresse de livraison.
+    if (content.locationMessage && !content.locationMessage.isLive) {
+        const loc = content.locationMessage
+        if (typeof loc.degreesLatitude === 'number' && typeof loc.degreesLongitude === 'number') {
+            return {
+                text: '',
+                isVoiceMessage: false,
+                audioMessage: null,
+                imageMessage: null,
+                caption: null,
+                locationMessage: {
+                    latitude: loc.degreesLatitude,
+                    longitude: loc.degreesLongitude,
+                    name: loc.name || null,
+                    address: loc.address || null,
+                },
+            }
+        }
+    }
+
     return null
 }
 

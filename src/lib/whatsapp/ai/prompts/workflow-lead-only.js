@@ -24,6 +24,63 @@ const FIELD_LABELS = {
     notes: 'informations complémentaires',
 }
 
+// Liste des zones/tarifs configurés — logique dupliquée (volontairement, pas importée)
+// depuis workflow-type-physical.js#buildDeliveryFeeSection : cette dernière instruit
+// d'appeler create_order, ce qui n'existe pas en mode lead_only. On ne réutilise que
+// la donnée (agent.delivery_zones), pas l'action qui en découle.
+function buildZonesList(agent) {
+    const mode = agent?.delivery_fee_mode
+    if (mode === 'free') {
+        return `    - Livraison gratuite pour cette boutique — aucun frais à ajouter au total.`
+    }
+    if (mode !== 'zones') return ''
+
+    const zones = agent?.delivery_zones || {}
+    const communes = Array.isArray(zones.communes) ? zones.communes : []
+    if (communes.length === 0) return ''
+
+    const communesList = communes.map(c => `    - ${c.name} : ${c.fee} FCFA`).join('\n')
+    const horsAbidjanCities = Array.isArray(zones.hors_abidjan) ? zones.hors_abidjan : []
+    const horsAbidjanList = horsAbidjanCities.length > 0
+        ? horsAbidjanCities.map(c => `    - ${c.name} : ${c.fee} FCFA`).join('\n')
+        : '    - (aucune ville précise configurée)'
+    const internationalCountries = Array.isArray(zones.international) ? zones.international : []
+    const internationalList = internationalCountries.length > 0
+        ? internationalCountries.map(c => `    - ${c.name} : ${c.fee} FCFA`).join('\n')
+        : '    - (aucun pays précis configuré)'
+
+    return `
+    Tarifs de livraison configurés :
+    Communes d'Abidjan :
+${communesList}
+    Hors Abidjan :
+${horsAbidjanList}
+    International :
+${internationalList}
+    🚨 ANTI-HALLUCINATION : Si le lieu donné par le client (texte, ou position GPS déjà
+    convertie en nom de lieu) ne correspond CLAIREMENT à aucune entrée listée ci-dessus,
+    NE DEVINE JAMAIS le tarif — demande de préciser (ex: "C'est bien dans quelle commune ?").
+    - Une fois le lieu identifié avec certitude, ajoute son tarif exact au TOTAL du récap.`
+}
+
+function buildFulfillmentSection(agent) {
+    const zonesList = buildZonesList(agent)
+
+    if (agent?.is_online_only) {
+        return `
+ÉTAPE 3 - ADRESSE DE LIVRAISON :
+    - Cette boutique est 100% en ligne (pas de point de retrait) — demande toujours l'adresse de livraison complète, ne propose jamais de retrait en boutique.
+${zonesList}`
+    }
+
+    return `
+ÉTAPE 3 - MODE DE RÉCUPÉRATION :
+    - Demande : "Vous passez en boutique ou vous souhaitez être livré ?"
+    - Retrait en boutique → ne demande PAS d'adresse, aucun frais de livraison, note "Retrait en boutique" dans le récap et dans interest.
+    - Livraison → demande l'adresse de livraison complète.
+${zonesList}`
+}
+
 function buildLeadOnlyWorkflow(agent = {}) {
     const fields = Array.isArray(agent.lead_collect_fields) && agent.lead_collect_fields.length > 0
         ? agent.lead_collect_fields
@@ -42,6 +99,7 @@ function buildLeadOnlyWorkflow(agent = {}) {
         : ''
 
     const redirectMsg = agent.lead_redirect_message || 'Merci ! Notre équipe vous recontacte rapidement pour finaliser.'
+    const fulfillmentSection = buildFulfillmentSection(agent)
 
     return `
 📋 FLUX DE COLLECTE (MODE LEAD 🎯) :
@@ -70,31 +128,34 @@ et dois quand même donner une estimation de prix claire, ce n'est pas un engage
     - Dès que le client exprime une intention d'achat, même approximative, passe à l'ÉTAPE 2.
     - 🚫 Pas besoin d'une quantité ou d'une variante exacte pour continuer — note ce que le client a dit tel quel (ex: "quelques gourdes bleues et un sac").
 
-ÉTAPE 2 - RÉCAPITULATIF CHIFFRÉ :
-    - Dès que quantité(s) et variante(s) sont connues pour au moins un article, affiche un récap avant de demander les coordonnées :
+ÉTAPE 2 - RÉCAPITULATIF PRODUITS :
+    - Dès que quantité(s) et variante(s) sont connues pour au moins un article, affiche un récap avant de continuer :
       "Voici votre commande :
       • <Qté> <Article> <Variante> 💰 <Prix unitaire> × <Qté> = <Sous-total> FCFA
       • (une ligne par article)
       *TOTAL : <somme exacte de toutes les lignes> FCFA*"
     - Calcule ce total toi-même à partir des prix réels du catalogue — ne le laisse jamais vide, approximatif, ou absent.
+    - Si une livraison payante s'ajoute (voir ÉTAPE 3), ce TOTAL sera mis à jour avec le tarif de livraison — précise-le au client à ce moment-là.
+${fulfillmentSection}
 
-ÉTAPE 3 - INFORMATIONS À COLLECTER :
+ÉTAPE 4 - INFORMATIONS À COLLECTER :
     - Pose les questions une par une, naturellement, pour obtenir : ${allFieldLabels}.
+    - Si le client a choisi la livraison à l'ÉTAPE 3, demande aussi son adresse de livraison complète — même si "adresse" n'est pas dans la liste ci-dessus, elle reste nécessaire pour livrer.
     - Si le client donne plusieurs infos d'un coup dans un même message, ne redemande pas ce qui est déjà donné.
     - ⛔ JAMAIS "Je note", "Je retiens" pour confirmer — répète directement l'information.
     - ⛔ Ne collecte PAS les mêmes infos deux fois dans la même conversation.
 
-ÉTAPE 4 - CAPTURE :
-    - Appelle capture_lead avec les champs collectés ci-dessus (lead_name, lead_phone, lead_email, lead_location, lead_company, preferred_date, preferred_time selon ce qui a été demandé)${customFieldsInstruction}
-      • interest : résumé en texte libre de ce que veut le client (produits, quantités, couleurs, total estimé).
+ÉTAPE 5 - CAPTURE :
+    - Appelle capture_lead avec les champs collectés ci-dessus (lead_name, lead_phone, lead_email, lead_location, lead_address, lead_company, preferred_date, preferred_time selon ce qui a été demandé)${customFieldsInstruction}
+      • interest : résumé en texte libre de ce que veut le client (produits, quantités, couleurs, mode de récupération, total estimé avec livraison si applicable).
     - Une fois capturé avec succès, réponds avec un récapitulatif complet de tout ce qui a été enregistré, puis le message de clôture. Exemple de structure :
       "Voici le récapitulatif de votre demande :
-      [même récap chiffré qu'à l'ÉTAPE 2, avec le TOTAL]
+      [même récap chiffré qu'à l'ÉTAPE 2, avec le TOTAL final incluant la livraison si applicable]
 
       *Vos coordonnées :*
       • Nom : <valeur>
       • Téléphone : <valeur>
-      • (une ligne par info collectée à l'ÉTAPE 3)
+      • (une ligne par info collectée à l'ÉTAPE 4, adresse incluse si livraison)
 
       ${redirectMsg}"
 
