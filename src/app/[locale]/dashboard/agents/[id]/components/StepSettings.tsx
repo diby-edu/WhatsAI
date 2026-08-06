@@ -270,7 +270,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>
                                         Informations à collecter
                                     </label>
-                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                                         {[
                                             { key: 'name', label: 'Prénom/Nom' },
                                             { key: 'phone', label: 'Téléphone' },
@@ -281,7 +281,6 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                             { key: 'preferred_date', label: 'Date souhaitée' },
                                             { key: 'preferred_time', label: 'Heure souhaitée' },
                                             { key: 'service_requested', label: 'Service demandé' },
-                                            { key: 'notes', label: 'Notes libres' },
                                         ].map(f => (
                                             <button key={f.key} type="button"
                                                 onClick={() => {
@@ -295,45 +294,31 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                                 }}
                                             >{f.label}</button>
                                         ))}
-                                    </div>
-
-                                    {/* Champs personnalisés */}
-                                    <div style={{ borderTop: '1px solid rgba(148,163,184,0.08)', paddingTop: 12 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                            <label style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>
-                                                Champs personnalisés
-                                            </label>
-                                            <button type="button"
-                                                onClick={() => {
-                                                    const val = window.prompt('Nom du champ personnalisé (ex: budget, taille, symptômes)')
-                                                    if (val?.trim()) {
-                                                        const key = val.trim().toLowerCase().replace(/\s+/g, '_')
-                                                        if (!formData.lead_custom_fields.includes(key)) {
-                                                            setFormData({ ...formData, lead_custom_fields: [...formData.lead_custom_fields, key] })
-                                                        }
+                                        {formData.lead_custom_fields.map((cf: string) => (
+                                            <span key={cf} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px 8px 16px', borderRadius: 20, background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', color: '#c4b5fd', fontSize: 13 }}>
+                                                {cf}
+                                                <button type="button"
+                                                    onClick={() => setFormData({ ...formData, lead_custom_fields: formData.lead_custom_fields.filter((x: string) => x !== cf) })}
+                                                    style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 15 }}
+                                                >×</button>
+                                            </span>
+                                        ))}
+                                        <button type="button"
+                                            onClick={() => {
+                                                const val = window.prompt('Nom du champ personnalisé (ex: budget, taille, symptômes)')
+                                                if (val?.trim()) {
+                                                    const key = val.trim().toLowerCase().replace(/\s+/g, '_')
+                                                    if (!formData.lead_custom_fields.includes(key)) {
+                                                        setFormData({ ...formData, lead_custom_fields: [...formData.lead_custom_fields, key] })
                                                     }
-                                                }}
-                                                style={{ padding: '4px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
-                                            >+ Ajouter un champ</button>
-                                        </div>
-                                        {formData.lead_custom_fields.length > 0 ? (
-                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                                {formData.lead_custom_fields.map((cf: string) => (
-                                                    <span key={cf} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', color: '#c4b5fd', fontSize: 12 }}>
-                                                        {cf}
-                                                        <button type="button"
-                                                            onClick={() => setFormData({ ...formData, lead_custom_fields: formData.lead_custom_fields.filter((x: string) => x !== cf) })}
-                                                            style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 14 }}
-                                                        >×</button>
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p style={{ fontSize: 12, color: '#475569', margin: 0 }}>
-                                                Ex: budget, taille, type_véhicule, symptômes…
-                                            </p>
-                                        )}
+                                                }
+                                            }}
+                                            style={{ padding: '8px 16px', borderRadius: 20, fontSize: 13, cursor: 'pointer', border: '1px dashed rgba(148,163,184,0.3)', background: 'transparent', color: '#64748b' }}
+                                        >+ Ajouter un champ</button>
                                     </div>
+                                    <p style={{ fontSize: 12, color: '#475569', margin: '4px 0 0 0' }}>
+                                        Toute précision donnée spontanément par le client (allergie, contrainte...) est toujours notée, même sans champ dédié.
+                                    </p>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 8 }}>

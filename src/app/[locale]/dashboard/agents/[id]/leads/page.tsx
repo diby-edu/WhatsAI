@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import { ArrowLeft, Trash2, Users, Phone, Mail, Tag, Calendar, MapPin, Building2 } from 'lucide-react'
+import { ArrowLeft, Trash2, Users, Phone, Mail, Tag, Calendar, Clock, MapPin, Building2, StickyNote, Wrench } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/Toast'
 
@@ -15,6 +15,11 @@ interface Lead {
     lead_address: string | null
     lead_company: string | null
     interest: string | null
+    preferred_date: string | null
+    preferred_time: string | null
+    service_requested: string | null
+    lead_notes: string | null
+    custom_fields: Record<string, string> | null
     created_at: string
 }
 
@@ -157,7 +162,28 @@ export default function AgentLeadsPage({ params }: { params: Promise<{ id: strin
                                             <Tag size={11} /> {lead.interest}
                                         </span>
                                     )}
+                                    {lead.service_requested && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <Wrench size={13} color="#38bdf8" /> {lead.service_requested}
+                                        </span>
+                                    )}
+                                    {(lead.preferred_date || lead.preferred_time) && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8' }}>
+                                            <Clock size={13} color="#facc15" /> {[lead.preferred_date, lead.preferred_time].filter(Boolean).join(' — ')}
+                                        </span>
+                                    )}
+                                    {Object.entries(lead.custom_fields || {}).map(([key, value]) => (
+                                        <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(168,85,247,0.1)', color: '#c4b5fd', padding: '2px 10px', borderRadius: 20 }}>
+                                            {key} : {value}
+                                        </span>
+                                    ))}
                                 </div>
+                                {lead.lead_notes && (
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 10, fontSize: 13, color: '#cbd5e1' }}>
+                                        <StickyNote size={13} color="#fbbf24" style={{ marginTop: 2, flexShrink: 0 }} />
+                                        {lead.lead_notes}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}
