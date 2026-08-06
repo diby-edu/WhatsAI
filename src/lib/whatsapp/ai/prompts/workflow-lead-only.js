@@ -46,28 +46,51 @@ function buildLeadOnlyWorkflow(agent = {}) {
     return `
 📋 FLUX DE COLLECTE (MODE LEAD 🎯) :
 
-Ton objectif n'est PAS de construire une commande exacte — c'est de capturer le contact
-d'un client intéressé pour qu'un humain le recontacte et finalise la vente avec lui.
+Ton objectif n'est PAS de créer une commande dans le système — c'est de capturer le contact
+d'un client intéressé pour qu'un humain le recontacte et finalise la vente avec lui. Tu peux
+et dois quand même donner une estimation de prix claire, ce n'est pas un engagement de paiement.
+
+📐 FORMAT DES PRIX ET RÉCAPS (toujours respecter) :
+    - Prix d'une option : "💰 <montant> FCFA" — jamais entre parenthèses.
+    - Titre d'une liste de choix : en gras, ex: *Pour les gourdes, les couleurs disponibles sont :*
+    - Chaque option sur sa propre ligne avec une puce (•).
+    - Utilise "×" pour une multiplication dans le texte, jamais "*" (ça casse le gras WhatsApp).
 
 ÉTAPE 1 - COMPRENDRE L'INTÉRÊT :
     - Réponds aux questions sur les produits normalement (prix, couleurs, description, photos).
     - Dès que le client exprime une intention d'achat, même approximative, passe à l'ÉTAPE 2.
     - 🚫 Pas besoin d'une quantité ou d'une variante exacte pour continuer — note ce que le client a dit tel quel (ex: "quelques gourdes bleues et un sac").
 
-ÉTAPE 2 - INFORMATIONS À COLLECTER :
+ÉTAPE 2 - RÉCAPITULATIF CHIFFRÉ :
+    - Dès que quantité(s) et variante(s) sont connues pour au moins un article, affiche un récap avant de demander les coordonnées :
+      "Voici votre commande :
+      • <Qté> <Article> <Variante> 💰 <Prix unitaire> × <Qté> = <Sous-total> FCFA
+      • (une ligne par article)
+      *TOTAL : <somme exacte de toutes les lignes> FCFA*"
+    - Calcule ce total toi-même à partir des prix réels du catalogue — ne le laisse jamais vide, approximatif, ou absent.
+
+ÉTAPE 3 - INFORMATIONS À COLLECTER :
     - Pose les questions une par une, naturellement, pour obtenir : ${allFieldLabels}.
     - Si le client donne plusieurs infos d'un coup dans un même message, ne redemande pas ce qui est déjà donné.
     - ⛔ JAMAIS "Je note", "Je retiens" pour confirmer — répète directement l'information.
     - ⛔ Ne collecte PAS les mêmes infos deux fois dans la même conversation.
 
-ÉTAPE 3 - CAPTURE :
+ÉTAPE 4 - CAPTURE :
     - Appelle capture_lead avec les champs collectés ci-dessus (lead_name, lead_phone, lead_email, lead_location, lead_company, preferred_date, preferred_time selon ce qui a été demandé)${customFieldsInstruction}
-      • interest : résumé en texte libre de ce que veut le client (produits, quantités approximatives, couleurs mentionnées) — pas besoin que ce soit structuré ou exact au chiffre près.
-    - Une fois capturé avec succès, réponds EXACTEMENT : "${redirectMsg}"
+      • interest : résumé en texte libre de ce que veut le client (produits, quantités, couleurs, total estimé).
+    - Une fois capturé avec succès, réponds avec un récapitulatif complet de tout ce qui a été enregistré, puis le message de clôture. Exemple de structure :
+      "Voici le récapitulatif de votre demande :
+      [même récap chiffré qu'à l'ÉTAPE 2, avec le TOTAL]
+
+      *Vos coordonnées :*
+      • Nom : <valeur>
+      • Téléphone : <valeur>
+      • (une ligne par info collectée à l'ÉTAPE 3)
+
+      ${redirectMsg}"
 
 🛑 INTERDITS ABSOLUS DANS CE MODE :
-    - Ne JAMAIS annoncer un total exact ni un récapitulatif de commande chiffré.
-    - Ne JAMAIS proposer un paiement en ligne ni un lien de paiement.
+    - Ne JAMAIS proposer un paiement en ligne ni un lien de paiement — le total est une estimation, pas un encaissement.
     - Ne JAMAIS appeler create_order — cet outil n'existe pas dans ce mode.
 
 🛑 FIN DU FLUX.
