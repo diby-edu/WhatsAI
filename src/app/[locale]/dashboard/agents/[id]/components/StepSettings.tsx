@@ -276,7 +276,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                             { key: 'phone', label: 'Téléphone' },
                                             { key: 'email', label: 'Email' },
                                             { key: 'location', label: 'Localisation' },
-                                            { key: 'address', label: 'Adresse de livraison' },
+                                            ...(formData.conversation_mode === 'lead_only' ? [] : [{ key: 'address', label: 'Adresse de livraison' }]),
                                             { key: 'company', label: 'Entreprise' },
                                             { key: 'preferred_date', label: 'Date souhaitée' },
                                             { key: 'preferred_time', label: 'Heure souhaitée' },
@@ -318,6 +318,7 @@ export function StepSettings({ formData, setFormData, isSupportClient, isExterna
                                     </div>
                                     <p style={{ fontSize: 12, color: '#475569', margin: '4px 0 0 0' }}>
                                         Toute précision donnée spontanément par le client (allergie, contrainte...) est toujours notée, même sans champ dédié.
+                                        {formData.conversation_mode === 'lead_only' && " L'adresse de livraison est demandée automatiquement dès que le client choisit d'être livré — inutile de la cocher ici."}
                                     </p>
                                 </div>
                                 <div>
