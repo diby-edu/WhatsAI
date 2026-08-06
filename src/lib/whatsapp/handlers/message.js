@@ -945,7 +945,12 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // Exclut aussi les réponses du flux déterministe (structuredReply, ex: "Pour Gourde
         // pour enfant, quelle quantité ?") : le nom du produit y apparaît systématiquement sans
         // rapport avec une demande de photo, ce qui envoyait une image à chaque question.
-        if (!isSupportClientMode && !structuredReply && orderableProducts.length > 0 && aiResponse.content) {
+        // Exclut aussi le mode lead_only : il n'a PAS de flux déterministe (structuredReply est
+        // toujours false ici), donc chaque question naturelle mentionnant un produit ("quelle
+        // couleur pour la goube ?", "quelle quantité ?"...) déclenchait ce filet et envoyait une
+        // image non sollicitée. Ce mode a déjà des règles explicites et fiables (context-rules.js)
+        // qui disent à l'IA d'appeler send_image elle-même quand une photo est vraiment demandée.
+        if (!isSupportClientMode && !isLeadOnlyMode && !structuredReply && orderableProducts.length > 0 && aiResponse.content) {
             const responseTextLower = aiResponse.content.toLowerCase()
             // Produits déjà illustrés par un appel explicite à send_image (ex: une image par
             // variante demandée) — ne pas ajouter une 5e image générique par-dessus, ça produit
