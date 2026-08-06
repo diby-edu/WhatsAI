@@ -92,6 +92,10 @@ html {
   overflow-y: scroll !important;
   overflow-x: hidden;
   height: auto !important;
+  /* html peint avant body — sans couleur de fond ici, la zone de la barre de
+     statut (padding-top réservé par body) peut laisser transparaître le blanc
+     par défaut du WebView pendant un instant (au chargement/à la navigation). */
+  background-color: #020617;
 }
 
 body {
