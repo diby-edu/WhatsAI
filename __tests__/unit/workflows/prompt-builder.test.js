@@ -171,6 +171,48 @@ describe('Prompt Builder', () => {
     })
 
     // ═══════════════════════════════════════════════════════════════
+    // LEAD_ONLY DISPATCH PRIORITY (RESTAURANT/STAY)
+    // ═══════════════════════════════════════════════════════════════
+
+    describe('Engine Dispatch - lead_only overrides RESTAURANT/STAY engines', () => {
+        const restaurantProducts = [
+            { id: '1', name: 'Thiéboudienne', price_fcfa: 3500, product_type: 'service', service_subtype: 'restaurant', menu_section_slug: 'mains' },
+        ]
+        const hotelProducts = [
+            { id: '1', name: 'Chambre Deluxe', price_fcfa: 50000, product_type: 'service', service_subtype: 'hotel' },
+        ]
+
+        test('a lead_only restaurant agent never reaches the real create_restaurant_checkout flow', () => {
+            const agent = { ...mockAgent, conversation_mode: 'lead_only' }
+            const prompt = buildAdaptiveSystemPrompt(agent, restaurantProducts, mockOrders, mockDocs, currency, gpsLink, formattedHours)
+            expect(prompt).not.toMatch(/Appelle IMMÉDIATEMENT create_restaurant_checkout/i)
+            expect(prompt).not.toMatch(/MOTEUR DÉDIÉ/i)
+            expect(prompt).toMatch(/capture_lead/i)
+            expect(prompt).toMatch(/MODE LEAD/i)
+        })
+
+        test('a lead_only hotel agent never reaches the real create_booking flow', () => {
+            const agent = { ...mockAgent, conversation_mode: 'lead_only' }
+            const prompt = buildAdaptiveSystemPrompt(agent, hotelProducts, mockOrders, mockDocs, currency, gpsLink, formattedHours)
+            expect(prompt).not.toMatch(/Appeler create_booking IMMEDIATEMENT/i)
+            expect(prompt).toMatch(/capture_lead/i)
+            expect(prompt).toMatch(/MODE LEAD/i)
+        })
+
+        test('an existing (non lead_only) restaurant agent keeps the original booking flow unchanged', () => {
+            const prompt = buildAdaptiveSystemPrompt(mockAgent, restaurantProducts, mockOrders, mockDocs, currency, gpsLink, formattedHours)
+            expect(prompt).toMatch(/Appelle IMMÉDIATEMENT create_restaurant_checkout/i)
+            expect(prompt).not.toMatch(/MODE LEAD/i)
+        })
+
+        test('an existing (non lead_only) hotel agent keeps the original booking flow unchanged', () => {
+            const prompt = buildAdaptiveSystemPrompt(mockAgent, hotelProducts, mockOrders, mockDocs, currency, gpsLink, formattedHours)
+            expect(prompt).toMatch(/Appeler create_booking IMMEDIATEMENT/i)
+            expect(prompt).not.toMatch(/MODE LEAD/i)
+        })
+    })
+
+    // ═══════════════════════════════════════════════════════════════
     // SERVICE-ONLY AGENT DETECTION
     // ═══════════════════════════════════════════════════════════════
 

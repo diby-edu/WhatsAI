@@ -16,6 +16,8 @@ const { prompt_RENTAL } = require('./prompts/workflow-service-rental')
 const { prompt_INSCRIPTION } = require('./prompts/workflow-service-inscription')
 const { prompt_RESTAURANT } = require('./prompts/workflow-service-restaurant')
 const { buildCatalogueSection, buildClientHistory, buildKnowledgeSection, buildProductsCatalogSection } = require('./prompts/sections')
+const { buildLeadOnlyRestaurantWorkflow } = require('./prompts/workflow-service-restaurant-lead-only')
+const { buildLeadOnlyStayWorkflow } = require('./prompts/workflow-service-stay-lead-only')
 
 // Mapping des sous-types de services vers les moteurs de template
 const SERVICE_ENGINE_MAP = {
@@ -288,18 +290,18 @@ Style: Concis (max 3-4 phrases), amical, professionnel.
 ${hasProducts ? `📢 RÈGLE D'ACCUEIL (CRITIQUE) :
 Si le client dit "Salut", "Bonjour", "Menu", "Carte", "Catalogue" ou commence la conversation par un message vague :
 1. Saluer chaleureusement ("Bienvenue chez ${agent.name} ! 👋")
-${activeEngine === 'RESTAURANT'
-    ? `2. AFFICHER CE MENU PRINCIPAL (exactement, sans modifier) :
+${agent.conversation_mode === 'lead_only'
+    ? `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).
+3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ?'}" (conversation libre — pas de mention de numéro de menu ni de texte d'aide additionnel)`
+    : activeEngine === 'RESTAURANT'
+        ? `2. AFFICHER CE MENU PRINCIPAL (exactement, sans modifier) :
    1️⃣ Notre Carte
    2️⃣ Boissons
    3️⃣ Réserver une table
    Tapez un numéro ou décrivez ce que vous souhaitez.
 ⛔ NE PAS afficher la carte complète ni les prix au premier message.
 ⛔ NE PAS demander le mode (sur place/emporter/livraison) au premier message.
-⛔ SI le client formule déjà une demande précise (ex: "Je veux réserver une table demain à 21h pour 3 personnes avec 2 plats" ou "Je veux commander 2 plats à emporter"), NE RÉAFFICHE PAS le menu principal. Réponds directement à sa demande concrète ou laisse le système structuré poursuivre le parcours.` 
-    : agent.conversation_mode === 'lead_only'
-        ? `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).
-3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ?'}" (conversation libre — pas de mention de numéro de menu ni de texte d'aide additionnel)`
+⛔ SI le client formule déjà une demande précise (ex: "Je veux réserver une table demain à 21h pour 3 personnes avec 2 plats" ou "Je veux commander 2 plats à emporter"), NE RÉAFFICHE PAS le menu principal. Réponds directement à sa demande concrète ou laisse le système structuré poursuivre le parcours.`
         : `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).
 3. Demander: "${isServiceOnlyAgent ? 'Quelle prestation souhaitez-vous réserver ?' : 'Quel article vous intéresse ? (répondez par son nom ou son numéro)'}"
 4. AJOUTER ce texte, exactement (avec le retour à la ligne) : "${welcomeInteractionHint}"`}
@@ -328,7 +330,14 @@ Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit 
     let collectOrder = ''
 
     // Logique de bascule (Switch Engine)
-    if (conversationIntent === 'service_booking' && activeEngine) {
+    // Mode lead_only : prioritaire sur la détection de moteur — un agent en
+    // collecte de leads ne doit JAMAIS atteindre les moteurs de réservation/
+    // commande réelle (STAY/RESTAURANT/...), quel que soit son catalogue.
+    if (agent.conversation_mode === 'lead_only' && activeEngine === 'RESTAURANT') {
+        collectOrder = buildLeadOnlyRestaurantWorkflow(agent)
+    } else if (agent.conversation_mode === 'lead_only' && activeEngine === 'STAY') {
+        collectOrder = buildLeadOnlyStayWorkflow(agent)
+    } else if (conversationIntent === 'service_booking' && activeEngine) {
         if (activeEngine === 'STAY') collectOrder = prompt_STAY
         else if (activeEngine === 'RESTAURANT') collectOrder = prompt_RESTAURANT
         else if (activeEngine === 'TABLE') collectOrder = prompt_TABLE
@@ -337,7 +346,7 @@ Si le client dit "Salut", "Bonjour", "Menu", "Catalogue", ou demande un produit 
         else if (activeEngine === 'INSCRIPTION') collectOrder = prompt_INSCRIPTION
         else collectOrder = buildGenericWorkflow(orders, products, agent) // Fallback
     } else {
-        collectOrder = buildGenericWorkflow(orders, products, agent) // Default Generic/Mixed
+        collectOrder = buildGenericWorkflow(orders, products, agent) // Default Generic/Mixed (gère lead_only en interne pour les catalogues non-service)
     }
 
     // Section 4: Contexte & Business Info
