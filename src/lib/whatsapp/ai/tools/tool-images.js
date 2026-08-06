@@ -178,11 +178,32 @@ async function handleSendImage(args, products, relevantDocs, userMessage) {
         }
 
         const searchName = product_name.toLowerCase()
-        const product = (products || []).find(p =>
+        let product = (products || []).find(p =>
             p.name.toLowerCase() === searchName ||
             searchName.includes(p.name.toLowerCase()) ||
             p.name.toLowerCase().includes(searchName)
         )
+
+        if (!product) {
+            // Tolérance aux fautes de frappe/orthographe (ex: le client dit "gourde"
+            // mais le produit est enregistré "goube" dans le catalogue) — distance
+            // d'édition sur le nom complet, on garde le candidat le plus proche sous
+            // un seuil raisonnable (évite les faux positifs sur un mot générique
+            // partagé comme "enfant" entre deux produits différents).
+            let bestMatch = null
+            let bestDist = Infinity
+            for (const p of (products || [])) {
+                const dist = levenshtein(searchName, p.name.toLowerCase())
+                if (dist < bestDist) {
+                    bestDist = dist
+                    bestMatch = p
+                }
+            }
+            const threshold = Math.max(2, Math.floor(searchName.length * 0.25))
+            if (bestMatch && bestDist <= threshold) {
+                product = bestMatch
+            }
+        }
 
         if (!product) {
             return JSON.stringify({ success: false, error: `Produit "${product_name}" introuvable.` })
