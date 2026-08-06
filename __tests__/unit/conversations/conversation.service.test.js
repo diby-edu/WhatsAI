@@ -40,10 +40,11 @@ function createSupabaseMock(initialConversation) {
     }
 }
 
-function createGetOrCreateSupabaseMock({ existingByField = {}, initialConversation = null } = {}) {
+function createGetOrCreateSupabaseMock({ existingByField = {}, initialConversation = null, insertError = null, racedConversation = null } = {}) {
     const updates = []
     const createdRows = []
     let currentConversation = initialConversation
+    let insertAttempted = false
 
     const conversationsTable = {
         select: jest.fn(() => {
@@ -54,6 +55,9 @@ function createGetOrCreateSupabaseMock({ existingByField = {}, initialConversati
                     return this
                 },
                 maybeSingle: jest.fn(async () => {
+                    if (insertAttempted && racedConversation) {
+                        return { data: racedConversation, error: null }
+                    }
                     const lookupKey = `${filters.agent_id || ''}:${filters.contact_phone || filters.contact_jid || ''}`
                     const data = existingByField[lookupKey] || null
                     return { data, error: null }
@@ -80,6 +84,10 @@ function createGetOrCreateSupabaseMock({ existingByField = {}, initialConversati
         insert: jest.fn((payload) => ({
             select: jest.fn(() => ({
                 single: jest.fn(async () => {
+                    insertAttempted = true
+                    if (insertError) {
+                        return { data: null, error: insertError }
+                    }
                     const row = {
                         id: 'conv_new',
                         ...payload,
@@ -237,5 +245,36 @@ describe('ConversationService cycle management', () => {
         expect(updates[0].contact_phone).toBe('+22547094746')
         expect(updates[0].contact_jid).toBe('22547094746@s.whatsapp.net')
         expect(updates[0].metadata).toEqual({ preserved: true, wa_name: 'Kono' })
+    })
+
+    test('getOrCreate recovers from a concurrent insert conflict by re-reading the winning row', async () => {
+        // Simule 2 messages quasi simultanés du même contact : le lookup initial ne
+        // trouve rien, l'INSERT échoue sur la contrainte unique (une autre requête a
+        // gagné la course), et getOrCreate doit relire cette ligne au lieu de planter.
+        const racedConversation = {
+            id: 'conv_raced',
+            agent_id: 'agent_1',
+            user_id: 'user_1',
+            contact_phone: '+22547094746',
+            contact_jid: '22547094746@s.whatsapp.net',
+            status: 'active',
+            metadata: {},
+        }
+        const { supabase, createdRows } = createGetOrCreateSupabaseMock({
+            existingByField: {},
+            insertError: { code: '23505', message: 'duplicate key value violates unique constraint' },
+            racedConversation,
+        })
+
+        const conversation = await ConversationService.getOrCreate(
+            supabase,
+            'agent_1',
+            'user_1',
+            '22547094746@s.whatsapp.net',
+            { wa_name: 'Kono' }
+        )
+
+        expect(conversation.id).toBe('conv_raced')
+        expect(createdRows).toHaveLength(0)
     })
 })

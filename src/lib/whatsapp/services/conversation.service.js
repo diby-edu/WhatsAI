@@ -136,6 +136,26 @@ class ConversationService {
                 .select()
                 .single()
 
+            if (error?.code === '23505') {
+                // Course concurrente : une autre requête a créé la conversation entre
+                // notre lookup et notre insert (ex: 2 messages quasi simultanés du même
+                // contact). La contrainte unique (agent_id, contact_jid/contact_phone)
+                // a bloqué notre insert -> on relit la ligne gagnante au lieu d'échouer.
+                console.warn(`⚠️ Conflit de création détecté pour ${rawContact}, relecture de la conversation existante`)
+                for (const strategy of lookupStrategies) {
+                    const { data: raced } = await supabase
+                        .from('conversations')
+                        .select('*')
+                        .eq('agent_id', agentId)
+                        .eq(strategy.field, strategy.value)
+                        .maybeSingle()
+
+                    if (raced) {
+                        return new Conversation(raced, supabase)
+                    }
+                }
+            }
+
             if (error || !newConv) {
                 throw new AppError('Failed to create conversation', {
                     code: 'CONVERSATION_CREATE_FAILED',
