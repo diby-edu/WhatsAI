@@ -15,7 +15,7 @@ function buildGenericWorkflow(orders, products, agent) {
   // Mode lead_only : catalogue conservé, mais capture_lead remplace create_order —
   // ce dispatch prioritaire évite tout le flux commande/paiement structuré ci-dessous.
   if (agent?.conversation_mode === 'lead_only') {
-    return buildLeadOnlyWorkflow()
+    return buildLeadOnlyWorkflow(agent)
   }
 
   if (!products || products.length === 0) {
