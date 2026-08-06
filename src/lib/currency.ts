@@ -5,13 +5,17 @@
  * 
  * Les prix en DB sont TOUJOURS en FCFA (champ price_fcfa).
  * Ce module convertit pour l'affichage dans la devise de l'utilisateur.
- * 
- * Taux approximatifs : 1 USD ≈ 700 FCFA, 1 EUR ≈ 700 FCFA
+ *
+ * Taux : 1 USD ≈ 560 FCFA (marché, à rafraîchir périodiquement),
+ * 1 EUR ≈ 655 FCFA (XOF arrimé à l'EUR, taux quasi-fixe).
+ * Volontairement légèrement en dessous du taux marché réel : de nombreux
+ * clients paient hors CinetPay (pays non couvert) et convertissent
+ * eux-mêmes — mieux vaut afficher un prix légèrement prudent que sous-évalué.
  */
 
 const FCFA_RATES: Record<string, number> = {
-    USD: 700,
-    EUR: 700,
+    USD: 560,
+    EUR: 655,
     XOF: 1,   // FCFA = XOF, pas de conversion
     FCFA: 1,  // Alias
 }

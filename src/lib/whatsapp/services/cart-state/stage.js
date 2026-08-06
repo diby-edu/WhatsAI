@@ -15,7 +15,7 @@ const VARIANT_PRIORITY = {
     format: 50,
 }
 
-const CURRENCY_RATES   = { USD: 700, EUR: 700, GBP: 800 }
+const CURRENCY_RATES   = { USD: 560, EUR: 655, GBP: 750 }
 const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', GBP: '£' }
 
 function formatPrice(priceFcfa, currency = 'XOF') {

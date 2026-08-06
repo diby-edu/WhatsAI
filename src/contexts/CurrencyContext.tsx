@@ -49,9 +49,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     }
 
     const formatFromUsd = (priceUsd: number): string => {
-        // Taux : 1 USD = 700 FCFA, 1 USD = 1 EUR (taux buffer)
+        // Taux : 1 USD = 560 FCFA, 1 USD = 1 EUR (taux buffer)
         let converted = priceUsd
-        if (currency === 'XOF') converted = priceUsd * 700
+        if (currency === 'XOF') converted = priceUsd * 560
         return format(converted)
     }
 

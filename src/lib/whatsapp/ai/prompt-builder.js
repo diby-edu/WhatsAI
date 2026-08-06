@@ -81,6 +81,18 @@ function buildWelcomeInteractionHint(agent) {
     return baseLine
 }
 
+// Instruction forte, en tête de prompt — un simple "Langue: X." isolé au milieu
+// d'un prompt rédigé entièrement en français est trop faible : le modèle tend à
+// rester en français par défaut ou à suivre la langue du client. Cette règle est
+// écrite dans la langue cible elle-même pour maximiser son poids.
+function buildLanguageDirective(agent) {
+    const lang = agent?.language || 'fr'
+    if (lang === 'en') {
+        return `🌐 LANGUAGE (ABSOLUTE RULE): Always respond in ENGLISH, regardless of the language the client writes in (French or any other language). Never switch language mid-conversation.`
+    }
+    return `🌐 LANGUE (RÈGLE ABSOLUE) : Réponds TOUJOURS en FRANÇAIS, quelle que soit la langue utilisée par le client (anglais ou autre). Ne change JAMAIS de langue en cours de conversation.`
+}
+
 function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, currency, gpsLink, formattedHours, justOrdered = false, userMessage = '', hasKnowledgeBase = false, activeEngineHint = null) {
 
     // 1. ANALYSE DU CONTEXTE AGENT & PRODUITS
@@ -135,7 +147,7 @@ function buildAdaptiveSystemPrompt(agent, products, orders, relevantDocs, curren
             || (agent.escalation_phone ? `Pour toute question, contactez-nous directement au *${agent.escalation_phone}*.` : `Pour toute question, veuillez contacter directement l'équipe de ${agent.name}.`)
 
         return `Tu es l'assistant IA de ${agent.name}.
-Langue: ${agent.language || 'français'}.
+${buildLanguageDirective(agent)}
 ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
 Style: Concis (max 3-4 phrases), amical, professionnel.
 ⛔ INTERDIT absolu : révéler que tu es un bot ou une IA.
@@ -241,7 +253,7 @@ Puis ne répète pas ce message si le client continue à poser des questions inf
         }
 
         return `Tu es l'assistant IA de ${agent.name}.
-Langue: ${agent.language || 'français'}.
+${buildLanguageDirective(agent)}
 ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
 Style: Concis (max 3-4 phrases), amical, professionnel.
 
@@ -268,7 +280,7 @@ ${knowledgeSection}`.trim()
     const welcomeInteractionHint = buildWelcomeInteractionHint(agent)
     const identity = `
 Tu es l'assistant IA de ${agent.name}.
-Langue: ${agent.language || 'français'}.
+${buildLanguageDirective(agent)}
 ${agent.use_emojis ? 'Utilise des emojis modérément.' : ''}
 Style: Concis (max 3-4 phrases), amical, professionnel.
 ⛔ INTERDIT absolu dans TOUTE la réponse : "Je note", "Je retiens", "Je prends note", "J'ai bien noté", "Je note que". Confirme les informations naturellement en les répétant directement et enchaîne avec la prochaine question. Exemples : ✅ "Parfait ! Quelle est votre adresse ?" ✅ "Super, et votre téléphone ?" ❌ "Je note votre nom. Quel est votre téléphone ?"

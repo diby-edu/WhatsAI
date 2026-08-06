@@ -2,12 +2,14 @@
 /**
  * Convertit un prix stocké en FCFA vers la devise d'affichage.
  * Les prix en DB sont TOUJOURS en FCFA (price_fcfa).
- * Taux : 1 USD = 655 FCFA, 1 EUR ≈ 656 FCFA
+ * Taux : 1 USD ≈ 560 FCFA, 1 EUR ≈ 655 FCFA (mêmes taux que src/lib/currency.ts —
+ * légèrement en dessous du taux marché réel, car de nombreux clients paient
+ * hors CinetPay et convertissent eux-mêmes).
  */
 function convertFromFcfa(priceFcfa, currency) {
     if (!priceFcfa || priceFcfa === 0) return 0
-    if (currency === 'USD') return Math.round(priceFcfa / 700)
-    if (currency === 'EUR') return Math.round(priceFcfa / 700)
+    if (currency === 'USD') return Math.round(priceFcfa / 560)
+    if (currency === 'EUR') return Math.round(priceFcfa / 655)
     return priceFcfa // XOF : pas de conversion
 }
 
@@ -79,7 +81,7 @@ function buildCatalogueSection(products, currency) {
 
         const formatPrice = (p) => {
             if (!p.price_fcfa) return ''
-            if (currency === 'USD' || currency === 'EUR') return ` — ${Math.round(p.price_fcfa / 700)} ${currency}`
+            if (currency === 'USD' || currency === 'EUR') return ` — ${convertFromFcfa(p.price_fcfa, currency)} ${currency}`
             return ` — ${p.price_fcfa} FCFA`
         }
 
@@ -107,8 +109,8 @@ function buildCatalogueSection(products, currency) {
     const formatCatalogPrice = (range) => {
         if (!range) return ''
         if (currency === 'USD' || currency === 'EUR') {
-            const min = Math.round(range.min / 700)
-            const max = Math.round(range.max / 700)
+            const min = convertFromFcfa(range.min, currency)
+            const max = convertFromFcfa(range.max, currency)
             return min === max ? ` 💰 *${min} ${currency}*` : ` 💰 *De ${min} à ${max} ${currency}*`
         }
         const minStr = Number(range.min).toLocaleString('fr-FR')
@@ -261,8 +263,8 @@ function buildProductsCatalogSection(products, currency) {
     let currencySymbol = 'FCFA'
     const toDisplay = (priceFcfa) => {
         if (!priceFcfa || priceFcfa === 0) return 0
-        if (currency === 'USD') { currencySymbol = '$'; return Math.round(priceFcfa / 700) }
-        if (currency === 'EUR') { currencySymbol = '€'; return Math.round(priceFcfa / 700) }
+        if (currency === 'USD') { currencySymbol = '$'; return Math.round(priceFcfa / 560) }
+        if (currency === 'EUR') { currencySymbol = '€'; return Math.round(priceFcfa / 655) }
         return priceFcfa
     }
 
