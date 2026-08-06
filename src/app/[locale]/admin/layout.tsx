@@ -362,7 +362,7 @@ export default function AdminLayout({
                     backgroundColor: 'rgba(15, 23, 42, 0.9)',
                     backdropFilter: 'blur(20px)',
                     borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                    paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+                    paddingTop: 'calc(20px + env(safe-area-inset-top, 0px))',
                     paddingBottom: '12px',
                     paddingLeft: '16px',
                     paddingRight: '16px',
@@ -499,7 +499,7 @@ export default function AdminLayout({
                                         <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>SUPER ADMIN</div>
                                     </div>
                                 </Link>
-                                <nav style={{ display: 'flex', flexDirection: 'column', flexWrap: 'nowrap', gap: 2, overflowY: 'auto', flex: 1, minHeight: 0, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                                <nav style={{ display: 'flex', flexDirection: 'column', flexWrap: 'nowrap', gap: 2, overflowY: 'auto', flex: 1, minHeight: 0, WebkitOverflowScrolling: 'touch', paddingBottom: 'env(safe-area-inset-bottom, 0px)' } as React.CSSProperties}>
                                     {adminGroups.map((group, groupIdx) => (
                                         <div key={groupIdx}>
                                             {groupIdx > 0 && (

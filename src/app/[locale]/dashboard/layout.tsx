@@ -388,7 +388,7 @@ export default function DashboardLayout({
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     backdropFilter: 'blur(20px)',
                     borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                    paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+                    paddingTop: 'calc(20px + env(safe-area-inset-top, 0px))',
                     paddingBottom: '12px',
                     paddingLeft: '16px',
                     paddingRight: '16px',
@@ -630,7 +630,7 @@ export default function DashboardLayout({
                                     )
                                 })}
                             </nav>
-                            <div style={{ padding: 16, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                            <div style={{ padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
                                 <button
                                     onClick={() => { setMobileMenuOpen(false); handleLogout() }}
                                     style={{
