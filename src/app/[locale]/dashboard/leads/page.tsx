@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-    Users, Phone, Mail, Tag, Calendar, MapPin,
+    Users, Phone, Mail, Calendar, MapPin,
     Building2, Trash2, Search, RefreshCw, Bot, Download, X,
-    Clock, Scissors, FileText, Check
+    Clock, Check, ExternalLink, Store
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 
@@ -125,7 +125,15 @@ export default function LeadsPage() {
         }
     }
 
-    const formatFCFA = (n: number) => `${n.toLocaleString('fr-FR')} FCFA`
+    const initials = (lead: Lead) => {
+        const name = lead.lead_name?.trim()
+        if (!name) return '?'
+        const parts = name.split(/\s+/).filter(Boolean)
+        return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase()
+    }
+
+    const displayName = (lead: Lead) =>
+        lead.lead_name || lead.lead_phone || (!lead.customer_phone?.includes('@lid') ? lead.customer_phone : null) || 'Contact anonyme'
 
     const agentOptions = Array.from(
         new Map(leads.filter(l => l.agent_id).map(l => [l.agent_id, l.agent_name])).entries()
@@ -300,7 +308,7 @@ export default function LeadsPage() {
                 </p>
             )}
 
-            {/* Liste */}
+            {/* Liste dense */}
             {loading ? (
                 <div style={{ textAlign: 'center', padding: 64, color: '#475569' }}>Chargement…</div>
             ) : filtered.length === 0 ? (
@@ -316,161 +324,232 @@ export default function LeadsPage() {
                     </p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div>
+                    {/* En-tête colonnes */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '0 4px 10px', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.6px', borderBottom: '1px solid rgba(148,163,184,0.1)' }}>
+                        <div style={{ width: 32 }} />
+                        <div style={{ flex: 1.6 }}>Contact</div>
+                        <div style={{ flex: 2.2 }}>Articles</div>
+                        <div style={{ width: 130, textAlign: 'right' }}>Total</div>
+                        <div style={{ width: 90, textAlign: 'right' }}>Reçu</div>
+                        <div style={{ width: 66 }} />
+                    </div>
+
                     {filtered.map(lead => {
-                        const hasExtra = !!(lead.custom_fields && Object.keys(lead.custom_fields).length > 0) || !!lead.lead_notes
-                        const hasDemande = !!(lead.service_requested || lead.preferred_date || lead.preferred_time || lead.interest)
-                        const cols = hasExtra ? '1fr 1fr 1fr' : hasDemande ? '1fr 1fr' : '1fr'
+                        const itemChips = lead.items && lead.items.length > 0 ? lead.items : null
+                        const noteDraftValue = notesDraft[lead.id] ?? lead.merchant_notes ?? ''
+                        const noteDirty = notesDraft[lead.id] !== undefined && noteDraftValue !== (lead.merchant_notes ?? '')
 
                         return (
-                            <div key={lead.id} style={{ background: 'rgba(15,23,42,0.85)', border: `1px solid ${lead.is_treated ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.1)'}`, borderRadius: 16, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, transition: 'border-color 0.2s', opacity: lead.is_treated ? 0.6 : 1 }}>
+                            <details key={lead.id} style={{ borderBottom: '1px solid rgba(148,163,184,0.1)' }}>
+                                <summary style={{
+                                    listStyle: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
+                                    padding: '13px 4px', opacity: lead.is_treated ? 0.55 : 1,
+                                }}>
+                                    <span style={{ width: 3, alignSelf: 'stretch', borderRadius: 3, background: lead.is_treated ? 'rgba(148,163,184,0.2)' : '#10b981', flexShrink: 0 }} />
+                                    <span style={{
+                                        width: 32, height: 32, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 12, fontWeight: 800, flexShrink: 0,
+                                        background: lead.is_treated ? 'rgba(100,116,139,0.12)' : 'rgba(16,185,129,0.14)',
+                                        color: lead.is_treated ? '#64748b' : '#34d399',
+                                        border: `1px solid ${lead.is_treated ? 'rgba(148,163,184,0.2)' : 'rgba(16,185,129,0.22)'}`,
+                                    }}>
+                                        {initials(lead)}
+                                    </span>
 
-                                {/* Ligne 1 : nom + agent + date + traite + supprimer */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                    <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        <Users size={16} color="#10b981" />
+                                    <div style={{ flex: 1.6, minWidth: 0 }}>
+                                        <div style={{ fontWeight: 700, fontSize: 14, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {displayName(lead)}
+                                        </div>
+                                        <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            <Bot size={10} /> {lead.agent_name || 'Agent supprimé'}
+                                        </div>
                                     </div>
-                                    <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>
-                                        {lead.lead_name || lead.lead_phone || (!lead.customer_phone?.includes('@lid') ? lead.customer_phone : null) || 'Contact anonyme'}
-                                    </span>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: lead.agent_id ? 'rgba(139,92,246,0.15)' : 'rgba(100,116,139,0.15)', border: `1px solid ${lead.agent_id ? 'rgba(139,92,246,0.3)' : 'rgba(100,116,139,0.3)'}`, color: lead.agent_id ? '#a78bfa' : '#64748b', fontSize: 12, fontWeight: 500 }}>
-                                        <Bot size={10} /> {lead.agent_name || 'Agent supprimé'}
-                                    </span>
-                                    {typeof lead.estimated_total === 'number' && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24', fontSize: 12, fontWeight: 700 }}>
-                                            💰 {formatFCFA(lead.estimated_total)}
-                                        </span>
-                                    )}
-                                    <div style={{ flex: 1 }} />
-                                    <span style={{ color: '#475569', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Calendar size={11} /> {formatDate(lead.created_at)}
-                                    </span>
-                                    <button
-                                        onClick={() => toggleTreated(lead)}
-                                        disabled={updatingId === lead.id}
-                                        title={lead.is_treated ? 'Marquer comme non traité' : 'Marquer comme traité'}
-                                        style={{
-                                            width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
-                                            opacity: updatingId === lead.id ? 0.5 : 1,
-                                            background: lead.is_treated ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.08)',
-                                            border: lead.is_treated ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(148,163,184,0.2)',
-                                            color: lead.is_treated ? '#10b981' : '#64748b',
-                                        }}
-                                    >
-                                        <Check size={14} />
-                                    </button>
-                                    <button
-                                        onClick={() => deleteLead(lead.id)}
-                                        disabled={deleting === lead.id}
-                                        style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: deleting === lead.id ? 0.5 : 1, flexShrink: 0 }}
-                                    >
-                                        <Trash2 size={13} />
-                                    </button>
-                                </div>
 
-                                {/* Grille colonnes */}
-                                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10 }}>
-
-                                    {/* Col 1 : Contact */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 14px', background: 'rgba(30,41,59,0.35)', borderRadius: 11, border: '1px solid rgba(148,163,184,0.06)' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>Contact</div>
-                                        {lead.lead_phone && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
-                                                <Phone size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_phone}
+                                    <div style={{ flex: 2.2, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+                                        {itemChips ? (
+                                            <>
+                                                {itemChips.slice(0, 2).map((it, i) => (
+                                                    <span key={i} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.1)', padding: '2px 8px', borderRadius: 100, whiteSpace: 'nowrap' }}>
+                                                        <b style={{ color: 'white', fontWeight: 700 }}>{it.quantity}×</b> {it.product_name}{it.variant ? ` ${it.variant}` : ''}
+                                                    </span>
+                                                ))}
+                                                {itemChips.length > 2 && (
+                                                    <span style={{ fontSize: 11, color: '#475569', border: '1px dashed rgba(148,163,184,0.15)', padding: '2px 8px', borderRadius: 100 }}>
+                                                        +{itemChips.length - 2} article{itemChips.length - 2 > 1 ? 's' : ''}
+                                                    </span>
+                                                )}
+                                            </>
+                                        ) : (lead.service_requested || lead.interest) ? (
+                                            <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.1)', padding: '2px 8px', borderRadius: 100 }}>
+                                                {lead.service_requested || lead.interest}
                                             </span>
+                                        ) : null}
+                                    </div>
+
+                                    <div style={{ width: 130, textAlign: 'right', flexShrink: 0 }}>
+                                        {typeof lead.estimated_total === 'number' ? (
+                                            <>
+                                                <div style={{ fontWeight: 800, fontSize: 15, color: lead.is_treated ? '#94a3b8' : '#fbbf24', fontVariantNumeric: 'tabular-nums' }}>
+                                                    {lead.estimated_total.toLocaleString('fr-FR')}
+                                                </div>
+                                                <div style={{ fontSize: 10, color: '#475569', fontWeight: 600 }}>FCFA{lead.delivery_fee ? ' · livraison incl.' : ''}</div>
+                                            </>
+                                        ) : (lead.preferred_date || lead.preferred_time) ? (
+                                            <div style={{ fontSize: 11, color: '#475569', fontWeight: 500 }}>
+                                                {[lead.preferred_date, lead.preferred_time].filter(Boolean).join(' ')}
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: 12, color: '#334155' }}>—</div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ width: 90, textAlign: 'right', fontSize: 12, color: '#475569', flexShrink: 0 }}>
+                                        {formatDate(lead.created_at).split(' ').slice(-1)}
+                                    </div>
+
+                                    <div style={{ width: 66, display: 'flex', gap: 4, justifyContent: 'flex-end', flexShrink: 0 }}>
+                                        <button
+                                            onClick={e => { e.preventDefault(); toggleTreated(lead) }}
+                                            disabled={updatingId === lead.id}
+                                            title={lead.is_treated ? 'Marquer comme non traité' : 'Marquer comme traité'}
+                                            style={{
+                                                width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                                opacity: updatingId === lead.id ? 0.5 : 1,
+                                                background: lead.is_treated ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.08)',
+                                                border: lead.is_treated ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(148,163,184,0.2)',
+                                                color: lead.is_treated ? '#10b981' : '#64748b',
+                                            }}
+                                        >
+                                            <Check size={13} />
+                                        </button>
+                                        <button
+                                            onClick={e => { e.preventDefault(); deleteLead(lead.id) }}
+                                            disabled={deleting === lead.id}
+                                            style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: deleting === lead.id ? 0.5 : 1 }}
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                </summary>
+
+                                {/* Détail déplié */}
+                                <div style={{ padding: '4px 4px 20px 49px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+
+                                    {/* Coordonnées */}
+                                    <div style={{ background: 'rgba(30,41,59,0.45)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 11, padding: '12px 14px' }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>Coordonnées</div>
+                                        {lead.lead_phone && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', marginBottom: 5 }}>
+                                                <Phone size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_phone}
+                                            </div>
                                         )}
                                         {lead.customer_phone && lead.customer_phone !== lead.lead_phone && !lead.customer_phone.includes('@lid') && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', marginBottom: 5 }}>
                                                 <Phone size={13} color="#f59e0b" style={{ flexShrink: 0 }} /> {lead.customer_phone}
-                                            </span>
+                                            </div>
                                         )}
                                         {lead.lead_email && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', marginBottom: 5 }}>
                                                 <Mail size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_email}
-                                            </span>
+                                            </div>
                                         )}
                                         {lead.lead_company && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', marginBottom: 5 }}>
                                                 <Building2 size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_company}
-                                            </span>
+                                            </div>
                                         )}
-                                        {lead.lead_location && (
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
+                                        {!lead.lead_address && lead.lead_location && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', marginBottom: 5 }}>
                                                 <MapPin size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_location}
-                                            </span>
+                                            </div>
+                                        )}
+                                        {lead.lead_address && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', marginBottom: 5 }}>
+                                                {lead.lead_address.toLowerCase().includes('boutique') ? <Store size={13} color="#64748b" style={{ flexShrink: 0 }} /> : <MapPin size={13} color="#64748b" style={{ flexShrink: 0 }} />} {lead.lead_address}
+                                            </div>
                                         )}
                                         {lead.location_link && (
                                             <a
                                                 href={lead.location_link}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#38bdf8', textDecoration: 'none' }}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#38bdf8', textDecoration: 'none', wordBreak: 'break-all', marginTop: 4 }}
                                             >
-                                                <MapPin size={13} color="#38bdf8" style={{ flexShrink: 0 }} /> Voir sur la carte
+                                                <ExternalLink size={12} style={{ flexShrink: 0 }} /> {lead.location_link}
                                             </a>
+                                        )}
+                                        {lead.custom_fields && Object.entries(lead.custom_fields).map(([key, value]) => (
+                                            <div key={key} style={{ fontSize: 12, color: '#c4b5fd', marginTop: 5 }}>
+                                                <span style={{ color: '#a78bfa', fontWeight: 700 }}>{key} :</span> {value}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Détail commande */}
+                                    <div style={{ background: 'rgba(30,41,59,0.45)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 11, padding: '12px 14px' }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>Détail commande</div>
+                                        {itemChips ? (
+                                            <>
+                                                {itemChips.map((it, i) => (
+                                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#cbd5e1', padding: '3px 0', borderBottom: '1px dashed rgba(148,163,184,0.1)' }}>
+                                                        <span>{it.quantity} {it.product_name}{it.variant ? ` ${it.variant}` : ''}</span>
+                                                        <b style={{ color: 'white', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.subtotal.toLocaleString('fr-FR')}</b>
+                                                    </div>
+                                                ))}
+                                                {typeof lead.delivery_fee === 'number' && lead.delivery_fee > 0 && (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#cbd5e1', padding: '3px 0' }}>
+                                                        <span>Livraison</span>
+                                                        <b style={{ color: 'white', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{lead.delivery_fee.toLocaleString('fr-FR')}</b>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : lead.interest ? (
+                                            <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>{lead.interest}</div>
+                                        ) : (
+                                            <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Aucun détail de commande.</div>
+                                        )}
+                                        {(lead.preferred_date || lead.preferred_time) && (
+                                            <div style={{ marginTop: 8, fontSize: 13, color: '#cbd5e1' }}>
+                                                {lead.preferred_date && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}><Calendar size={13} color="#64748b" /> {lead.preferred_date}</div>}
+                                                {lead.preferred_time && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={13} color="#64748b" /> {lead.preferred_time}</div>}
+                                            </div>
                                         )}
                                     </div>
 
-                                    {/* Col 2 : Demande (si données) */}
-                                    {hasDemande && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 14px', background: 'rgba(30,41,59,0.35)', borderRadius: 11, border: '1px solid rgba(148,163,184,0.06)' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>Demande</div>
-                                            {(lead.service_requested || lead.interest) && (
-                                                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 100, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399', fontSize: 12, fontWeight: 500, width: 'fit-content' }}>
-                                                    {lead.service_requested || lead.interest}
-                                                </span>
-                                            )}
-                                            {lead.preferred_date && (
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
-                                                    <Calendar size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.preferred_date}
-                                                </span>
-                                            )}
-                                            {lead.preferred_time && (
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1' }}>
-                                                    <Clock size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.preferred_time}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
+                                    {/* Suivi : note client (lead_notes) distincte de la note interne (merchant_notes) */}
+                                    <div style={{ background: 'rgba(30,41,59,0.45)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: 11, padding: '12px 14px' }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>Suivi</div>
 
-                                    {/* Col 3 : Infos supplémentaires (si données) */}
-                                    {hasExtra && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 14px', background: 'rgba(30,41,59,0.35)', borderRadius: 11, border: '1px solid rgba(148,163,184,0.06)' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>Infos supplémentaires</div>
-                                            {lead.custom_fields && Object.entries(lead.custom_fields).map(([key, value]) => (
-                                                <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: '#c4b5fd', fontSize: 12, width: 'fit-content' }}>
-                                                    <span style={{ color: '#a78bfa', fontWeight: 700 }}>{key} :</span> {value}
-                                                </span>
-                                            ))}
-                                            {lead.lead_notes && (
-                                                <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 600, lineHeight: 1.5 }}>
-                                                    "{lead.lead_notes}"
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Note du client</div>
+                                        {lead.lead_notes ? (
+                                            <div style={{ fontSize: 13, color: '#e2e8f0', fontStyle: 'italic', marginBottom: 10 }}>"{lead.lead_notes}"</div>
+                                        ) : (
+                                            <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic', marginBottom: 10 }}>Aucune note spontanée.</div>
+                                        )}
 
-                                {/* Notes marchand : suivi interne, distinct de lead_notes (rempli par le client) */}
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                                    <textarea
-                                        value={notesDraft[lead.id] ?? lead.merchant_notes ?? ''}
-                                        onChange={e => setNotesDraft(prev => ({ ...prev, [lead.id]: e.target.value }))}
-                                        placeholder="Note de suivi interne (ex : rappelé le 8, en attente de réponse…)"
-                                        rows={1}
-                                        style={{ flex: 1, resize: 'vertical', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(148,163,184,0.12)', background: 'rgba(30,41,59,0.35)', color: '#e2e8f0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
-                                    />
-                                    {(notesDraft[lead.id] ?? '') !== (lead.merchant_notes ?? '') && notesDraft[lead.id] !== undefined && (
-                                        <button
-                                            onClick={() => saveMerchantNotes(lead.id)}
-                                            disabled={savingNotesId === lead.id}
-                                            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.12)', color: '#34d399', cursor: 'pointer', fontSize: 12, fontWeight: 600, opacity: savingNotesId === lead.id ? 0.5 : 1, whiteSpace: 'nowrap' }}
-                                        >
-                                            {savingNotesId === lead.id ? '...' : 'Enregistrer'}
-                                        </button>
-                                    )}
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Note interne</div>
+                                        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                            <textarea
+                                                value={noteDraftValue}
+                                                onChange={e => setNotesDraft(prev => ({ ...prev, [lead.id]: e.target.value }))}
+                                                placeholder="Ex : rappelé le 8, en attente…"
+                                                rows={1}
+                                                style={{ flex: 1, resize: 'vertical', padding: '6px 9px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)', color: '#e2e8f0', fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
+                                            />
+                                        </div>
+                                        {noteDirty && (
+                                            <button
+                                                onClick={() => saveMerchantNotes(lead.id)}
+                                                disabled={savingNotesId === lead.id}
+                                                style={{ marginTop: 6, padding: '5px 12px', borderRadius: 7, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.12)', color: '#34d399', cursor: 'pointer', fontSize: 11, fontWeight: 600, opacity: savingNotesId === lead.id ? 0.5 : 1 }}
+                                            >
+                                                {savingNotesId === lead.id ? '...' : 'Enregistrer'}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            </details>
                         )
                     })}
                 </div>
