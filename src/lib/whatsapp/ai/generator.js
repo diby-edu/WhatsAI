@@ -539,6 +539,8 @@ async function generateAIResponse(options, dependencies) {
         // capture_lead est conservé uniquement si lead_collection_enabled
         const SUPPORT_CLIENT_DISABLED_TOOLS = ['create_order', 'check_payment_status', 'create_booking', 'find_order', 'create_restaurant_checkout']
         const RESTAURANT_DISABLED_TOOLS = ['create_order', 'create_booking']
+        // preview_cart calcule un récap chiffré fiable pour le mode collecte de leads —
+        // inutile ailleurs (create_order/create_restaurant_checkout font déjà ce calcul en interne).
         const activeTools = isLeadOnlyMode
             // Mêmes outils transactionnels désactivés que le mode support client, mais
             // capture_lead reste toujours actif ici (pas conditionné à lead_collection_enabled,
@@ -548,12 +550,13 @@ async function generateAIResponse(options, dependencies) {
                 ? TOOLS.filter(t => {
                     if (SUPPORT_CLIENT_DISABLED_TOOLS.includes(t.function?.name)) return false
                     if (FLAG_DISABLED_TOOLS.includes(t.function?.name)) return false
+                    if (t.function?.name === 'preview_cart') return false
                     if (t.function?.name === 'capture_lead' && !agent.lead_collection_enabled) return false
                     return true
                 })
                 : isRestaurantMode
-                    ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name) && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
-                    : TOOLS.filter(t => t.function?.name !== 'capture_lead' && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
+                    ? TOOLS.filter(t => !RESTAURANT_DISABLED_TOOLS.includes(t.function?.name) && !FLAG_DISABLED_TOOLS.includes(t.function?.name) && t.function?.name !== 'preview_cart')
+                    : TOOLS.filter(t => t.function?.name !== 'capture_lead' && t.function?.name !== 'preview_cart' && !FLAG_DISABLED_TOOLS.includes(t.function?.name))
         const toolsConfig = activeTools.length > 0
             ? { tools: activeTools, tool_choice: 'auto' }
             : {}

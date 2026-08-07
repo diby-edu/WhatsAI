@@ -14,6 +14,7 @@ const { handleCreateBooking } = require('./tools/tool-bookings')
 const { handleSendImage } = require('./tools/tool-images')
 const { handleCreateRestaurantCheckout } = require('./tools/tool-restaurant')
 const { handleCaptureLead } = require('./tools/tool-capture-lead')
+const { handlePreviewCart } = require('./tools/tool-cart-preview')
 const {
     normalizePhoneNumber,
     checkStock,
@@ -61,6 +62,9 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
 
         case 'capture_lead':
             return await handleCaptureLead(args, agentId, customerPhone, supabase)
+
+        case 'preview_cart':
+            return handlePreviewCart(args, products)
 
         default:
             console.error(`❌ Outil inconnu: ${functionName}`)

@@ -271,6 +271,47 @@ Ne pas appeler si le client pose juste une question simple sans intention d'acha
                 required: []
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'preview_cart',
+            description: `Calculer le récapitulatif chiffré exact d'un panier (mode collecte de leads uniquement) à partir des prix réels du catalogue.
+⛔ OBLIGATOIRE avant d'afficher tout récapitulatif chiffré (nombre d'articles, sous-totaux, TOTAL) — ne calcule JAMAIS ces montants toi-même, même une addition simple. Appelle ce tool, puis reproduis EXACTEMENT le champ recap_text retourné, sans le modifier, reformuler ni recalculer.
+Rappelle ce tool à chaque changement (quantité, variante, ajout/suppression d'article, ajout des frais de livraison) pour obtenir un récapitulatif à jour.`,
+            parameters: {
+                type: 'object',
+                properties: {
+                    items: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                product_name: {
+                                    type: 'string',
+                                    description: 'Nom du produit (sans les variantes)'
+                                },
+                                quantity: {
+                                    type: 'integer',
+                                    description: 'Quantité — jamais devinée, uniquement ce que le client a explicitement donné'
+                                },
+                                selected_variants: {
+                                    type: 'object',
+                                    description: 'Variantes sélectionnées. Ex: {"Couleur": "Bleu"}',
+                                    additionalProperties: { type: 'string' }
+                                }
+                            },
+                            required: ['product_name', 'quantity']
+                        }
+                    },
+                    delivery_fee: {
+                        type: 'number',
+                        description: 'Frais de livraison déjà déterminé selon les zones configurées (ne pas fournir si retrait en boutique ou livraison gratuite)'
+                    }
+                },
+                required: ['items']
+            }
+        }
     }
 ]
 
