@@ -83,6 +83,25 @@ async function resolveGoogleMapsShortLink(url) {
     }
 }
 
+// Certains liens courts (partage d'un lieu/POI nommé plutôt qu'une position brute)
+// redirigent vers une URL /maps/place/<nom>/... identifiée par un Place ID hexadécimal
+// (ex: data=!4m2!3m1!1s0xfc1e...) — aucune coordonnée en clair n'y figure, donc
+// parseCoordinatesFromUrl échoue. Le nom du lieu, lui, est déjà présent en texte
+// lisible dans le chemin de l'URL : on l'utilise directement comme filet de sécurité,
+// sans appel à une API de géocodage payante.
+function parsePlaceNameFromUrl(url) {
+    if (!url) return null
+    const match = url.match(/\/maps\/place\/([^/]+)\//)
+    if (!match) return null
+
+    try {
+        const decoded = decodeURIComponent(match[1].replace(/\+/g, ' ')).trim()
+        return decoded.length > 0 ? decoded : null
+    } catch (_err) {
+        return null
+    }
+}
+
 async function extractCoordinatesFromText(text) {
     const url = findGoogleMapsUrl(text)
     if (!url) return null
@@ -92,7 +111,11 @@ async function extractCoordinatesFromText(text) {
 
     if (SHORT_LINK_PATTERN.test(url)) {
         const resolvedUrl = await resolveGoogleMapsShortLink(url)
-        return parseCoordinatesFromUrl(resolvedUrl)
+        const resolvedMatch = parseCoordinatesFromUrl(resolvedUrl)
+        if (resolvedMatch) return resolvedMatch
+
+        const placeLabel = parsePlaceNameFromUrl(resolvedUrl)
+        if (placeLabel) return { placeLabel }
     }
 
     return null

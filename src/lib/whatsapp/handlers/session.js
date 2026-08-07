@@ -696,12 +696,16 @@ async function initSession(context, agentId, agentName, reconnectAttempt = 0) {
                     try {
                         const { extractCoordinatesFromText, reverseGeocode } = require('../utils/geocode')
                         const coords = await extractCoordinatesFromText(inboundPayload.text)
-                        if (coords) {
+                        if (coords?.latitude && coords?.longitude) {
                             const mapsLink = `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`
                             const placeLabel = await reverseGeocode(coords.latitude, coords.longitude)
                             resolvedText = placeLabel
                                 ? `Ma position : ${placeLabel} (${mapsLink})`
                                 : `Ma position : ${mapsLink}`
+                        } else if (coords?.placeLabel) {
+                            // Lien court résolu vers un lieu nommé (Place ID) sans coordonnées en
+                            // clair — le nom du lieu extrait de l'URL sert de filet de sécurité.
+                            resolvedText = `Ma position : ${coords.placeLabel}`
                         }
                     } catch (mapsLinkErr) {
                         console.error(`⚠️ [${agentName}] Google Maps link parsing failed:`, mapsLinkErr?.message || mapsLinkErr)

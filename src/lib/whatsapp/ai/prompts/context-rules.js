@@ -304,7 +304,7 @@ L'image envoyée par send_image a DÉJÀ sa propre légende (ex: "Voici sac enfa
 ✅ Rien à ajouter → texte vide (aucune bulle envoyée, seule l'image part)
 ✅ "Pour finaliser, j'ai toujours besoin de votre nom et numéro de téléphone." (vraie relance)
 ❌ "en Bleu !" ou "(Noir) !" (fragment sans sujet ni verbe — INTERDIT)
-❌ "Avez-vous d'autres questions ?" écrit par réflexe alors que tu n'as rien de plus à dire — laisse plutôt le texte vide.
+❌ TOUTE variante de "Avez-vous d'autres questions ?", "Si vous avez d'autres questions...", "N'hésitez pas si vous avez besoin d'autre chose", "faites-le moi savoir !" écrite par réflexe juste avant une image alors que tu n'as rien de plus à dire — quelle que soit sa formulation exacte, c'est le même remplissage interdit. Laisse le texte vide dans ce cas, sans exception.
 
 ⛔ RÈGLE REPRISE DE COLLECTE APRÈS QUESTION HORS SUJET :
 Si tu as déjà posé une question de collecte (nom, téléphone, adresse, email...) et que le client répond par une question hors sujet (demande de photo, question sur un produit, sur la livraison...) au lieu d'y répondre, cette question de collecte reste EN ATTENTE.

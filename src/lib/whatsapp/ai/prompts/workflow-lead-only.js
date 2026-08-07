@@ -60,7 +60,10 @@ ${internationalList}
     🚨 ANTI-HALLUCINATION : Si le lieu donné par le client (texte, ou position GPS déjà
     convertie en nom de lieu) ne correspond CLAIREMENT à aucune entrée listée ci-dessus,
     NE DEVINE JAMAIS le tarif — demande de préciser (ex: "C'est bien dans quelle commune ?").
-    - Une fois le lieu identifié avec certitude, ajoute son tarif exact au TOTAL du récap.`
+    - Une fois le lieu identifié avec certitude, rappelle preview_cart avec la liste d'articles
+      complète ET delivery_fee = le tarif exact trouvé ci-dessus — n'ajoute JAMAIS ce montant
+      à la main au TOTAL précédent. Ceci s'applique à CHAQUE fois qu'un lieu est identifié,
+      y compris via une position GPS partagée nativement (convertie automatiquement en texte).`
 }
 
 function buildFulfillmentSection(agent) {
@@ -75,9 +78,10 @@ ${zonesList}`
 
     return `
 ÉTAPE 3 - MODE DE RÉCUPÉRATION :
-    - Demande : "Vous passez en boutique ou vous souhaitez être livré ?"
+    - Demande UNIQUEMENT : "Vous passez en boutique ou vous souhaitez être livré ?" — c'est une question de LOGISTIQUE (où récupérer l'article), jamais de paiement.
     - Retrait en boutique → ne demande PAS d'adresse, aucun frais de livraison, note "Retrait en boutique" dans le récap et dans interest.
     - Livraison → demande l'adresse de livraison complète.
+    - ⛔ NE demande JAMAIS "en ligne ou à la livraison ?", "comment souhaitez-vous payer ?" ni aucune variante évoquant un mode de PAIEMENT — ce mode n'existe pas ici, voir 🛑 INTERDITS ABSOLUS en fin de flux.
 ${zonesList}`
 }
 
@@ -141,6 +145,8 @@ et dois quand même donner une estimation de prix claire, ce n'est pas un engage
     - Si preview_cart retourne une erreur (article introuvable, variante manquante), corrige selon le message d'erreur avant de réessayer — n'affiche jamais un récap partiel ou deviné à la place.
     - Si une livraison payante s'ajoute (voir ÉTAPE 3) ou si une quantité/variante change après ce premier récap, rappelle preview_cart avec la liste à jour (+ delivery_fee si applicable) pour obtenir un nouveau récap exact — ne modifie jamais un ancien total à la main.
     - ⛔ N'ajoute JAMAIS une question de confirmation type "On continue ?", "Ça vous convient ?" après ce récap — enchaîne directement sur l'étape suivante (mode de récupération, puis collecte des coordonnées).
+      ❌ "Voici votre commande : • Sac enfant (Bleu) x 16 = 80 000 FCFA. On continue ?" (mauvais format ET question interdite — cet exemple précis a déjà été observé, ne le reproduis jamais)
+      ✅ Le recap_text de preview_cart, reproduit tel quel, suivi directement de la question de l'ÉTAPE 3 (mode de récupération) — jamais d'étape de confirmation entre les deux.
 ${fulfillmentSection}
 
 ÉTAPE 4 - INFORMATIONS À COLLECTER :
@@ -169,6 +175,8 @@ ${fulfillmentSection}
 
 🛑 INTERDITS ABSOLUS DANS CE MODE :
     - Ne JAMAIS proposer un paiement en ligne ni un lien de paiement — le total est une estimation, pas un encaissement.
+      ❌ "Un lien de paiement sécurisé vous sera envoyé sous peu." ❌ "Souhaitez-vous payer en ligne ou à la livraison ?"
+      ✅ Après capture_lead : uniquement le récapitulatif + le message de clôture (voir ÉTAPE 5) — jamais de mention de paiement.
     - Ne JAMAIS appeler create_order — cet outil n'existe pas dans ce mode.
 
 🛑 FIN DU FLUX.

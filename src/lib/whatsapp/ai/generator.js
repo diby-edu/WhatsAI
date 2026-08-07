@@ -75,6 +75,37 @@ function stripImageDoublons(content, imageActions) {
  * Supprime les images/liens markdown générés par l'IA à la place du tool send_image.
  * Couvre : ![alt](url) et [texte](url_image)
  */
+/**
+ * Filet de sécurité mode lead_only : le prompt interdit déjà toute mention de
+ * paiement en ligne / lien de paiement (le total est une estimation, jamais un
+ * encaissement), mais cette règle n'est pas toujours suivie par le modèle.
+ * Retire uniquement la/les phrase(s) fautive(s), sans toucher au reste du message.
+ */
+function stripLeadOnlyPaymentMentions(content, isLeadOnlyMode) {
+    if (!isLeadOnlyMode || !content) return content
+
+    const forbiddenPatterns = [
+        /lien de paiement/i,
+        /paiement s[ée]curis[ée]/i,
+        /payer en ligne/i,
+        /paiement en ligne/i,
+        /payer\s.{0,20}(en ligne|à la livraison|a la livraison)/i,
+        /mode de paiement/i,
+    ]
+
+    // Découpe par ligne (les récaps lead_only structurent une info par ligne) plutôt
+    // que par phrase — un récap n'a souvent aucun point avant la question finale,
+    // ce qui ferait retirer tout le bloc au lieu de la seule ligne fautive.
+    const lines = content.split('\n')
+    const cleaned = lines.filter(line => !forbiddenPatterns.some(re => re.test(line)))
+
+    const result = cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+    if (result !== content.trim()) {
+        console.log('⚠️ [lead_only] Mention de paiement interdite retirée de la réponse IA')
+    }
+    return result
+}
+
 function stripMarkdownImages(content) {
     if (!content) return content
     // Supprimer ![alt](url)
@@ -666,6 +697,7 @@ async function generateAIResponse(options, dependencies) {
         // Post-processing : supprimer markdown images et doublons caption/texte
         content = stripMarkdownImages(content)
         content = stripImageDoublons(content, imageActions)
+        content = stripLeadOnlyPaymentMentions(content, isLeadOnlyMode)
 
         // Vérification d'intégrité (prix)
         const integrityCheck = verifyResponseIntegrity(content, products)
