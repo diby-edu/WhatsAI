@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// PATCH /api/leads?id=xxx — mettre à jour le statut traité/non traité d'un lead
+// PATCH /api/leads?id=xxx — mettre à jour le statut traité/non traité et/ou les notes internes d'un lead
 export async function PATCH(request: NextRequest) {
     const supabase = await createApiClient()
     const { user, error: authError } = await getAuthUser(supabase)
@@ -127,11 +127,22 @@ export async function PATCH(request: NextRequest) {
 
     try {
         const body = await request.json()
-        if (typeof body.is_treated !== 'boolean') return errorResponse('is_treated (boolean) requis', 400)
+        const updates: Record<string, unknown> = {}
+
+        if (typeof body.is_treated === 'boolean') {
+            updates.is_treated = body.is_treated
+            updates.treated_at = body.is_treated ? new Date().toISOString() : null
+        }
+        if (typeof body.merchant_notes === 'string') {
+            updates.merchant_notes = body.merchant_notes.trim() || null
+        }
+        if (Object.keys(updates).length === 0) {
+            return errorResponse('is_treated (boolean) ou merchant_notes (string) requis', 400)
+        }
 
         const { data: lead, error } = await supabase
             .from('leads')
-            .update({ is_treated: body.is_treated })
+            .update(updates)
             .eq('id', leadId)
             .eq('user_id', user.id)
             .select()

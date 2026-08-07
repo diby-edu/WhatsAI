@@ -537,6 +537,16 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const isLeadOnlyMode = agent.conversation_mode === 'lead_only'
         const skipStructuredFlows = isSupportClientMode || isLeadOnlyMode
 
+        // Mémorise le lien de localisation brut (position GPS native ou lien collé, déjà
+        // résolu par session.js sous la forme "Ma position : <lieu> (<lien>)") pour que
+        // capture_lead puisse le joindre au lead — sans dépendre de l'IA pour le reporter.
+        if (isLeadOnlyMode && message.text) {
+            const locationLinkMatch = message.text.match(/^Ma position\s*:.*\((https?:\/\/[^\s)]+)\)/)
+            if (locationLinkMatch) {
+                await conversation.updateMetadata({ last_location_link: locationLinkMatch[1] })
+            }
+        }
+
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
         const previousBookingState = getBookingState(conversation.metadata)

@@ -8,6 +8,14 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 
+interface LeadItem {
+    product_name: string
+    variant: string | null
+    quantity: number
+    unit_price: number
+    subtotal: number
+}
+
 interface Lead {
     id: string
     agent_id: string | null
@@ -17,6 +25,7 @@ interface Lead {
     lead_phone: string | null
     lead_email: string | null
     lead_location: string | null
+    lead_address: string | null
     lead_company: string | null
     interest: string | null
     preferred_date: string | null
@@ -26,6 +35,13 @@ interface Lead {
     custom_fields: Record<string, string> | null
     is_treated: boolean
     created_at: string
+    conversation_id: string | null
+    estimated_total: number | null
+    delivery_fee: number | null
+    items: LeadItem[] | null
+    treated_at: string | null
+    merchant_notes: string | null
+    location_link: string | null
 }
 
 export default function LeadsPage() {
@@ -37,6 +53,8 @@ export default function LeadsPage() {
     const [sortOrder, setSortOrder] = useState<'recent' | 'oldest'>('recent')
     const [deleting, setDeleting] = useState<string | null>(null)
     const [updatingId, setUpdatingId] = useState<string | null>(null)
+    const [notesDraft, setNotesDraft] = useState<Record<string, string>>({})
+    const [savingNotesId, setSavingNotesId] = useState<string | null>(null)
     const toast = useToast()
 
     const fetchLeads = useCallback(async () => {
@@ -88,6 +106,27 @@ export default function LeadsPage() {
         }
     }
 
+    const saveMerchantNotes = async (leadId: string) => {
+        const value = notesDraft[leadId] ?? ''
+        setSavingNotesId(leadId)
+        try {
+            const res = await fetch(`/api/leads?id=${leadId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ merchant_notes: value }),
+            })
+            if (!res.ok) throw new Error('failed')
+            setLeads(prev => prev.map(l => l.id === leadId ? { ...l, merchant_notes: value.trim() || null } : l))
+            toast.success('Note enregistrée.')
+        } catch {
+            toast.error('Erreur lors de l\'enregistrement de la note.')
+        } finally {
+            setSavingNotesId(null)
+        }
+    }
+
+    const formatFCFA = (n: number) => `${n.toLocaleString('fr-FR')} FCFA`
+
     const agentOptions = Array.from(
         new Map(leads.filter(l => l.agent_id).map(l => [l.agent_id, l.agent_name])).entries()
     ).map(([id, name]) => ({ id, name }))
@@ -110,6 +149,7 @@ export default function LeadsPage() {
                 (lead.interest || '').toLowerCase().includes(q) ||
                 (lead.service_requested || '').toLowerCase().includes(q) ||
                 (lead.customer_phone || '').includes(q) ||
+                (lead.merchant_notes || '').toLowerCase().includes(q) ||
                 customStr.includes(q)
             return matchAgent && matchStatus && matchSearch
         })
@@ -126,7 +166,7 @@ export default function LeadsPage() {
         const allCustomKeys = Array.from(
             new Set(leads.flatMap(l => l.custom_fields ? Object.keys(l.custom_fields) : []))
         )
-        const headers = ['Nom', 'Téléphone', 'Email', 'Entreprise', 'Localisation', 'Intérêt', 'Service demandé', 'Date souhaitée', 'Heure souhaitée', 'Notes', ...allCustomKeys, 'Agent', 'Date']
+        const headers = ['Nom', 'Téléphone', 'Email', 'Entreprise', 'Localisation', 'Adresse', 'Lien localisation', 'Intérêt', 'Total estimé', 'Frais de livraison', 'Service demandé', 'Date souhaitée', 'Heure souhaitée', 'Notes client', 'Notes marchand', ...allCustomKeys, 'Agent', 'Traité', 'Date']
         const rows = [
             headers,
             ...filtered.map(l => [
@@ -135,13 +175,19 @@ export default function LeadsPage() {
                 l.lead_email || '',
                 l.lead_company || '',
                 l.lead_location || '',
+                l.lead_address || '',
+                l.location_link || '',
                 l.interest || '',
+                typeof l.estimated_total === 'number' ? l.estimated_total : '',
+                typeof l.delivery_fee === 'number' ? l.delivery_fee : '',
                 l.service_requested || '',
                 l.preferred_date || '',
                 l.preferred_time || '',
                 l.lead_notes || '',
+                l.merchant_notes || '',
                 ...allCustomKeys.map(k => l.custom_fields?.[k] || ''),
                 l.agent_name,
+                l.is_treated ? 'Oui' : 'Non',
                 formatDate(l.created_at),
             ])
         ]
@@ -290,6 +336,11 @@ export default function LeadsPage() {
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: lead.agent_id ? 'rgba(139,92,246,0.15)' : 'rgba(100,116,139,0.15)', border: `1px solid ${lead.agent_id ? 'rgba(139,92,246,0.3)' : 'rgba(100,116,139,0.3)'}`, color: lead.agent_id ? '#a78bfa' : '#64748b', fontSize: 12, fontWeight: 500 }}>
                                         <Bot size={10} /> {lead.agent_name || 'Agent supprimé'}
                                     </span>
+                                    {typeof lead.estimated_total === 'number' && (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 100, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24', fontSize: 12, fontWeight: 700 }}>
+                                            💰 {formatFCFA(lead.estimated_total)}
+                                        </span>
+                                    )}
                                     <div style={{ flex: 1 }} />
                                     <span style={{ color: '#475569', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                                         <Calendar size={11} /> {formatDate(lead.created_at)}
@@ -348,6 +399,16 @@ export default function LeadsPage() {
                                                 <MapPin size={13} color="#64748b" style={{ flexShrink: 0 }} /> {lead.lead_location}
                                             </span>
                                         )}
+                                        {lead.location_link && (
+                                            <a
+                                                href={lead.location_link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#38bdf8', textDecoration: 'none' }}
+                                            >
+                                                <MapPin size={13} color="#38bdf8" style={{ flexShrink: 0 }} /> Voir sur la carte
+                                            </a>
+                                        )}
                                     </div>
 
                                     {/* Col 2 : Demande (si données) */}
@@ -387,6 +448,26 @@ export default function LeadsPage() {
                                                 </span>
                                             )}
                                         </div>
+                                    )}
+                                </div>
+
+                                {/* Notes marchand : suivi interne, distinct de lead_notes (rempli par le client) */}
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                    <textarea
+                                        value={notesDraft[lead.id] ?? lead.merchant_notes ?? ''}
+                                        onChange={e => setNotesDraft(prev => ({ ...prev, [lead.id]: e.target.value }))}
+                                        placeholder="Note de suivi interne (ex : rappelé le 8, en attente de réponse…)"
+                                        rows={1}
+                                        style={{ flex: 1, resize: 'vertical', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(148,163,184,0.12)', background: 'rgba(30,41,59,0.35)', color: '#e2e8f0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+                                    />
+                                    {(notesDraft[lead.id] ?? '') !== (lead.merchant_notes ?? '') && notesDraft[lead.id] !== undefined && (
+                                        <button
+                                            onClick={() => saveMerchantNotes(lead.id)}
+                                            disabled={savingNotesId === lead.id}
+                                            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.12)', color: '#34d399', cursor: 'pointer', fontSize: 12, fontWeight: 600, opacity: savingNotesId === lead.id ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                                        >
+                                            {savingNotesId === lead.id ? '...' : 'Enregistrer'}
+                                        </button>
                                     )}
                                 </div>
                             </div>

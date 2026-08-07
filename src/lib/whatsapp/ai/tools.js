@@ -61,10 +61,10 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             return await handleCreateRestaurantCheckout(args, agentId, products, conversationId, supabase)
 
         case 'capture_lead':
-            return await handleCaptureLead(args, agentId, customerPhone, supabase)
+            return await handleCaptureLead(args, agentId, customerPhone, conversationId, supabase)
 
         case 'preview_cart':
-            return handlePreviewCart(args, products)
+            return await handlePreviewCart(args, products, conversationId, supabase)
 
         default:
             console.error(`❌ Outil inconnu: ${functionName}`)

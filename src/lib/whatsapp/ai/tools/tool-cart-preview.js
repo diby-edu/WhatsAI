@@ -33,7 +33,27 @@ function findProductByName(products, productName) {
     return bestScore >= 10 ? bestProduct : null
 }
 
-function handlePreviewCart(args, products) {
+// Persiste le dernier panier calculé dans conversation.metadata.lead_cart — permet à
+// capture_lead (appelé plus tard, potentiellement plusieurs tours après) de récupérer
+// un total/detail garanti exact, sans dépendre de l'IA pour le retransmettre fidèlement.
+async function persistLeadCart(conversationId, supabase, cartSnapshot) {
+    if (!conversationId || !supabase) return
+    try {
+        const { data: conversation, error: fetchErr } = await supabase
+            .from('conversations')
+            .select('metadata')
+            .eq('id', conversationId)
+            .single()
+        if (fetchErr || !conversation) return
+
+        const mergedMetadata = { ...(conversation.metadata || {}), lead_cart: cartSnapshot }
+        await supabase.from('conversations').update({ metadata: mergedMetadata }).eq('id', conversationId)
+    } catch (err) {
+        console.error('preview_cart: échec persistance lead_cart (non bloquant)', err?.message || err)
+    }
+}
+
+async function handlePreviewCart(args, products, conversationId, supabase) {
     try {
         console.log('🛠️ Executing tool: preview_cart')
         const { items, delivery_fee } = args || {}
@@ -46,6 +66,7 @@ function handlePreviewCart(args, products) {
         }
 
         const lines = []
+        const structuredItems = []
         let total = 0
 
         for (const item of items) {
@@ -82,14 +103,29 @@ function handlePreviewCart(args, products) {
                 : product.name
 
             lines.push(`*• ${item.quantity} ${label} 💰 ${unitPrice.toLocaleString('fr-FR')} FCFA × ${item.quantity} = ${subtotal.toLocaleString('fr-FR')} FCFA*`)
+            structuredItems.push({
+                product_name: product.name,
+                variant: pricingResult.variantOptionName || null,
+                quantity: item.quantity,
+                unit_price: unitPrice,
+                subtotal,
+            })
         }
 
-        if (typeof delivery_fee === 'number' && delivery_fee > 0) {
-            lines.push(`*Frais de livraison : ${delivery_fee.toLocaleString('fr-FR')} FCFA*`)
-            total += delivery_fee
+        const deliveryFee = (typeof delivery_fee === 'number' && delivery_fee > 0) ? delivery_fee : null
+        if (deliveryFee) {
+            lines.push(`*Frais de livraison : ${deliveryFee.toLocaleString('fr-FR')} FCFA*`)
+            total += deliveryFee
         }
 
         const recapText = `Voici votre commande :\n${lines.join('\n')}\n*TOTAL : ${total.toLocaleString('fr-FR')} FCFA*`
+
+        await persistLeadCart(conversationId, supabase, {
+            items: structuredItems,
+            total,
+            deliveryFee,
+            updatedAt: new Date().toISOString(),
+        })
 
         return JSON.stringify({
             success: true,

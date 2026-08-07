@@ -5,7 +5,7 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
-async function handleCaptureLead(args, agentId, customerPhone, supabase) {
+async function handleCaptureLead(args, agentId, customerPhone, conversationId, supabase) {
     try {
         console.log('Executing tool: capture_lead', args)
         const {
@@ -25,9 +25,26 @@ async function handleCaptureLead(args, agentId, customerPhone, supabase) {
             return JSON.stringify({ success: false, error: 'Agent introuvable' })
         }
 
+        // Dernier panier calculé par preview_cart et dernier lien de localisation résolu —
+        // stockés en cours de conversation (conversation.metadata), jamais reconstruits à
+        // partir de ce que l'IA rapporte : garantit un total/lieu fidèles à ce qui a été
+        // réellement calculé, même si l'IA les omet ou les déforme dans son résumé texte.
+        let leadCart = null
+        let locationLink = null
+        if (conversationId) {
+            const { data: conversation } = await supabase
+                .from('conversations')
+                .select('metadata')
+                .eq('id', conversationId)
+                .single()
+            leadCart = conversation?.metadata?.lead_cart || null
+            locationLink = conversation?.metadata?.last_location_link || null
+        }
+
         const { error } = await supabase.from('leads').insert({
             agent_id:          agentId,
             user_id:           agent.user_id,
+            conversation_id:   conversationId   || null,
             customer_phone:    customerPhone    || null,
             lead_name:         lead_name        || null,
             lead_phone:        lead_phone       || null,
@@ -41,6 +58,10 @@ async function handleCaptureLead(args, agentId, customerPhone, supabase) {
             service_requested: service_requested || null,
             lead_notes:        lead_notes       || null,
             custom_fields:     (custom_fields && Object.keys(custom_fields).length > 0) ? custom_fields : null,
+            estimated_total:   leadCart?.total ?? null,
+            delivery_fee:      leadCart?.deliveryFee ?? null,
+            items:             leadCart?.items ?? null,
+            location_link:     locationLink     || null,
         })
 
         if (error) {
