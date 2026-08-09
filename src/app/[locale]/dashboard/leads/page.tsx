@@ -399,7 +399,7 @@ export default function LeadsPage() {
                                                 ))}
                                                 {splitInterest(lead.interest).length > 2 && (
                                                     <span style={{ fontSize: 11, color: '#475569', border: '1px dashed rgba(148,163,184,0.15)', padding: '2px 8px', borderRadius: 100 }}>
-                                                        +{splitInterest(lead.interest).length - 2}
+                                                        +{splitInterest(lead.interest).length - 2} article{splitInterest(lead.interest).length - 2 > 1 ? 's' : ''}
                                                     </span>
                                                 )}
                                             </>
