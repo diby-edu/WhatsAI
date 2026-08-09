@@ -135,6 +135,12 @@ export default function LeadsPage() {
     const displayName = (lead: Lead) =>
         lead.lead_name || lead.lead_phone || (!lead.customer_phone?.includes('@lid') ? lead.customer_phone : null) || 'Contact anonyme'
 
+    // Leads sans items structurés (capturés avant le suivi total/articles, ou agent service) —
+    // on découpe quand même interest en fragments pour un rendu en chips cohérent avec les
+    // leads qui ont des items réels, plutôt qu'un seul gros bloc de texte.
+    const splitInterest = (interest: string) =>
+        interest.split(/,|\+| et /i).map(s => s.trim()).filter(Boolean)
+
     const agentOptions = Array.from(
         new Map(leads.filter(l => l.agent_id).map(l => [l.agent_id, l.agent_name])).entries()
     ).map(([id, name]) => ({ id, name }))
@@ -380,10 +386,23 @@ export default function LeadsPage() {
                                                     </span>
                                                 )}
                                             </>
-                                        ) : (lead.service_requested || lead.interest) ? (
+                                        ) : lead.service_requested ? (
                                             <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.1)', padding: '2px 8px', borderRadius: 100 }}>
-                                                {lead.service_requested || lead.interest}
+                                                {lead.service_requested}
                                             </span>
+                                        ) : lead.interest ? (
+                                            <>
+                                                {splitInterest(lead.interest).slice(0, 2).map((frag, i) => (
+                                                    <span key={i} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.1)', padding: '2px 8px', borderRadius: 100, whiteSpace: 'nowrap' }}>
+                                                        {frag}
+                                                    </span>
+                                                ))}
+                                                {splitInterest(lead.interest).length > 2 && (
+                                                    <span style={{ fontSize: 11, color: '#475569', border: '1px dashed rgba(148,163,184,0.15)', padding: '2px 8px', borderRadius: 100 }}>
+                                                        +{splitInterest(lead.interest).length - 2}
+                                                    </span>
+                                                )}
+                                            </>
                                         ) : null}
                                     </div>
 
@@ -505,7 +524,13 @@ export default function LeadsPage() {
                                                 )}
                                             </>
                                         ) : lead.interest ? (
-                                            <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>{lead.interest}</div>
+                                            <>
+                                                {splitInterest(lead.interest).map((frag, i) => (
+                                                    <div key={i} style={{ fontSize: 13, color: '#cbd5e1', padding: '3px 0', borderBottom: '1px dashed rgba(148,163,184,0.1)' }}>
+                                                        {frag}
+                                                    </div>
+                                                ))}
+                                            </>
                                         ) : (
                                             <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Aucun détail de commande.</div>
                                         )}
