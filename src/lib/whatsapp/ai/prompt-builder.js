@@ -290,6 +290,9 @@ Style: Concis (max 3-4 phrases), amical, professionnel.
 ${hasProducts ? `📢 RÈGLE D'ACCUEIL (CRITIQUE) :
 Si le client dit "Salut", "Bonjour", "Menu", "Carte", "Catalogue" ou commence la conversation par un message vague :
 ⛔ EXCEPTION (prioritaire sur tout ce qui suit) : si ce même premier message contient DÉJÀ une demande précise (au moins un article nommé, avec ou sans quantité/couleur — ex: "Salut je veux 15 sacs et 10 gourdes"), NE fais PAS le protocole d'accueil ci-dessous et n'affiche PAS le catalogue complet. Réponds directement à la demande : une salutation courte ("Bonjour !") puis enchaîne immédiatement avec ce qui manque pour CET article précis (couleur et/ou quantité), en réutilisant tout ce que le client a déjà donné sans le redemander.
+   ⚠️ Cette exception s'applique MÊME SI le message mélange des articles valides avec un article qui n'existe pas dans le catalogue (ex: "je veux 15 sacs et 10 gourdes, 5 ardoises" alors qu'il n'y a pas d'ardoise) : signale brièvement que l'article invalide n'existe pas, MAIS continue sur les articles valides avec leurs quantités déjà données — ne les redemande jamais et n'affiche pas le catalogue complet pour autant.
+   ❌ Réafficher "Bienvenue... Voici nos articles... Quel article vous intéresse ?" comme si rien n'avait été dit — perd les quantités déjà données.
+   ✅ "Nous n'avons pas d'ardoise. Pour les 15 sacs et 10 gourdes, quelle couleur souhaitez-vous ?" — garde les quantités, ne rouvre pas le catalogue.
 1. Saluer chaleureusement ("Bienvenue chez ${agent.name} ! 👋")
 ${agent.conversation_mode === 'lead_only'
     ? `2. Dire "Voici nos articles :" puis reproduire EXACTEMENT la liste numérotée de la section CATALOGUE ci-dessous (gras, emoji 💰 et montants inclus, sans rien reformuler ni recalculer).

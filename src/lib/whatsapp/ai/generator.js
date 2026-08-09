@@ -607,6 +607,7 @@ async function generateAIResponse(options, dependencies) {
         // ═══════════════════════════════════════════════════════════
         // GESTION DES TOOL CALLS
         // ═══════════════════════════════════════════════════════════
+        let capturedLeadThisTurn = false
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
             console.log('🤖 Tool calls:', responseMessage.tool_calls.length)
 
@@ -616,6 +617,7 @@ async function generateAIResponse(options, dependencies) {
             for (const rawToolCall of responseMessage.tool_calls) {
                 const toolCall = hydrateToolCallArguments(rawToolCall, checkoutState, cartState, bookingState, restaurantState, customerPhone)
                 console.log(`🔧 Tool: ${toolCall.function.name}`)
+                if (toolCall.function.name === 'capture_lead') capturedLeadThisTurn = true
 
                 // Pre-check pour create_order
                 const preCheck = preCheckCreateOrder(toolCall, products || [])
@@ -698,6 +700,36 @@ async function generateAIResponse(options, dependencies) {
         content = stripMarkdownImages(content)
         content = stripImageDoublons(content, imageActions)
         content = stripLeadOnlyPaymentMentions(content, isLeadOnlyMode)
+
+        // Filet de sécurité mode lead_only : le récap de clôture (bloc "*Vos coordonnées :*"
+        // imposé par l'ÉTAPE 5 du workflow) ne doit JAMAIS être envoyé sans que capture_lead
+        // ait réellement été appelé — observé en production : le modèle écrit parfois le
+        // message de succès sans appeler l'outil, et aucun lead n'est enregistré. On force
+        // l'appel ici ; capture_lead est idempotent par conversation_id (upsert), donc aucun
+        // risque de doublon si l'IA l'avait en fait déjà appelé plus tôt dans l'historique.
+        if (isLeadOnlyMode && !capturedLeadThisTurn && content && content.includes('*Vos coordonnées :*')) {
+            try {
+                console.log('⚠️ [lead_only] Récap de clôture détecté sans capture_lead — appel forcé')
+                const captureTool = TOOLS.find(t => t.function?.name === 'capture_lead')
+                if (captureTool) {
+                    const forcedCompletion = await callOpenAIWithRetry(openai, {
+                        model: agent.model || 'gpt-4o-mini',
+                        messages: [...messages, { role: 'assistant', content }],
+                        max_tokens: 500,
+                        temperature: agent.temperature || 0.7,
+                        tools: [captureTool],
+                        tool_choice: { type: 'function', function: { name: 'capture_lead' } }
+                    })
+                    const forcedToolCall = forcedCompletion.choices[0]?.message?.tool_calls?.[0]
+                    if (forcedToolCall) {
+                        await handleToolCall(forcedToolCall, agent.id, customerPhone, products, conversationId, supabase, { relevantDocs, userMessage })
+                        console.log('✅ [lead_only] capture_lead forcé exécuté avec succès')
+                    }
+                }
+            } catch (forceErr) {
+                console.error('⚠️ [lead_only] Échec du filet de sécurité capture_lead:', forceErr?.message || forceErr)
+            }
+        }
 
         // Vérification d'intégrité (prix)
         const integrityCheck = verifyResponseIntegrity(content, products)

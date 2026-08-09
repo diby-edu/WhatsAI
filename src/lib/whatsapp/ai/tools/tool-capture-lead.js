@@ -41,7 +41,7 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             locationLink = conversation?.metadata?.last_location_link || null
         }
 
-        const { error } = await supabase.from('leads').insert({
+        const leadRow = {
             agent_id:          agentId,
             user_id:           agent.user_id,
             conversation_id:   conversationId   || null,
@@ -62,23 +62,51 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             delivery_fee:      leadCart?.deliveryFee ?? null,
             items:             leadCart?.items ?? null,
             location_link:     locationLink     || null,
-        })
-
-        if (error) {
-            console.error('capture_lead: erreur insertion', error)
-            return JSON.stringify({ success: false, error: 'Erreur enregistrement lead' })
         }
 
-        // 🔔 NOTIFICATION: Nouveau lead (non-bloquant)
-        try {
-            const { notify } = require('../../../notifications/notify')
-            notify(agent.user_id, 'new_lead', {
-                contactName: lead_name || undefined,
-                contactPhone: lead_phone || undefined,
-                agentName: agent.name,
-            })
-        } catch (notifyError) {
-            console.error('🔔 new_lead notification error (non-blocking):', notifyError)
+        // Idempotent par conversation : une même conversation peut redéclencher
+        // capture_lead plusieurs fois (client qui corrige son numéro, ajoute une
+        // instruction, ou filet de sécurité qui rappelle l'outil) — on met à jour
+        // le lead existant au lieu d'en créer un doublon à chaque fois.
+        let isNewLead = true
+        if (conversationId) {
+            const { data: existingLead } = await supabase
+                .from('leads')
+                .select('id')
+                .eq('conversation_id', conversationId)
+                .maybeSingle()
+
+            if (existingLead) {
+                isNewLead = false
+                const { error: updateErr } = await supabase.from('leads').update(leadRow).eq('id', existingLead.id)
+                if (updateErr) {
+                    console.error('capture_lead: erreur mise à jour', updateErr)
+                    return JSON.stringify({ success: false, error: 'Erreur mise à jour lead' })
+                }
+            }
+        }
+
+        if (isNewLead) {
+            const { error } = await supabase.from('leads').insert(leadRow)
+            if (error) {
+                console.error('capture_lead: erreur insertion', error)
+                return JSON.stringify({ success: false, error: 'Erreur enregistrement lead' })
+            }
+        }
+
+        // 🔔 NOTIFICATION: Nouveau lead uniquement (non-bloquant) — pas de notification
+        // répétée à chaque mise à jour du même lead.
+        if (isNewLead) {
+            try {
+                const { notify } = require('../../../notifications/notify')
+                notify(agent.user_id, 'new_lead', {
+                    contactName: lead_name || undefined,
+                    contactPhone: lead_phone || undefined,
+                    agentName: agent.name,
+                })
+            } catch (notifyError) {
+                console.error('🔔 new_lead notification error (non-blocking):', notifyError)
+            }
         }
 
         return JSON.stringify({

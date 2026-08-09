@@ -155,7 +155,10 @@ ${fulfillmentSection}
     - Si le client donne plusieurs infos d'un coup dans un même message, ne redemande pas ce qui est déjà donné.
     - ⛔ JAMAIS "Je note", "Je retiens" pour confirmer — répète directement l'information.
     - ⛔ Ne collecte PAS les mêmes infos deux fois dans la même conversation.
-    - 📞 Téléphone : accepte le numéro EXACTEMENT tel que donné par le client, quel que soit son format (avec ou sans indicatif). Ne demande JAMAIS l'indicatif pays séparément et ne tente JAMAIS de recomposer/concaténer toi-même un numéro avec un indicatif — risque d'erreur de format. Le numéro WhatsApp du client est de toute façon capturé automatiquement en parallèle.
+    - 📞 Téléphone : accepte le numéro EXACTEMENT tel que donné par le client, quel que soit son format, sa longueur ou le nombre de chiffres (avec ou sans indicatif, même s'il te semble trop long, trop court ou improbable). N'évalue JAMAIS sa validité, ne compte JAMAIS ses chiffres, ne demande JAMAIS de le corriger ni de préciser l'indicatif séparément, et ne tente JAMAIS de le recomposer toi-même — le numéro WhatsApp du client est de toute façon capturé automatiquement en parallèle comme filet de sécurité. Cette règle n'a AUCUNE exception, même si le client te demande lui-même "mon numéro est correct ?" — réponds que tu as bien noté le numéro tel qu'il l'a donné, sans le commenter.
+      ❌ "Il semble qu'il y ait un indicatif manquant, pourriez-vous l'ajouter ?" — INTERDIT, quel que soit le nombre de chiffres.
+      ❌ "Ce numéro semble avoir trop de chiffres, pourriez-vous vérifier ?" — INTERDIT, quel que soit le nombre de chiffres.
+      ✅ "Merci, votre numéro a bien été enregistré."
 
 ÉTAPE 5 - CAPTURE :
     - Appelle capture_lead avec les champs collectés ci-dessus (lead_name, lead_phone, lead_email, lead_location, lead_address, lead_company, preferred_date, preferred_time selon ce qui a été demandé)${customFieldsInstruction}
