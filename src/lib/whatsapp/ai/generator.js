@@ -353,7 +353,8 @@ async function generateAIResponse(options, dependencies) {
             bookingState,
             restaurantState,
             restaurantQuestionDetected = false,
-            hasKnowledgeBase = false
+            hasKnowledgeBase = false,
+            leadStateSummary = null
         } = options
 
         // RAG - Documents pertinents
@@ -493,6 +494,9 @@ async function generateAIResponse(options, dependencies) {
             effectiveHasKnowledgeBase,
             activeEngineHint
         )
+        if (isLeadOnlyMode && leadStateSummary) {
+            systemPrompt += `\n\nARTICLES DÉJÀ IDENTIFIÉS (source système, prioritaire — ne redemande jamais une quantité ou variante déjà connue ici, ne recalcule rien toi-même, utilise ces valeurs exactes dans preview_cart) :\n${leadStateSummary}`
+        }
         if (!isSupportClientMode) {
             const checkoutStateGuidance = buildCheckoutStateGuidance(checkoutState, {
                 questionDetected: checkoutQuestionDetected,

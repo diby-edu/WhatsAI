@@ -51,6 +51,7 @@ class AIService {
             restaurantState: context.restaurantState,
             hasKnowledgeBase: context.hasKnowledgeBase ?? false,
             featureFlags: context.featureFlags || {},
+            leadStateSummary: context.leadStateSummary || null,
             justOrdered // Signal pour le prompt builder
         }
 

@@ -547,6 +547,27 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         }
 
+        // Mémoire fiable des articles (quantité/variante) mentionnés en mode lead_only —
+        // extraite par code à chaque tour et persistée, plutôt que de dépendre de la
+        // capacité du modèle à relire correctement l'historique brut. Voir
+        // lead-state.service.js pour le détail ; injectée dans le prompt plus bas.
+        let leadStateSummary = null
+        if (isLeadOnlyMode && message.text) {
+            try {
+                const { getLeadState, setLeadState, updateLeadStateFromUserMessage, buildLeadStateSummary } = require('../services/lead-state.service')
+                const previousLeadState = getLeadState(conversation.metadata)
+                const nextLeadState = updateLeadStateFromUserMessage(previousLeadState, message.text, orderableProducts)
+                if (JSON.stringify(previousLeadState) !== JSON.stringify(nextLeadState)) {
+                    await conversation.updateMetadata(setLeadState(conversation.metadata, nextLeadState))
+                }
+                leadStateSummary = buildLeadStateSummary(nextLeadState)
+            } catch (leadStateErr) {
+                // Non bloquant : en cas d'échec, l'agent continue sans le résumé d'état
+                // (retombe sur le comportement précédent), jamais de crash du message.
+                console.error(`⚠️ [${agentId}] lead-state extraction failed (non-blocking):`, leadStateErr?.message || leadStateErr)
+            }
+        }
+
         const previousCartState = getCartState(conversation.metadata)
         const previousCheckoutState = getCheckoutState(conversation.metadata)
         const previousBookingState = getBookingState(conversation.metadata)
@@ -928,6 +949,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     restaurantQuestionDetected: restaurantUpdate.questionDetected || false,
                     hasKnowledgeBase,
                     featureFlags,
+                    leadStateSummary,
                     supabase,
                     activeSessions,
                     CinetPay
