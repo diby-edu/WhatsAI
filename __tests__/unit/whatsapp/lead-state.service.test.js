@@ -234,7 +234,7 @@ describe('lead-state.service', () => {
             expect(state.items[0]).toMatchObject({ variant: 'Bleu', quantity: 10, variant_status: 'valid' })
         })
 
-        test('régression réelle (Traoré) : une couleur invalide déjà connue n\'est jamais écrasée par un segment sans rapport plus loin dans le même message', () => {
+        test('régression réelle (Traoré) : une couleur invalide déjà connue n\'est jamais écrasée par un segment sans rapport plus loin dans le même message, et le produit inconnu est capturé avec sa quantité', () => {
             const state = updateLeadStateFromUserMessage(
                 emptyState,
                 "Je veux 8 sacs roses. Je suis madame Traoré, j'habite à abobo et je veux aussi 5 chapex rouges",
@@ -242,6 +242,46 @@ describe('lead-state.service', () => {
             )
             expect(state.items).toHaveLength(1)
             expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'roses', quantity: 8 })
+            // "je veux aussi" (préambule) ne doit plus empêcher la capture de "chapex rouges"
+            expect(state.unmatched_mentions).toContainEqual({ text: 'chapex rouges', quantity: 5 })
+        })
+
+        test('régression réelle (Traoré) : "Je n\'ai pas choisi de gourde" (négation) ne crée jamais d\'article fantôme, même si le mot "gourde" y apparaît', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sacs bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, "Je n'ai pas choisi de gourde", PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items.find(i => i.product_name === 'goube enfant')).toBeUndefined()
+        })
+
+        test('"sans gourde" / "aucune gourde" (autres formes de négation) ne créent pas non plus d\'article', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sacs bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'sans gourde pour moi', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'aucune gourde merci', PRODUCTS)
+            expect(state.items.find(i => i.product_name === 'goube enfant')).toBeUndefined()
+        })
+
+        test('"pas cher" (qualificatif de prix) n\'est jamais pris pour une négation', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, '5 sac pas cher', PRODUCTS)
+            expect(state.items.find(i => i.product_name === 'sac enfant')).toBeDefined()
+        })
+
+        test('régression réelle (Ibrahim) : "Enlève 5 sacs" ne crée jamais un faux article "+5, couleur inconnue"', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, 'Sac 6 bleu 4 jaune', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Enlève 5 sacs', PRODUCTS)
+            expect(state.items).toHaveLength(2)
+            expect(state.items.find(i => i.variant_status === 'missing')).toBeUndefined()
+        })
+
+        test('régression réelle (Traoré) : un nombre seul en réponse ("7") ne devient jamais un faux "produit non reconnu"', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sacs bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, '7', PRODUCTS)
+            expect(state.unmatched_mentions).toEqual([])
+        })
+
+        test('régression réelle (Traoré) : "En boutique" (réponse logistique) n\'est jamais prise pour une tentative de couleur', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'En boutique', PRODUCTS)
+            expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'vert' })
         })
 
         test('une réponse courte à une question en attente ne devine une couleur invalide QUE si aucune n\'est encore connue', () => {

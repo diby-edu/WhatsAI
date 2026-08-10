@@ -63,6 +63,10 @@ const STOPWORDS = new Set([
     // Devise — sans ça, "2 sacs à 5000 FCFA" isole "FCFA" comme reliquat après avoir
     // retiré le produit, et le fait passer à tort pour une couleur/valeur invalide.
     'fcfa', 'cfa', 'franc', 'francs', 'euro', 'euros', 'dollar', 'dollars',
+    // Logistique — "En boutique" (réponse à "boutique ou livraison ?") ne doit jamais
+    // être pris pour une tentative de couleur invalide (bug réel constaté : un article
+    // fantôme avait fini avec requested_variant="boutique").
+    'boutique', 'livraison', 'livre', 'livree', 'livrer', 'domicile', 'retrait', 'recuperation',
 ])
 
 // Pluriel français basique ("gourdes" -> "gourde") — appliqué avant comparaison
@@ -221,6 +225,47 @@ function extractLeftoverAfterProductName(rest, product) {
     return cleanCandidateVariantText(afterWords.join(' '))
 }
 
+// Négation FR ("je n'ai pas choisi de gourde", "sans gourde", "aucune gourde") : un
+// segment qui REJETTE un produit ne doit jamais être interprété comme une commande.
+// Sans ce garde-fou, la correspondance floue détecte quand même "gourde" dans "Je
+// n'ai pas choisi de gourde" et crée un article fantôme pour ce produit — bug réel
+// constaté en rejouant une conversation de production (le client corrigeait une
+// erreur de l'IA, pas en passant commande). Exige "pas" ET un marqueur "ne"/"n'"
+// ensemble (pas juste "pas" seul, qui apparaît aussi dans "pas cher" — un
+// qualificatif de prix, pas une négation d'intention).
+function isNegationSegment(text) {
+    const norm = normalizeText(text)
+    const hasNeMarker = /n['’]|(?:^|\s)ne(?:\s|$)/.test(norm)
+    const hasPas = /\bpas\b/.test(norm)
+    return (hasNeMarker && hasPas) || /\bsans\b/.test(norm) || /\baucune?\b/.test(norm)
+}
+
+// Retrait/modification ("enlève 5 sacs", "retire 2 gourdes", "annule les sacs") : le
+// moteur n'a aucun moyen fiable de savoir DE QUELLE ligne décrémenter — c'est un
+// jugement conversationnel, pas un fait objectif, donc explicitement laissé à l'IA
+// (contrainte du projet : jamais de décision prise à sa place). Créer quand même un
+// article "+5, couleur inconnue" comme si c'était un AJOUT serait pire que ne rien
+// tracker du tout — bug réel constaté (un faux article était créé, contredisant ce
+// que le client venait de demander).
+function isModificationSegment(text) {
+    return /\b(enlev|retir|annul|supprim|reduis|diminue)/i.test(normalizeText(text))
+}
+
+// Retire les mots courants UNIQUEMENT en début de texte (s'arrête au premier mot qui
+// n'en est pas un) — ex: "je veux aussi 5 chapex rouges" (après retrait du nombre)
+// -> "chapex rouges". Volontairement différent de cleanCandidateVariantText (qui
+// filtre PARTOUT dans le texte) : filtrer partout ferait perdre en route un vrai nom
+// de produit inconnu à cause d'un mot commun ailleurs dans la phrase, alors que ne
+// retirer QUE le préambule initial est sûr — une phrase normale sans rapport avec un
+// produit ("je peux payer jusqu'à FCFA maximum") ne commence pas par un mot filtrable
+// suivi directement d'un nom d'article, donc reste longue et correctement écartée.
+function stripLeadingFiller(text) {
+    const words = text.split(/\s+/).filter(Boolean)
+    let start = 0
+    while (start < words.length && isNoiseWord(words[start])) start++
+    return words.slice(start).map(stripEdgePunctuation).filter(Boolean).join(' ')
+}
+
 // Découpe un message en segments indépendants (lignes + virgules + points + " et ").
 // Le point est un séparateur volontaire : "10 gourde noire. Je suis mon Coulibaly"
 // sans lui reste un seul segment, où "Je suis mon Coulibaly" (présentation du
@@ -356,6 +401,19 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             const { quantity, rest } = parseSegment(chunk)
             if (!rest) continue
 
+            // "je n'ai pas choisi de gourde" (rejette un produit) ou "enlève 5 sacs"
+            // (modifie une ligne existante) ne sont jamais des commandes à tracker —
+            // voir isNegationSegment/isModificationSegment pour les bugs réels évités.
+            if (isNegationSegment(rest) || isModificationSegment(rest)) continue
+
+            // "7" seul (réponse à "combien en voulez-vous ?") : parseSegment retombe sur
+            // le segment entier ("rest || segment.trim()") quand il ne reste rien après
+            // extraction du nombre — donc rest="7", pas "". Sans ce garde-fou, ce chiffre
+            // est ensuite traité comme s'il était lui-même un nom de produit inconnu (bug
+            // réel constaté : "produit non reconnu : 7"). Un nombre seul ne porte aucune
+            // information de produit exploitable ici, on l'ignore.
+            if (isPurelyNumeric(rest.trim())) continue
+
             let product = findBestProduct(products, rest)
             if (!product && anchorProduct) product = anchorProduct
 
@@ -403,20 +461,26 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                 }
 
                 // Sinon : ne garder que les segments qui ressemblaient à une tentative
-                // d'article — accompagnés d'une quantité ET courts (un vrai nom d'article
-                // tient en 1-4 mots ; une phrase normale comme "je peux payer jusqu'à
-                // FCFA maximum" ne doit jamais finir en "article non reconnu"). La quantité
-                // est conservée avec la mention (jamais juste le texte) — et si le même
-                // texte revient avec une quantité DIFFÉRENTE, on garde les deux mentions au
-                // lieu d'écraser silencieusement l'une par l'autre.
-                const restWordCount = rest.split(/\s+/).filter(Boolean).length
-                if (quantity !== null && restWordCount > 0 && restWordCount <= 4) {
-                    const normRest = normalizeText(rest)
+                // d'article — accompagnés d'une quantité ET courts UNE FOIS le préambule
+                // ("je veux aussi") retiré du DÉBUT du texte (ex: "je veux aussi 5 chapex
+                // rouges" -> "chapex rouges", 2 mots — sinon les 3 mots de préambule
+                // faisaient dépasser le plafond et "chapex rouges" n'était jamais capturé,
+                // bug réel constaté). Une phrase normale comme "je peux payer jusqu'à FCFA
+                // maximum" reste longue malgré ce nettoyage (elle ne commence pas par un
+                // mot filtrable suivi directement d'un nom d'article) et n'est donc jamais
+                // prise à tort pour un article non reconnu. La quantité est conservée avec
+                // la mention (jamais juste le texte) — et si le même texte revient avec une
+                // quantité DIFFÉRENTE, on garde les deux mentions au lieu d'écraser
+                // silencieusement l'une par l'autre.
+                const filteredRest = stripLeadingFiller(rest)
+                const restWordCount = filteredRest.split(/\s+/).filter(Boolean).length
+                if (quantity !== null && filteredRest && restWordCount > 0 && restWordCount <= 4) {
+                    const normRest = normalizeText(filteredRest)
                     const existingMention = state.unmatched_mentions.find(m => normalizeText(m.text) === normRest)
                     if (!existingMention) {
-                        state.unmatched_mentions.push({ text: rest, quantity })
+                        state.unmatched_mentions.push({ text: filteredRest, quantity })
                     } else if (existingMention.quantity !== quantity) {
-                        state.unmatched_mentions.push({ text: rest, quantity })
+                        state.unmatched_mentions.push({ text: filteredRest, quantity })
                     }
                 }
                 continue
