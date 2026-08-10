@@ -225,6 +225,19 @@ describe('lead-state.service', () => {
             expect(quantities).toEqual([10, 15])
         })
 
+        test('régression (revue de code) : répéter une quantité déjà connue via un article devenu "orphelin" ne crée jamais un 3e doublon', () => {
+            // "15 gourdes" -> "10 gourdes" (conflit, crée un 2e article ; le 1er reste dans
+            // state.items mais existingByKey ne référence plus que le 2e) -> "15 gourdes" à
+            // nouveau : doit retrouver et réactiver le 1er article plutôt que d'en créer un 3e.
+            let state = updateLeadStateFromUserMessage(emptyState, '15 gourdes', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, '10 gourdes', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, '15 gourdes', PRODUCTS)
+
+            const goubeItems = state.items.filter(i => i.product_name === 'goube enfant')
+            expect(goubeItems).toHaveLength(2)
+            expect(goubeItems.map(i => i.quantity).sort()).toEqual([10, 15])
+        })
+
         test('une tentative de variante invalide n\'empêche pas une variante valide donnée ensuite de s\'appliquer', () => {
             let state = updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS)
             expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'vert' })

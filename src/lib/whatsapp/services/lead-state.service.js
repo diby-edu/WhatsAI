@@ -551,9 +551,23 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                     && existing.quantity !== null && quantity !== null && existing.quantity !== quantity
 
                 if (hasConflictingQuantity) {
-                    const newItem = makeItem(product, status, value, quantity)
-                    state.items.push(newItem)
-                    existingByKey.set(key, newItem)
+                    // Avant de créer un doublon, vérifier si un AUTRE article partageant déjà
+                    // cette même clé — donc devenu invisible pour existingByKey, qui n'en garde
+                    // qu'un seul par clé alors que state.items peut en avoir plusieurs (voir
+                    // branche ci-dessous) — a déjà exactement cette quantité. Ex: "15 gourdes"
+                    // -> "10 gourdes" (crée un 2e article, le 1er devient invisible pour la Map)
+                    // -> "15 gourdes" à nouveau : sans cette recherche, le 3e message créait un
+                    // 3e article identique au 1er (même produit/statut/quantité) au lieu de le
+                    // reconnaître — bug réel constaté et reproduit.
+                    const revived = state.items.find(it => it !== existing && keyOf(it) === key && it.quantity === quantity)
+                    if (revived) {
+                        applyStatus(revived, status, value, quantity)
+                        existingByKey.set(key, revived)
+                    } else {
+                        const newItem = makeItem(product, status, value, quantity)
+                        state.items.push(newItem)
+                        existingByKey.set(key, newItem)
+                    }
                 } else {
                     applyStatus(existing, status, value, quantity)
                     existingByKey.set(key, existing)
