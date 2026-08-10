@@ -51,7 +51,7 @@ describe('lead-state.service', () => {
             const goube = state.items.find(i => i.product_name === 'goube enfant')
             expect(sac.quantity).toBe(15)
             expect(goube.quantity).toBe(27)
-            expect(state.unmatched_mentions.some(m => /ardoise/i.test(m))).toBe(true)
+            expect(state.unmatched_mentions.some(m => /ardoise/i.test(m.text))).toBe(true)
 
             // Tour suivant : question sur l'article inconnu, aucune nouvelle quantité —
             // les quantités déjà connues ne doivent JAMAIS disparaître.
@@ -107,10 +107,9 @@ describe('lead-state.service', () => {
         test('énumération compacte avec une 2e couleur invalide : distincte de la 1re, pas fusionnée', () => {
             const state = updateLeadStateFromUserMessage(emptyState, 'Gourde 5 rouge 13 vert', PRODUCTS)
             const rouge = state.items.find(i => i.variant === 'Rouge')
-            const invalide = state.items.find(i => i.variant === null)
+            const invalide = state.items.find(i => i.variant_status === 'invalid')
             expect(rouge).toMatchObject({ quantity: 5 })
-            expect(invalide).toMatchObject({ quantity: 13 })
-            expect(invalide.invalid_variant_attempts).toEqual(['vert'])
+            expect(invalide).toMatchObject({ quantity: 13, requested_variant: 'vert' })
         })
 
         test('énumération compacte sur un seul produit, sans virgule : "sac 5 bleu 3 jaune"', () => {
@@ -123,7 +122,7 @@ describe('lead-state.service', () => {
         test('un seul nombre par segment continue de fonctionner normalement (pas de sous-découpage inutile)', () => {
             const state = updateLeadStateFromUserMessage(emptyState, '15 sac', PRODUCTS)
             expect(state.items).toHaveLength(1)
-            expect(state.items[0]).toMatchObject({ quantity: 15, variant: null })
+            expect(state.items[0]).toMatchObject({ quantity: 15, variant: null, variant_status: 'missing' })
         })
 
         test('ne modifie jamais un article déjà complet sans nouvelle information', () => {
@@ -173,44 +172,131 @@ describe('lead-state.service', () => {
             expect(goube.variant).toBeNull()
         })
 
-        test('régression réelle (conv 1) : une couleur invalide donnée avec le produit est distinguée d\'une variante simplement absente', () => {
+        test('régression réelle (conv 1, Koffi) : "15 gourdes noire, 4 gourdes verte, 2 gourde rouge, 5 sac" produit 4 articles distincts avec leurs vraies quantités', () => {
             const state = updateLeadStateFromUserMessage(
                 emptyState,
                 'Salut je suis monsieur koffi je veux 15 gourdes noire, 4 gourdes verte, 2 gourde rouge, 5 sac.',
                 PRODUCTS
             )
-            const goubeNoVariant = state.items.find(i => i.product_name === 'goube enfant' && i.variant === null)
-            const goubeRouge = state.items.find(i => i.product_name === 'goube enfant' && i.variant === 'Rouge')
+            // Ancien modèle : ces 3 mentions de "goube" fusionnaient en 1 seul article,
+            // la quantité 15 étant écrasée par 4 (dernière valeur traitée). Nouveau
+            // modèle : chaque statut+valeur distinct reste sa propre ligne, avec sa
+            // vraie quantité.
+            const goubeNoire = state.items.find(i => i.requested_variant === 'noire')
+            const goubeVerte = state.items.find(i => i.requested_variant === 'verte')
+            const goubeRouge = state.items.find(i => i.variant === 'Rouge')
             const sac = state.items.find(i => i.product_name === 'sac enfant')
 
-            // "noire" et "verte" doivent être signalées TOUTES LES DEUX comme invalides,
-            // pas seulement la dernière (c'était la régression observée en prod).
-            expect(goubeNoVariant.invalid_variant_attempts).toEqual(expect.arrayContaining(['noire', 'verte']))
+            expect(state.items).toHaveLength(4)
+            expect(goubeNoire).toMatchObject({ product_name: 'goube enfant', variant_status: 'invalid', quantity: 15 })
+            expect(goubeVerte).toMatchObject({ product_name: 'goube enfant', variant_status: 'invalid', quantity: 4 })
             expect(goubeRouge).toMatchObject({ quantity: 2 })
-            expect(sac).toMatchObject({ variant: null, quantity: 5 })
-            expect(sac.invalid_variant_attempts).toEqual([])
+            expect(sac).toMatchObject({ variant: null, variant_status: 'missing', quantity: 5 })
         })
 
-        test('régression réelle (conv 2) : couleur invalide donnée directement en réponse à une question sur un seul article en attente', () => {
-            let state = updateLeadStateFromUserMessage(emptyState, '15 sac', PRODUCTS)
-            state = updateLeadStateFromUserMessage(state, 'vert', PRODUCTS)
-            expect(state.items[0]).toMatchObject({ variant: null, quantity: 15 })
-            expect(state.items[0].invalid_variant_attempts).toEqual(['vert'])
+        test('régression réelle (conv 2, Coulibaly) : "15 gourdes... 10 ardoise noir, 10 gourde noire. Je suis mon Coulibaly..." préserve tout', () => {
+            const state = updateLeadStateFromUserMessage(
+                emptyState,
+                "Je veux 15 gourdes et 4 sac vert, 10 ardoise noir, 10 gourde noire. Je suis mon Coulibaly, j'habite a Yopougon et je veux être livré a Cocody",
+                PRODUCTS
+            )
+            // Ancien modèle : "15 gourdes" (manquante) et "10 gourdes noires" (invalide,
+            // mais l'invalidité elle-même était perdue à cause du point non traité comme
+            // séparateur) fusionnaient — 15 écrasé par 10, "noire" jamais signalée.
+            const goubeManquante = state.items.find(i => i.product_name === 'goube enfant' && i.variant_status === 'missing')
+            const goubeNoire = state.items.find(i => i.requested_variant === 'noire')
+            const sacVert = state.items.find(i => i.requested_variant === 'vert')
+
+            expect(goubeManquante).toMatchObject({ quantity: 15 })
+            expect(goubeNoire).toMatchObject({ product_name: 'goube enfant', quantity: 10 })
+            expect(sacVert).toMatchObject({ product_name: 'sac enfant', quantity: 4 })
+            expect(state.unmatched_mentions).toContainEqual({ text: 'ardoise noir', quantity: 10 })
+        })
+
+        test('un point ("noire. Je suis Coulibaly") sépare bien deux idées, comme une virgule', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, '10 sac noir. Bonjour', PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ variant: 'Noir', quantity: 10 })
+        })
+
+        test('deux mentions du même produit sans jamais de couleur, avec des quantités réelles différentes, restent deux lignes distinctes (pas de fusion devinée)', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, '15 gourdes, 10 gourdes', PRODUCTS)
+            const quantities = state.items.filter(i => i.product_name === 'goube enfant').map(i => i.quantity).sort()
+            expect(quantities).toEqual([10, 15])
         })
 
         test('une tentative de variante invalide n\'empêche pas une variante valide donnée ensuite de s\'appliquer', () => {
             let state = updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS)
-            expect(state.items[0].invalid_variant_attempts).toEqual(['vert'])
+            expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'vert' })
 
             state = updateLeadStateFromUserMessage(state, '10 sac bleu', PRODUCTS)
-            expect(state.items[0]).toMatchObject({ variant: 'Bleu', quantity: 10 })
-            expect(state.items[0].invalid_variant_attempts).toEqual([])
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ variant: 'Bleu', quantity: 10, variant_status: 'valid' })
         })
 
         test('un préambule ("je veux", "je suis monsieur X") n\'est jamais pris pour une tentative de variante', () => {
             const state = updateLeadStateFromUserMessage(emptyState, 'Bonjour, je veux 15 sac', PRODUCTS)
-            expect(state.items[0]).toMatchObject({ variant: null, quantity: 15 })
-            expect(state.items[0].invalid_variant_attempts).toEqual([])
+            expect(state.items[0]).toMatchObject({ variant: null, quantity: 15, variant_status: 'missing' })
+        })
+
+        test('un prix mentionné dans le même message ("à 5000 FCFA") n\'écrase jamais la quantité réelle ni ne devient une fausse variante invalide', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'je veux 2 sacs a 5000 FCFA', PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ quantity: 2, variant_status: 'missing' })
+            expect(state.unmatched_mentions).toEqual([])
+        })
+
+        test('un produit dont le seul groupe de variantes a des options vides n\'est jamais traité comme ayant de vraies variantes', () => {
+            const noRealVariantProduct = [{
+                id: 'y', name: 'porte cle', price_fcfa: 500,
+                variants: [{ id: 'v', name: 'Couleur', type: 'fixed', options: [] }],
+            }]
+            const state = updateLeadStateFromUserMessage(emptyState, '5 porte cle rouge', noRealVariantProduct)
+            expect(state.items[0].variant_status).toBe('missing')
+        })
+
+        test('cloneState ne partage jamais d\'état mutable entre deux appels successifs', () => {
+            const prev = updateLeadStateFromUserMessage(emptyState, '10 goube noire', PRODUCTS)
+            const prevSnapshot = JSON.stringify(prev)
+            const next = updateLeadStateFromUserMessage(prev, '10 goube verte', PRODUCTS)
+
+            // prev ne doit JAMAIS être modifié par un appel ultérieur — sinon la
+            // détection de changement par JSON.stringify(prev) !== JSON.stringify(next)
+            // dans message.js échoue silencieusement et le nouvel article n'est jamais
+            // persisté en base.
+            expect(JSON.stringify(prev)).toBe(prevSnapshot)
+            expect(prev.items).toHaveLength(1)
+            expect(next.items).toHaveLength(2)
+            expect(JSON.stringify(prev)).not.toBe(JSON.stringify(next))
+        })
+
+        test('une mention nue sans aucune info suivie d\'une mention complète dans le MÊME message fusionne en un seul article', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'Gourde enfant\n15 gourde enfant rouge', PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ variant: 'Rouge', quantity: 15 })
+        })
+
+        test('un produit inconnu mentionné deux fois avec la même quantité ne duplique pas', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 ardoise noir', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, '10 ardoise noir', PRODUCTS)
+            expect(state.unmatched_mentions).toEqual([{ text: 'ardoise noir', quantity: 10 }])
+        })
+
+        test('un produit inconnu mentionné deux fois avec des quantités différentes garde les deux (pas d\'écrasement silencieux)', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 ardoise noir', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, '5 ardoise noir', PRODUCTS)
+            expect(state.unmatched_mentions).toEqual(expect.arrayContaining([
+                { text: 'ardoise noir', quantity: 10 },
+                { text: 'ardoise noir', quantity: 5 },
+            ]))
+        })
+
+        test('singulariser un terme ne doit jamais faire échouer une correspondance qui passait déjà sur sa forme brute', () => {
+            const typoProducts = [{ id: 'x', name: 'fleru', variants: [] }]
+            // "fleurs" (6) -> singularisé "fleur" (5) vs "fleru" (5) : distance 2, seuil
+            // resserré à 1 après singularisation si on ne compare QUE la forme courte —
+            // doit quand même matcher grâce à la forme brute (maxLen 6, seuil 2).
+            expect(findBestProduct(typoProducts, 'fleurs')?.name).toBe('fleru')
         })
     })
 
@@ -244,8 +330,15 @@ describe('lead-state.service', () => {
             const summary = buildLeadStateSummary(state)
             expect(summary).toMatch(/⛔/)
             expect(summary).toMatch(/"vert"/)
-            expect(summary).toMatch(/N'EXISTENT PAS/)
+            expect(summary).toMatch(/N'EXISTE PAS/)
             expect(summary).not.toMatch(/variante manquante si applicable/)
+        })
+
+        test('affiche la quantité pour un article non reconnu dans le catalogue', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, '10 ardoise noir', PRODUCTS)
+            const summary = buildLeadStateSummary(state)
+            expect(summary).toMatch(/"ardoise noir"/)
+            expect(summary).toMatch(/quantité 10/)
         })
     })
 
@@ -258,60 +351,6 @@ describe('lead-state.service', () => {
 
             const restored = getLeadState(metadata)
             expect(restored.items).toEqual(state.items)
-        })
-    })
-
-    describe('régressions trouvées en revue de code approfondie', () => {
-        test('cloneState ne partage jamais le tableau invalid_variant_attempts entre deux appels successifs (bug de mutation en place)', () => {
-            const prev = updateLeadStateFromUserMessage(emptyState, '10 goube noire', PRODUCTS)
-            const prevSnapshot = JSON.stringify(prev)
-            const next = updateLeadStateFromUserMessage(prev, '10 goube verte', PRODUCTS)
-
-            // prev ne doit JAMAIS être modifié par un appel ultérieur — sinon la
-            // détection de changement par JSON.stringify(prev) !== JSON.stringify(next)
-            // dans message.js échoue silencieusement et la nouvelle tentative invalide
-            // n'est jamais persistée en base.
-            expect(JSON.stringify(prev)).toBe(prevSnapshot)
-            expect(prev.items[0].invalid_variant_attempts).toEqual(['noire'])
-            expect(next.items[0].invalid_variant_attempts).toEqual(['noire', 'verte'])
-            expect(JSON.stringify(prev)).not.toBe(JSON.stringify(next))
-        })
-
-        test('une mention nue sans aucune info suivie d\'une mention complète dans le MÊME message fusionne en un seul article', () => {
-            const state = updateLeadStateFromUserMessage(emptyState, 'Gourde enfant\n15 gourde enfant rouge', PRODUCTS)
-            expect(state.items).toHaveLength(1)
-            expect(state.items[0]).toMatchObject({ variant: 'Rouge', quantity: 15 })
-        })
-
-        test('un prix mentionné dans le même message ("à 5000 FCFA") n\'écrase jamais la quantité réelle ni ne devient une fausse variante invalide', () => {
-            const state = updateLeadStateFromUserMessage(emptyState, 'je veux 2 sacs a 5000 FCFA', PRODUCTS)
-            expect(state.items).toHaveLength(1)
-            expect(state.items[0]).toMatchObject({ quantity: 2, variant: null })
-            expect(state.items[0].invalid_variant_attempts).toEqual([])
-            expect(state.unmatched_mentions).toEqual([])
-        })
-
-        test('une couleur héritée du produit-ancre (énumération compacte) sans nommer à nouveau le produit est bien signalée comme invalide si elle ne matche aucune variante', () => {
-            const state = updateLeadStateFromUserMessage(emptyState, 'Gourde 5 rouge 13 vert', PRODUCTS)
-            const invalide = state.items.find(i => i.quantity === 13)
-            expect(invalide.invalid_variant_attempts).toEqual(['vert'])
-        })
-
-        test('singulariser un terme ne doit jamais faire échouer une correspondance qui passait déjà sur sa forme brute', () => {
-            const typoProducts = [{ id: 'x', name: 'fleru', variants: [] }]
-            // "fleurs" (6) -> singularisé "fleur" (5) vs "fleru" (5) : distance 2, seuil
-            // resserré à 1 après singularisation si on ne compare QUE la forme courte —
-            // doit quand même matcher grâce à la forme brute (maxLen 6, seuil 2).
-            expect(findBestProduct(typoProducts, 'fleurs')?.name).toBe('fleru')
-        })
-
-        test('un produit dont le seul groupe de variantes a des options vides n\'est jamais traité comme ayant de vraies variantes', () => {
-            const noRealVariantProduct = [{
-                id: 'y', name: 'porte cle', price_fcfa: 500,
-                variants: [{ id: 'v', name: 'Couleur', type: 'fixed', options: [] }],
-            }]
-            const state = updateLeadStateFromUserMessage(emptyState, '5 porte cle rouge', noRealVariantProduct)
-            expect(state.items[0].invalid_variant_attempts).toEqual([])
         })
     })
 

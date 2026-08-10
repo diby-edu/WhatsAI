@@ -12,6 +12,15 @@
  * (pas de directReply, pas de shouldBypassAI) — il extrait un état,
  * qu'on injecte ensuite en texte dans le prompt. L'IA reste seule
  * responsable de la formulation ; ce module est seulement sa mémoire.
+ *
+ * Identité d'un article = produit + STATUT de la variante ('valid' /
+ * 'invalid' / 'missing') + valeur associée. Volontairement PAS juste
+ * "produit + variante" : "15 gourdes" (couleur pas encore donnée) et
+ * "10 gourdes noires" (couleur donnée mais invalide) ont toutes les deux
+ * variant=null dans l'ancien modèle → même clé → la 2e écrasait la 1re
+ * (bug réel constaté sur données de production, quantité 15 remplacée
+ * par 10). Avec le statut dans la clé, ces deux mentions restent deux
+ * articles distincts, chacun avec sa vraie quantité.
  */
 
 const { calculateItemPrice } = require('../ai/tools/pricing-logic')
@@ -212,10 +221,15 @@ function extractLeftoverAfterProductName(rest, product) {
     return cleanCandidateVariantText(afterWords.join(' '))
 }
 
-// Découpe un message en segments indépendants (lignes + virgules + " et ").
+// Découpe un message en segments indépendants (lignes + virgules + points + " et ").
+// Le point est un séparateur volontaire : "10 gourde noire. Je suis mon Coulibaly"
+// sans lui reste un seul segment, où "Je suis mon Coulibaly" (présentation du
+// client juste après la couleur) fait déborder le plafond de mots de
+// extractLeftoverAfterProductName et efface silencieusement "noire" comme
+// tentative invalide (bug réel constaté en rejouant une conversation de production).
 function splitSegments(text) {
     return String(text || '')
-        .split(/\n|,|\bet\b/i)
+        .split(/\n|,|\.|\bet\b/i)
         .map(s => s.trim())
         .filter(Boolean)
 }
@@ -260,23 +274,14 @@ function parseSegment(segment) {
     return { quantity, rest: rest || segment.trim() }
 }
 
+// Copie superficielle suffisante : contrairement à l'ancien modèle (un tableau
+// invalid_variant_attempts muté en place), chaque article n'a plus que des champs
+// scalaires (variant_status/variant/requested_variant/quantity) — plus aucun risque
+// qu'un clone partage une structure mutable avec l'état d'origine.
 function cloneState(state = {}) {
     return {
-        // { ...it } ne copie qu'une réf vers invalid_variant_attempts (même tableau
-        // partagé entre l'ancien et le nouvel item) — sans le cloner explicitement,
-        // addInvalidVariantAttempt() (qui fait .push() en place) mute l'état PRÉCÉDENT
-        // en même temps que le nouveau. Conséquence réelle constatée : previousState et
-        // nextState deviennent JSON.stringify-identiques après un .push(), donc le test
-        // de changement dans message.js (`JSON.stringify(prev) !== JSON.stringify(next)`)
-        // ne détecte plus rien à persister — la tentative invalide est montrée à l'IA ce
-        // tour-ci mais jamais sauvegardée en base.
-        items: Array.isArray(state.items)
-            ? state.items.map(it => ({
-                ...it,
-                invalid_variant_attempts: Array.isArray(it.invalid_variant_attempts) ? [...it.invalid_variant_attempts] : [],
-            }))
-            : [],
-        unmatched_mentions: Array.isArray(state.unmatched_mentions) ? [...state.unmatched_mentions] : [],
+        items: Array.isArray(state.items) ? state.items.map(it => ({ ...it })) : [],
+        unmatched_mentions: Array.isArray(state.unmatched_mentions) ? state.unmatched_mentions.map(m => ({ ...m })) : [],
         fulfillment_mode: state.fulfillment_mode || null,
         updated_at: state.updated_at || null,
     }
@@ -293,26 +298,40 @@ function setLeadState(metadata = {}, leadState) {
     }
 }
 
-function itemKey(productName, variant) {
-    return `${normalizeText(productName)}::${normalizeText(variant || '')}`
+// Clé d'identité d'un article : produit + STATUT + valeur associée au statut
+// (la couleur si valide, la valeur demandée si invalide, rien si manquante).
+// C'est ce triplet — pas juste "produit + variante" — qui décide si deux
+// mentions désignent le même article ou deux articles distincts.
+function itemKey(productName, status, value) {
+    return `${normalizeText(productName)}::${status}::${normalizeText(value || '')}`
 }
 
-// Empile une nouvelle tentative de variante invalide sans écraser les précédentes
-// (ex: le client tente "noire" puis "verte" pour le même article dans un seul
-// message — les deux doivent être rejetées, pas seulement la dernière).
-function addInvalidVariantAttempt(item, attempt) {
-    if (!attempt) return
-    if (!Array.isArray(item.invalid_variant_attempts)) item.invalid_variant_attempts = []
-    const norm = normalizeText(attempt)
-    if (!item.invalid_variant_attempts.some(a => normalizeText(a) === norm)) {
-        item.invalid_variant_attempts.push(attempt)
+function keyOf(item) {
+    return itemKey(item.product_name, item.variant_status, item.variant_status === 'invalid' ? item.requested_variant : item.variant)
+}
+
+function makeItem(product, status, value, quantity) {
+    return {
+        product_id: product.id,
+        product_name: product.name,
+        variant_status: status,
+        variant: status === 'valid' ? value : null,
+        requested_variant: status === 'invalid' ? value : null,
+        quantity,
     }
+}
+
+function applyStatus(item, status, value, quantity) {
+    if (quantity !== null) item.quantity = quantity
+    item.variant_status = status
+    item.variant = status === 'valid' ? value : null
+    item.requested_variant = status === 'invalid' ? value : null
 }
 
 /**
  * Extrait les articles mentionnés dans le message client et les fusionne
- * avec l'état déjà connu — n'écrase jamais un article déjà identifié,
- * ne fait qu'ajouter ou compléter (quantité manquante renseignée plus tard).
+ * avec l'état déjà connu — n'écrase jamais silencieusement une quantité déjà
+ * connue par une quantité différente, ne fait qu'ajouter ou compléter.
  */
 function updateLeadStateFromUserMessage(previousState, text, products = []) {
     const state = cloneState(previousState)
@@ -323,12 +342,7 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
     // l'appelant, présent ou futur.
     if (/^Ma position\s*:/.test(text)) return state
 
-    const existingByKey = new Map(state.items.map(it => [itemKey(it.product_name, it.variant), it]))
-    // Clés présentes AVANT ce message (tours précédents) — sert à distinguer "le client
-    // corrige un choix fait à un tour précédent" (doit résoudre le même item) de "le
-    // client énumère plusieurs couleurs pour le même produit dans un seul message" (ce
-    // sont des lignes distinctes, ne doit jamais les fusionner entre elles).
-    const keysFromPreviousTurns = new Set(existingByKey.keys())
+    const existingByKey = new Map(state.items.map(it => [keyOf(it), it]))
     const segments = splitSegments(text)
 
     for (const segment of segments) {
@@ -339,122 +353,139 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
         const chunks = splitByRepeatedQuantities(segment)
 
         for (const chunk of chunks) {
-        const { quantity, rest } = parseSegment(chunk)
-        if (!rest) continue
+            const { quantity, rest } = parseSegment(chunk)
+            if (!rest) continue
 
-        let product = findBestProduct(products, rest)
-        if (!product && anchorProduct) product = anchorProduct
-        if (!product) {
-            // Le segment ne nomme aucun produit — peut être une réponse "nue" à une
-            // question de variante déjà posée (ex: le client répond juste "bleu" sans
-            // répéter "sac"). On tente de la rattacher SEULEMENT s'il n'y a qu'un seul
-            // article en attente de variante — sinon, ambigu, on ne devine pas.
-            const pendingItems = state.items.filter(it => it.variant === null && it.product_id)
-            if (pendingItems.length === 1) {
-                const pendingProduct = products.find(p => p.id === pendingItems[0].product_id)
-                if (pendingProduct) {
-                    const pendingResult = calculateItemPrice(pendingProduct, {}, rest, 1)
+            let product = findBestProduct(products, rest)
+            if (!product && anchorProduct) product = anchorProduct
+
+            if (!product) {
+                // Le segment ne nomme aucun produit — peut être une réponse "nue" à une
+                // question de variante déjà posée (ex: le client répond juste "bleu" sans
+                // répéter "sac"). On tente de la rattacher SEULEMENT s'il n'y a qu'un seul
+                // article en attente (statut non-valide) — sinon, ambigu, on ne devine pas.
+                const pendingItems = state.items.filter(it => it.variant_status !== 'valid' && it.product_id)
+                if (pendingItems.length === 1) {
                     const pendingItem = pendingItems[0]
-                    if (!pendingResult.error && pendingResult.variantOptionName) {
-                        const oldKey = itemKey(pendingItem.product_name, pendingItem.variant)
-                        existingByKey.delete(oldKey)
-                        pendingItem.variant = pendingResult.variantOptionName
-                        pendingItem.invalid_variant_attempts = []
-                        if (quantity !== null) pendingItem.quantity = quantity
-                        existingByKey.set(itemKey(pendingItem.product_name, pendingItem.variant), pendingItem)
-                        continue
+                    const pendingProduct = products.find(p => p.id === pendingItem.product_id)
+                    if (pendingProduct) {
+                        const pendingResult = calculateItemPrice(pendingProduct, {}, rest, 1)
+                        if (!pendingResult.error && pendingResult.variantOptionName) {
+                            existingByKey.delete(keyOf(pendingItem))
+                            applyStatus(pendingItem, 'valid', pendingResult.variantOptionName, quantity)
+                            existingByKey.set(keyOf(pendingItem), pendingItem)
+                            continue
+                        }
+                        // Réponse courte, un seul article en attente, mais ne matche AUCUNE
+                        // variante réelle de ce produit — probablement une couleur invalide
+                        // donnée en réponse directe (ex: le sac demandé n'existe pas en "vert").
+                        const restWordCount = rest.split(/\s+/).filter(Boolean).length
+                        if (productHasRealVariants(pendingProduct) && restWordCount > 0 && restWordCount <= 3) {
+                            existingByKey.delete(keyOf(pendingItem))
+                            applyStatus(pendingItem, 'invalid', stripEdgePunctuation(rest.trim()), quantity)
+                            existingByKey.set(keyOf(pendingItem), pendingItem)
+                            continue
+                        }
                     }
-                    // Réponse courte, un seul article en attente, mais ne matche AUCUNE
-                    // variante réelle de ce produit — probablement une couleur invalide
-                    // donnée en réponse directe (ex: le sac demandé n'existe pas en "vert").
-                    const restWordCount = rest.split(/\s+/).filter(Boolean).length
-                    if (productHasRealVariants(pendingProduct) && restWordCount > 0 && restWordCount <= 3) {
-                        addInvalidVariantAttempt(pendingItem, stripEdgePunctuation(rest.trim()))
-                        if (quantity !== null) pendingItem.quantity = quantity
-                        continue
+                }
+
+                // Sinon : ne garder que les segments qui ressemblaient à une tentative
+                // d'article — accompagnés d'une quantité ET courts (un vrai nom d'article
+                // tient en 1-4 mots ; une phrase normale comme "je peux payer jusqu'à
+                // FCFA maximum" ne doit jamais finir en "article non reconnu"). La quantité
+                // est conservée avec la mention (jamais juste le texte) — et si le même
+                // texte revient avec une quantité DIFFÉRENTE, on garde les deux mentions au
+                // lieu d'écraser silencieusement l'une par l'autre.
+                const restWordCount = rest.split(/\s+/).filter(Boolean).length
+                if (quantity !== null && restWordCount > 0 && restWordCount <= 4) {
+                    const normRest = normalizeText(rest)
+                    const existingMention = state.unmatched_mentions.find(m => normalizeText(m.text) === normRest)
+                    if (!existingMention) {
+                        state.unmatched_mentions.push({ text: rest, quantity })
+                    } else if (existingMention.quantity !== quantity) {
+                        state.unmatched_mentions.push({ text: rest, quantity })
                     }
+                }
+                continue
+            }
+
+            anchorProduct = product
+
+            const pricingResult = calculateItemPrice(product, {}, rest, quantity || 1)
+            const variant = pricingResult.variantOptionName || null
+
+            let status, value
+            if (variant) {
+                status = 'valid'
+                value = variant
+            } else if (productHasRealVariants(product)) {
+                // Si aucune variante valide n'a été trouvée mais qu'il reste du texte après
+                // avoir retiré le nom du produit, ce texte est probablement une couleur/valeur
+                // invalide donnée par le client (ex: "gourdes noire" — noir n'existe pas pour
+                // les gourdes) — à distinguer d'une variante simplement jamais donnée, pour que
+                // l'IA puisse la rejeter clairement. Plafonné à 3 mots : un vrai nom de couleur
+                // tient en 1-3 mots ; un long reliquat n'est pas fiable comme tentative de
+                // variante — mieux vaut "manquante" que d'injecter du texte non pertinent.
+                const leftover = extractLeftoverAfterProductName(rest, product)
+                const leftoverWordCount = leftover ? leftover.split(/\s+/).filter(Boolean).length : 0
+                if (leftover && leftoverWordCount <= 3) {
+                    status = 'invalid'
+                    value = leftover
+                } else {
+                    status = 'missing'
+                    value = null
+                }
+            } else {
+                status = 'missing'
+                value = null
+            }
+
+            const key = itemKey(product.name, status, value)
+            let existing = existingByKey.get(key)
+
+            // Résolution "article en attente" : uniquement quand ce nouveau statut est
+            // 'valid' ET qu'aucun article n'a déjà exactement cette clé. On cherche alors
+            // s'il existe EXACTEMENT UN article non-valide (manquant ou invalide) pour ce
+            // même produit ailleurs dans l'état — si oui, c'est sans ambiguïté la réponse à
+            // cette question ouverte, on la met à jour en place plutôt que d'empiler un
+            // doublon. S'il y a 0 ou 2+ candidats, on ne devine pas : nouvel article séparé.
+            // Ex: "15 gourdes noire, 4 gourdes verte, 2 gourde rouge" — quand "rouge" arrive,
+            // 2 candidats invalides (noire, verte) déjà en attente → ambigu → "rouge" devient
+            // un 3e article séparé, comme le client l'a réellement exprimé.
+            if (!existing && status === 'valid') {
+                const pendingCandidates = state.items.filter(it => it.product_id === product.id && it.variant_status !== 'valid')
+                if (pendingCandidates.length === 1) {
+                    existing = pendingCandidates[0]
+                    existingByKey.delete(keyOf(existing))
                 }
             }
 
-            // Sinon : ne garder que les segments qui ressemblaient à une tentative
-            // d'article — accompagnés d'une quantité ET courts (un vrai nom d'article
-            // tient en 1-4 mots ; une phrase normale comme "je peux payer jusqu'à
-            // FCFA maximum" ne doit jamais finir en "article non reconnu").
-            const restWordCount = rest.split(/\s+/).filter(Boolean).length
-            if (quantity !== null && restWordCount > 0 && restWordCount <= 4) {
-                const alreadyListed = state.unmatched_mentions.some(m => normalizeText(m) === normalizeText(rest))
-                if (!alreadyListed) state.unmatched_mentions.push(rest)
+            if (existing) {
+                const isStatusChange = existing.variant_status !== status
+                    || (status === 'invalid' && normalizeText(existing.requested_variant || '') !== normalizeText(value || ''))
+
+                // Garde-fou anti-écrasement : si l'article existant a déjà une quantité RÉELLE
+                // et que la nouvelle mention en donne une AUTRE, ET qu'il ne s'agit PAS d'un
+                // changement de statut (donc une redite exacte du même statut+valeur), ne pas
+                // écraser silencieusement — créer un article séparé (ex: "15 gourdes" puis,
+                // dans le même message, "10 gourdes" sans jamais de couleur : deux quantités
+                // réelles différentes pour le même statut "manquante", ambigu, garder les deux).
+                const hasConflictingQuantity = !isStatusChange
+                    && existing.quantity !== null && quantity !== null && existing.quantity !== quantity
+
+                if (hasConflictingQuantity) {
+                    const newItem = makeItem(product, status, value, quantity)
+                    state.items.push(newItem)
+                    existingByKey.set(key, newItem)
+                } else {
+                    applyStatus(existing, status, value, quantity)
+                    existingByKey.set(key, existing)
+                }
+            } else {
+                const newItem = makeItem(product, status, value, quantity)
+                state.items.push(newItem)
+                existingByKey.set(key, newItem)
             }
-            continue
-        }
-        anchorProduct = product
-
-        const pricingResult = calculateItemPrice(product, {}, rest, quantity || 1)
-        const variant = pricingResult.variantOptionName || null
-
-        // Si aucune variante valide n'a été trouvée mais qu'il reste du texte après avoir
-        // retiré le nom du produit, ET que le produit a de vraies variantes, ce texte est
-        // probablement une couleur/valeur invalide donnée par le client (ex: "gourdes
-        // noire" — noir n'existe pas pour les gourdes) — à distinguer d'une variante
-        // simplement jamais donnée, pour que l'IA puisse la rejeter clairement.
-        // Plafonné à 3 mots : un vrai nom de couleur/valeur tient en 1-3 mots. Un long
-        // reliquat (ex: préambule "salut je suis monsieur koffi..." mal isolé) n'est
-        // pas fiable comme tentative de variante — mieux vaut "manquante" que d'injecter
-        // du texte non pertinent dans le prompt envoyé à l'IA.
-        let invalidVariantAttempt = null
-        if (!variant && productHasRealVariants(product)) {
-            const leftover = extractLeftoverAfterProductName(rest, product)
-            const leftoverWordCount = leftover ? leftover.split(/\s+/).filter(Boolean).length : 0
-            if (leftover && leftoverWordCount <= 3) invalidVariantAttempt = leftover
-        }
-
-        const key = itemKey(product.name, variant)
-        let existing = existingByKey.get(key)
-
-        // Si une variante VALIDE vient d'être donnée mais qu'un article du même
-        // produit était déjà en attente (variante null, éventuellement avec des
-        // tentatives invalides déjà enregistrées), on le résout dans le même item
-        // au lieu d'en créer un second en doublon (clé différente : "produit::" vs
-        // "produit::bleu"). Autorisé dans deux cas : (a) l'article en attente vient
-        // d'un tour PRÉCÉDENT (correction/clarification normale), ou (b) l'article en
-        // attente est une simple mention nue SANS AUCUNE info (ni quantité, ni
-        // tentative invalide) — ex: "Gourde enfant\n15 gourde enfant rouge" en un seul
-        // message : rien n'est perdu à fusionner puisque le 1er item était vide. Si le
-        // 1er item avait déjà une quantité ou une tentative invalide, on NE fusionne
-        // PAS (ex: "15 gourdes noire, 4 gourdes verte, 2 gourde rouge" — 3 lignes
-        // distinctes, pas une correction du même item).
-        if (!existing && variant) {
-            const pendingKey = itemKey(product.name, null)
-            const pendingItem = existingByKey.get(pendingKey)
-            const pendingIsEmptyPlaceholder = pendingItem
-                && pendingItem.quantity === null
-                && (pendingItem.invalid_variant_attempts?.length ?? 0) === 0
-            if (pendingItem && (keysFromPreviousTurns.has(pendingKey) || pendingIsEmptyPlaceholder)) {
-                existingByKey.delete(pendingKey)
-                existing = pendingItem
-                existingByKey.set(key, existing)
-            }
-        }
-
-        if (existing) {
-            if (quantity !== null) existing.quantity = quantity
-            if (variant) {
-                existing.variant = variant
-                existing.invalid_variant_attempts = []
-            } else if (invalidVariantAttempt) {
-                addInvalidVariantAttempt(existing, invalidVariantAttempt)
-            }
-        } else {
-            const newItem = {
-                product_id: product.id,
-                product_name: product.name,
-                variant,
-                quantity: quantity,
-                invalid_variant_attempts: invalidVariantAttempt ? [invalidVariantAttempt] : [],
-            }
-            state.items.push(newItem)
-            existingByKey.set(key, newItem)
-        }
         }
     }
 
@@ -473,18 +504,17 @@ function buildLeadStateSummary(state) {
     for (const item of state.items) {
         const qtyPart = item.quantity === null ? 'quantité MANQUANTE' : `quantité ${item.quantity}`
         let variantPart
-        if (item.variant) {
+        if (item.variant_status === 'valid') {
             variantPart = `variante ${item.variant}`
-        } else if (item.invalid_variant_attempts?.length > 0) {
-            const attempts = item.invalid_variant_attempts.map(a => `"${a}"`).join(', ')
-            variantPart = `⛔ le client a demandé ${attempts} — CES VALEURS N'EXISTENT PAS pour cet article, ne les accepte jamais, dis-le clairement au client et redemande une variante réelle`
+        } else if (item.variant_status === 'invalid') {
+            variantPart = `⛔ le client a demandé "${item.requested_variant}" — CETTE VALEUR N'EXISTE PAS pour cet article, ne l'accepte jamais, dis-le clairement au client et redemande une variante réelle`
         } else {
             variantPart = 'variante manquante si applicable'
         }
         lines.push(`- ${item.product_name} (${variantPart}) : ${qtyPart}`)
     }
     for (const mention of state.unmatched_mentions) {
-        lines.push(`- "${mention}" : article non reconnu dans le catalogue`)
+        lines.push(`- "${mention.text}" (quantité ${mention.quantity}) : article non reconnu dans le catalogue`)
     }
 
     return lines.join('\n')
@@ -496,15 +526,6 @@ function buildLeadStateSummary(state) {
 const THOUSANDS_SEPARATOR_CLASS = '[\\s\\u00A0\\u202F]'
 const FCFA_NUMBER_PATTERN = `([\\d](?:${THOUSANDS_SEPARATOR_CLASS}|\\d)*)\\s*FCFA`
 
-/**
- * Lit le TOTAL (et les frais de livraison) directement dans le texte envoyé au
- * client, au format exact produit par preview_cart (tool-cart-preview.js) :
- * "*TOTAL : X FCFA*" et "*Frais de livraison : Y FCFA*". Sert de filet de
- * sécurité pour capture_lead : si l'IA ajoute la livraison "à la main" sans
- * rappeler preview_cart (déjà observé en prod), metadata.lead_cart reste
- * périmé — mais le texte réellement montré au client, lui, reste la source
- * de vérité de ce qu'il a vu/accepté.
- */
 // Retourne le DERNIER match d'un pattern global (pas le premier) : si un message
 // contient exceptionnellement deux mentions de "TOTAL" (ex: l'IA cite un montant
 // précédent avant de donner le montant corrigé), c'est la dernière — la plus
@@ -514,6 +535,15 @@ function lastMatch(text, pattern) {
     return matches.length > 0 ? matches[matches.length - 1] : null
 }
 
+/**
+ * Lit le TOTAL (et les frais de livraison) directement dans le texte envoyé au
+ * client, au format exact produit par preview_cart (tool-cart-preview.js) :
+ * "*TOTAL : X FCFA*" et "*Frais de livraison : Y FCFA*". Sert de filet de
+ * sécurité pour capture_lead : si l'IA ajoute la livraison "à la main" sans
+ * rappeler preview_cart (déjà observé en prod), metadata.lead_cart reste
+ * périmé — mais le texte réellement montré au client, lui, reste la source
+ * de vérité de ce qu'il a vu/accepté.
+ */
 function extractRecapTotals(text) {
     if (!text) return null
     const totalMatch = lastMatch(text, `TOTAL\\s*:\\s*${FCFA_NUMBER_PATTERN}`)
