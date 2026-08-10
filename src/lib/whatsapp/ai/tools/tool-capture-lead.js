@@ -25,12 +25,15 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             return JSON.stringify({ success: false, error: 'Agent introuvable' })
         }
 
-        // Dernier panier calculé par preview_cart et dernier lien de localisation résolu —
+        // Dernier panier calculé par preview_cart, dernier lien de localisation résolu, et
+        // réponse du client à la question "Souhaitez-vous ajouter une instruction ?" — tous
         // stockés en cours de conversation (conversation.metadata), jamais reconstruits à
-        // partir de ce que l'IA rapporte : garantit un total/lieu fidèles à ce qui a été
-        // réellement calculé, même si l'IA les omet ou les déforme dans son résumé texte.
+        // partir de ce que l'IA rapporte : garantit un total/lieu/instruction fidèles à ce
+        // qui a réellement été calculé/dit, même si l'IA les omet ou les déforme.
         let leadCart = null
         let locationLink = null
+        let instructionAnswer = null
+        let lastSeenTotals = null
         if (conversationId) {
             const { data: conversation } = await supabase
                 .from('conversations')
@@ -39,6 +42,27 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
                 .single()
             leadCart = conversation?.metadata?.lead_cart || null
             locationLink = conversation?.metadata?.last_location_link || null
+            instructionAnswer = conversation?.metadata?.lead_instruction_answer || null
+            lastSeenTotals = conversation?.metadata?.lead_last_seen_totals || null
+        }
+
+        // Le TOTAL/frais de livraison réellement montrés au client (extraits du dernier
+        // récap envoyé) priment sur metadata.lead_cart : lead_cart ne reflète que le
+        // dernier appel à preview_cart, qui peut être périmé si l'IA a recalculé le
+        // total "à la main" (ex: ajout de la livraison sans rappeler l'outil) — déjà
+        // observé en prod (lead à 204 500 alors que le client avait vu/confirmé 206 500).
+        const hasLastSeenTotal = lastSeenTotals && lastSeenTotals.total !== null && lastSeenTotals.total !== undefined
+        const estimatedTotal = hasLastSeenTotal ? lastSeenTotals.total : (leadCart?.total ?? null)
+        const deliveryFee = hasLastSeenTotal ? lastSeenTotals.deliveryFee : (leadCart?.deliveryFee ?? null)
+
+        // Fusionne l'instruction capturée par code dans lead_notes si l'IA ne l'y a pas
+        // déjà mise (elle atterrit parfois uniquement dans "interest" à la place).
+        let finalLeadNotes = lead_notes || null
+        if (instructionAnswer) {
+            const alreadyIncluded = finalLeadNotes?.includes(instructionAnswer)
+            if (!alreadyIncluded) {
+                finalLeadNotes = finalLeadNotes ? `${finalLeadNotes}; ${instructionAnswer}` : instructionAnswer
+            }
         }
 
         const leadRow = {
@@ -56,10 +80,10 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             preferred_date:    preferred_date   || null,
             preferred_time:    preferred_time   || null,
             service_requested: service_requested || null,
-            lead_notes:        lead_notes       || null,
+            lead_notes:        finalLeadNotes,
             custom_fields:     (custom_fields && Object.keys(custom_fields).length > 0) ? custom_fields : null,
-            estimated_total:   leadCart?.total ?? null,
-            delivery_fee:      leadCart?.deliveryFee ?? null,
+            estimated_total:   estimatedTotal,
+            delivery_fee:      deliveryFee,
             items:             leadCart?.items ?? null,
             location_link:     locationLink     || null,
         }

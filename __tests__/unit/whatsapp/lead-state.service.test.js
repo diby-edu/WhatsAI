@@ -131,6 +131,46 @@ describe('lead-state.service', () => {
             expect(sac.variant).toBeNull()
             expect(goube.variant).toBeNull()
         })
+
+        test('régression réelle (conv 1) : une couleur invalide donnée avec le produit est distinguée d\'une variante simplement absente', () => {
+            const state = updateLeadStateFromUserMessage(
+                emptyState,
+                'Salut je suis monsieur koffi je veux 15 gourdes noire, 4 gourdes verte, 2 gourde rouge, 5 sac.',
+                PRODUCTS
+            )
+            const goubeNoVariant = state.items.find(i => i.product_name === 'goube enfant' && i.variant === null)
+            const goubeRouge = state.items.find(i => i.product_name === 'goube enfant' && i.variant === 'Rouge')
+            const sac = state.items.find(i => i.product_name === 'sac enfant')
+
+            // "noire" et "verte" doivent être signalées TOUTES LES DEUX comme invalides,
+            // pas seulement la dernière (c'était la régression observée en prod).
+            expect(goubeNoVariant.invalid_variant_attempts).toEqual(expect.arrayContaining(['noire', 'verte']))
+            expect(goubeRouge).toMatchObject({ quantity: 2 })
+            expect(sac).toMatchObject({ variant: null, quantity: 5 })
+            expect(sac.invalid_variant_attempts).toEqual([])
+        })
+
+        test('régression réelle (conv 2) : couleur invalide donnée directement en réponse à une question sur un seul article en attente', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '15 sac', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'vert', PRODUCTS)
+            expect(state.items[0]).toMatchObject({ variant: null, quantity: 15 })
+            expect(state.items[0].invalid_variant_attempts).toEqual(['vert'])
+        })
+
+        test('une tentative de variante invalide n\'empêche pas une variante valide donnée ensuite de s\'appliquer', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS)
+            expect(state.items[0].invalid_variant_attempts).toEqual(['vert'])
+
+            state = updateLeadStateFromUserMessage(state, '10 sac bleu', PRODUCTS)
+            expect(state.items[0]).toMatchObject({ variant: 'Bleu', quantity: 10 })
+            expect(state.items[0].invalid_variant_attempts).toEqual([])
+        })
+
+        test('un préambule ("je veux", "je suis monsieur X") n\'est jamais pris pour une tentative de variante', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'Bonjour, je veux 15 sac', PRODUCTS)
+            expect(state.items[0]).toMatchObject({ variant: null, quantity: 15 })
+            expect(state.items[0].invalid_variant_attempts).toEqual([])
+        })
     })
 
     describe('findBestProduct', () => {
@@ -156,6 +196,15 @@ describe('lead-state.service', () => {
             const state = updateLeadStateFromUserMessage(emptyState, 'sac bleu', PRODUCTS)
             const summary = buildLeadStateSummary(state)
             expect(summary).toMatch(/quantité MANQUANTE/)
+        })
+
+        test('signale explicitement une variante invalide comme rejetée, pas comme manquante', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS)
+            const summary = buildLeadStateSummary(state)
+            expect(summary).toMatch(/⛔/)
+            expect(summary).toMatch(/"vert"/)
+            expect(summary).toMatch(/N'EXISTENT PAS/)
+            expect(summary).not.toMatch(/variante manquante si applicable/)
         })
     })
 

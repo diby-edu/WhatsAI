@@ -547,6 +547,23 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
         }
 
+        // ÉTAPE 4bis (lead_only) : si le dernier message assistant a posé la question
+        // "Souhaitez-vous ajouter une instruction ?", la réponse du client à CE tour est
+        // une précision destinée à lead_notes — capturée par code plutôt que de dépendre
+        // du modèle pour la router correctement lors de l'appel capture_lead (observé en
+        // prod : parfois noyée dans "interest" au lieu d'être isolée dans lead_notes).
+        if (
+            isLeadOnlyMode && message.text &&
+            !/^Ma position\s*:/.test(message.text) &&
+            /souhaitez-vous ajouter une instruction/i.test(previousAssistantMessage)
+        ) {
+            const instructionAnswer = message.text.trim()
+            const isNegativeAnswer = /^(non|no|nan|rien|aucune?|pas\b|ça va|ca va|c'est bon|cest bon)/i.test(instructionAnswer)
+            if (instructionAnswer && !isNegativeAnswer) {
+                await conversation.updateMetadata({ lead_instruction_answer: instructionAnswer })
+            }
+        }
+
         // Mémoire fiable des articles (quantité/variante) mentionnés en mode lead_only —
         // extraite par code à chaque tour et persistée, plutôt que de dépendre de la
         // capacité du modèle à relire correctement l'historique brut. Voir
@@ -965,6 +982,26 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             nextRestaurantState = hasRestaurantCatalog
                 ? inferRestaurantStateFromAssistantMessage(aiResponse.content, restaurantUpdate.state)
                 : previousRestaurantState
+        }
+
+        // Mémorise le dernier TOTAL/frais de livraison réellement montré au client (pas
+        // ce que preview_cart a calculé en dernier — les deux peuvent diverger si l'IA
+        // ajoute la livraison "à la main" sans rappeler l'outil, déjà observé en prod :
+        // lead_cart restait à 204 500 alors que le client avait vu et confirmé 206 500).
+        // capture_lead lit cette valeur en priorité sur metadata.lead_cart. Passe par
+        // conversation.updateMetadata (merge en mémoire, pas de SELECT) plutôt qu'un
+        // read-modify-write direct, pour éviter la race condition que ce module évite
+        // déjà ailleurs (voir ConversationService.updateMetadata).
+        if (isLeadOnlyMode && aiResponse.content) {
+            try {
+                const { extractRecapTotals } = require('../services/lead-state.service')
+                const recapTotals = extractRecapTotals(aiResponse.content)
+                if (recapTotals) {
+                    await conversation.updateMetadata({ lead_last_seen_totals: recapTotals })
+                }
+            } catch (recapErr) {
+                console.error(`⚠️ [${agentId}] mémorisation des totaux du récap échouée (non-bloquant):`, recapErr?.message || recapErr)
+            }
         }
 
         // Merger les images pré-extraites avec celles de l'IA (Phase 4.5)
