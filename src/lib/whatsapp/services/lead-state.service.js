@@ -152,6 +152,11 @@ function itemKey(productName, variant) {
 function updateLeadStateFromUserMessage(previousState, text, products = []) {
     const state = cloneState(previousState)
     if (!text || products.length === 0) return state
+    // Un message de position ("Ma position : <lieu> (<lien>)") contient des coordonnées
+    // GPS — des nombres sans rapport avec des quantités d'articles. Garde-fou posé ici
+    // (pas seulement chez l'appelant) pour que la fonction reste sûre quel que soit
+    // l'appelant, présent ou futur.
+    if (/^Ma position\s*:/.test(text)) return state
 
     const existingByKey = new Map(state.items.map(it => [itemKey(it.product_name, it.variant), it]))
     const segments = splitSegments(text)
@@ -184,9 +189,11 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             }
 
             // Sinon : ne garder que les segments qui ressemblaient à une tentative
-            // d'article (accompagnés d'une quantité) — évite de polluer avec du texte
-            // de conversation normal.
-            if (quantity !== null) {
+            // d'article — accompagnés d'une quantité ET courts (un vrai nom d'article
+            // tient en 1-4 mots ; une phrase normale comme "je peux payer jusqu'à
+            // FCFA maximum" ne doit jamais finir en "article non reconnu").
+            const restWordCount = rest.split(/\s+/).filter(Boolean).length
+            if (quantity !== null && restWordCount > 0 && restWordCount <= 4) {
                 const alreadyListed = state.unmatched_mentions.some(m => normalizeText(m) === normalizeText(rest))
                 if (!alreadyListed) state.unmatched_mentions.push(rest)
             }

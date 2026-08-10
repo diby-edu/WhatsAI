@@ -552,7 +552,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // capacité du modèle à relire correctement l'historique brut. Voir
         // lead-state.service.js pour le détail ; injectée dans le prompt plus bas.
         let leadStateSummary = null
-        if (isLeadOnlyMode && message.text) {
+        // Exclut les messages de position ("Ma position : <lieu> (<lien>)") — leurs
+        // coordonnées GPS contiennent des nombres qui n'ont rien à voir avec des
+        // quantités d'articles, et pollueraient l'état avec des fragments d'URL.
+        if (isLeadOnlyMode && message.text && !/^Ma position\s*:/.test(message.text)) {
             try {
                 const { getLeadState, setLeadState, updateLeadStateFromUserMessage, buildLeadStateSummary } = require('../services/lead-state.service')
                 const previousLeadState = getLeadState(conversation.metadata)

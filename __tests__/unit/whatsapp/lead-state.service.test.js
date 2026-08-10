@@ -98,6 +98,39 @@ describe('lead-state.service', () => {
             expect(updateLeadStateFromUserMessage(emptyState, '', PRODUCTS).items).toEqual([])
             expect(updateLeadStateFromUserMessage(emptyState, '3 sac bleu', []).items).toEqual([])
         })
+
+        test('un message de position GPS ne pollue jamais l\'état, même en appel direct', () => {
+            const state = updateLeadStateFromUserMessage(
+                emptyState,
+                "Ma position : Yopougon, Abidjan, Côte d'Ivoire (https://www.google.com/maps?q=5.3332645,-4.1047088)",
+                PRODUCTS
+            )
+            expect(state.items).toEqual([])
+            expect(state.unmatched_mentions).toEqual([])
+        })
+
+        test('une phrase normale contenant un nombre ne devient jamais un "article non reconnu"', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, "Je peux payer jusqu'à 5000 FCFA maximum", PRODUCTS)
+            expect(state.unmatched_mentions).toEqual([])
+        })
+
+        test('"oui"/"non" ne matchent jamais une variante par erreur', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '3 sac', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'oui', PRODUCTS)
+            expect(state.items[0].variant).toBeNull()
+            state = updateLeadStateFromUserMessage(state, 'non', PRODUCTS)
+            expect(state.items[0].variant).toBeNull()
+        })
+
+        test('ne devine pas la variante quand 2 articles sont ambigus en attente à la fois', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '3 sac', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, '2 goube', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'bleu', PRODUCTS)
+            const sac = state.items.find(i => i.product_name === 'sac enfant')
+            const goube = state.items.find(i => i.product_name === 'goube enfant')
+            expect(sac.variant).toBeNull()
+            expect(goube.variant).toBeNull()
+        })
     })
 
     describe('findBestProduct', () => {
