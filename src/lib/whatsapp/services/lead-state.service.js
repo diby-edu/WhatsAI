@@ -390,6 +390,14 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
     const existingByKey = new Map(state.items.map(it => [keyOf(it), it]))
     const segments = splitSegments(text)
 
+    // Dernière quantité "nue" (aucun produit nommé) vue dans CE message, tous segments
+    // confondus — jamais persistée dans state, donc ne fuite jamais vers le message
+    // suivant. Sert à désambiguïser une réponse plus loin dans le MÊME message quand
+    // 2+ articles du même produit sont en attente (ex: "Finalement les 15, je les veux
+    // rouge" — la virgule sépare "15" de "rouge" en deux segments distincts ; sans ce
+    // suivi, "rouge" ne peut jamais se rattacher puisqu'il y a 2 candidats ambigus).
+    let lastBareQuantity = null
+
     for (const segment of segments) {
         // Produit identifié plus tôt DANS CE MÊME SEGMENT (ex: "Gourde" dans "Gourde 5
         // rouge 13 bleu") — hérité par les morceaux suivants qui ne renomment pas le
@@ -418,11 +426,24 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             if (!product && anchorProduct) product = anchorProduct
 
             if (!product) {
+                if (quantity !== null) lastBareQuantity = quantity
+
                 // Le segment ne nomme aucun produit — peut être une réponse "nue" à une
                 // question de variante déjà posée (ex: le client répond juste "bleu" sans
                 // répéter "sac"). On tente de la rattacher SEULEMENT s'il n'y a qu'un seul
                 // article en attente (statut non-valide) — sinon, ambigu, on ne devine pas.
-                const pendingItems = state.items.filter(it => it.variant_status !== 'valid' && it.product_id)
+                let pendingItems = state.items.filter(it => it.variant_status !== 'valid' && it.product_id)
+
+                // 2+ articles en attente pour des produits différents ou le même produit :
+                // si une quantité NUE a déjà été vue plus tôt dans CE message et qu'elle
+                // correspond exactement à UN SEUL des articles en attente, ce n'est pas une
+                // supposition — c'est le client qui redonne le chiffre exact d'une ligne
+                // déjà connue pour la désigner (ex: "Finalement les 15, je les veux rouge").
+                if (pendingItems.length > 1 && lastBareQuantity !== null) {
+                    const narrowed = pendingItems.filter(it => it.quantity === lastBareQuantity)
+                    if (narrowed.length === 1) pendingItems = narrowed
+                }
+
                 if (pendingItems.length === 1) {
                     const pendingItem = pendingItems[0]
                     const pendingProduct = products.find(p => p.id === pendingItem.product_id)
@@ -434,6 +455,7 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                             existingByKey.set(keyOf(pendingItem), pendingItem)
                             continue
                         }
+
                         // Réponse courte, un seul article en attente, mais ne matche AUCUNE
                         // variante réelle de ce produit — probablement une couleur invalide
                         // donnée en réponse directe (ex: le sac demandé n'existe pas en "vert").
@@ -447,15 +469,34 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                         // bug réel constaté en testant sur données de production. Nettoyage
                         // identique à extractLeftoverAfterProductName (mots courants FR retirés),
                         // jamais deux logiques de nettoyage différentes pour le même concept.
+                        const cleaned = cleanCandidateVariantText(rest)
+                        const cleanedWordCount = cleaned ? cleaned.split(/\s+/).filter(Boolean).length : 0
+
                         if (productHasRealVariants(pendingProduct) && pendingItem.variant_status === 'missing') {
-                            const cleaned = cleanCandidateVariantText(rest)
-                            const cleanedWordCount = cleaned ? cleaned.split(/\s+/).filter(Boolean).length : 0
                             if (cleaned && cleanedWordCount <= 3) {
                                 existingByKey.delete(keyOf(pendingItem))
                                 applyStatus(pendingItem, 'invalid', cleaned, quantity)
                                 existingByKey.set(keyOf(pendingItem), pendingItem)
                                 continue
                             }
+                        }
+
+                        // Reformulation pure ("svp plutôt 10" une fois les mots courants
+                        // retirés) : plus AUCUN mot exploitable après nettoyage, mais un
+                        // chiffre est présent — mise à jour de quantité pure, sans toucher au
+                        // statut/valeur, quel que soit le statut actuel. Volontairement limité
+                        // au cas où `cleaned` est VIDE (pas juste court) : un reliquat non-vide
+                        // peut être un vrai nom de produit non reconnu avec sa propre quantité
+                        // (ex: "je veux aussi 5 chapex rouges" après un article déjà en
+                        // attente) — régression réelle constatée en testant une version plus
+                        // permissive de ce correctif, qui avalait "chapex rouges" comme une
+                        // simple correction de quantité. Ne couvre donc pas toutes les
+                        // reformulations ("finalement remet 15" garde un reliquat non vide,
+                        // "finalement remet") — cas volontairement laissé à l'IA plutôt que de
+                        // rouvrir une liste de mots-clés (même raisonnement que la négation).
+                        if (!cleaned && quantity !== null) {
+                            pendingItem.quantity = quantity
+                            continue
                         }
                     }
                 }
@@ -530,7 +571,14 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             // 2 candidats invalides (noire, verte) déjà en attente → ambigu → "rouge" devient
             // un 3e article séparé, comme le client l'a réellement exprimé.
             if (!existing && status === 'valid') {
-                const pendingCandidates = state.items.filter(it => it.product_id === product.id && it.variant_status !== 'valid')
+                let pendingCandidates = state.items.filter(it => it.product_id === product.id && it.variant_status !== 'valid')
+                // Même désambiguïsation par quantité nue que dans la branche "!product"
+                // ci-dessus (voir lastBareQuantity) — utile quand le produit ET la couleur
+                // sont nommés ensemble dans le segment qui lève l'ambiguïté.
+                if (pendingCandidates.length > 1 && lastBareQuantity !== null) {
+                    const narrowed = pendingCandidates.filter(it => it.quantity === lastBareQuantity)
+                    if (narrowed.length === 1) pendingCandidates = narrowed
+                }
                 if (pendingCandidates.length === 1) {
                     existing = pendingCandidates[0]
                     existingByKey.delete(keyOf(existing))
@@ -602,7 +650,16 @@ function buildLeadStateSummary(state) {
         } else {
             variantPart = 'variante manquante si applicable'
         }
-        lines.push(`- ${item.product_name} (${variantPart}) : ${qtyPart}`)
+        // Marqueur collé à la donnée elle-même plutôt qu'une règle générale ailleurs
+        // dans le prompt — bug réel constaté : une règle générale ("ne redemande jamais
+        // une quantité déjà connue") a échoué dès le 1er test réel après déploiement,
+        // précisément quand un autre article du même message posait problème (produit
+        // non reconnu). L'instruction collée au fait au moment où l'IA le lit est plus
+        // fiable qu'une règle à se rappeler et réappliquer depuis ailleurs.
+        const completeSuffix = (item.variant_status === 'valid' && item.quantity !== null)
+            ? ' ✅ COMPLET — ne redemande JAMAIS cette quantité ni cette variante, elles sont déjà connues'
+            : ''
+        lines.push(`- ${item.product_name} (${variantPart}) : ${qtyPart}${completeSuffix}`)
     }
     for (const mention of state.unmatched_mentions) {
         lines.push(`- "${mention.text}" (quantité ${mention.quantity}) : article non reconnu dans le catalogue`)

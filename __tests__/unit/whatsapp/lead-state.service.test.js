@@ -307,6 +307,44 @@ describe('lead-state.service', () => {
             expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'vert' })
         })
 
+        test('régression réelle : une reformulation de PURE remplissage ("svp pour vous 12") met à jour la quantité sans jamais toucher une couleur invalide déjà connue', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'svp pour vous 12', PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'vert', quantity: 12 })
+        })
+
+        test('limite connue et acceptée : une reformulation avec des mots NON filtrés ("Finalement remet 15") n\'est pas rattachée par le moteur — laissée à l\'IA, comme la négation', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '15 goube', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'En faite plutôt 10', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Finalement remet 15', PRODUCTS)
+            // Documente le comportement actuel (quantité reste 10, pas 15) plutôt que de
+            // le cacher — décision explicite : ne pas rouvrir de liste de mots-clés pour
+            // couvrir ce cas, voir le test précédent pour le sous-cas qui, lui, est couvert.
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0].quantity).toBe(10)
+        })
+
+        test('régression réelle (conv 3) : une quantité redonnée seule désambiguïse quel article en attente une couleur valide qui suit (dans un segment séparé par une virgule) doit compléter', () => {
+            let state = updateLeadStateFromUserMessage(
+                emptyState,
+                'Je veux 15 goube enfants noire et 4 goube enfants verte',
+                PRODUCTS
+            )
+            expect(state.items).toHaveLength(2)
+
+            // "Finalement les 15" et "je les veux rouge" sont deux segments séparés par
+            // une virgule — sans le rattachement par quantité nue, "rouge" ne pouvait
+            // jamais résoudre l'ambiguïté (2 candidats invalides du même produit) et
+            // créait un 3e article séparé au lieu de compléter la ligne des 15.
+            state = updateLeadStateFromUserMessage(state, 'Finalement les 15, je les veux rouge', PRODUCTS)
+            expect(state.items).toHaveLength(2)
+            const resolved = state.items.find(i => i.variant_status === 'valid')
+            const stillInvalid = state.items.find(i => i.variant_status === 'invalid')
+            expect(resolved).toMatchObject({ variant: 'Rouge', quantity: 15 })
+            expect(stillInvalid).toMatchObject({ requested_variant: 'verte', quantity: 4 })
+        })
+
         test('un préambule ("je veux", "je suis monsieur X") n\'est jamais pris pour une tentative de variante', () => {
             const state = updateLeadStateFromUserMessage(emptyState, 'Bonjour, je veux 15 sac', PRODUCTS)
             expect(state.items[0]).toMatchObject({ variant: null, quantity: 15, variant_status: 'missing' })
@@ -412,6 +450,25 @@ describe('lead-state.service', () => {
             const summary = buildLeadStateSummary(state)
             expect(summary).toMatch(/"ardoise noir"/)
             expect(summary).toMatch(/quantité 10/)
+        })
+
+        test('régression réelle : un article complet (variante valide + quantité connue) porte un marqueur ✅ COMPLET collé à la donnée', () => {
+            // Une règle générale dans le prompt ("ne redemande jamais une quantité déjà
+            // connue") a échoué au 1er test réel après déploiement, précisément quand un
+            // autre article du même message posait problème (produit non reconnu) — l'IA
+            // a quand même redemandé la quantité déjà donnée. Le marqueur est collé à la
+            // ligne elle-même plutôt que dans une règle à retenir séparément.
+            const state = updateLeadStateFromUserMessage(emptyState, '6 sac bleu', PRODUCTS)
+            const summary = buildLeadStateSummary(state)
+            expect(summary).toMatch(/✅ COMPLET/)
+        })
+
+        test('le marqueur ✅ COMPLET n\'apparaît jamais pour une quantité manquante ou une variante invalide', () => {
+            const missing = buildLeadStateSummary(updateLeadStateFromUserMessage(emptyState, 'sac bleu', PRODUCTS))
+            expect(missing).not.toMatch(/✅ COMPLET/)
+
+            const invalid = buildLeadStateSummary(updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS))
+            expect(invalid).not.toMatch(/✅ COMPLET/)
         })
     })
 
