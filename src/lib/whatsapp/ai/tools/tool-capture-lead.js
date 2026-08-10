@@ -53,7 +53,13 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
         // observé en prod (lead à 204 500 alors que le client avait vu/confirmé 206 500).
         const hasLastSeenTotal = lastSeenTotals && lastSeenTotals.total !== null && lastSeenTotals.total !== undefined
         const estimatedTotal = hasLastSeenTotal ? lastSeenTotals.total : (leadCart?.total ?? null)
-        const deliveryFee = hasLastSeenTotal ? lastSeenTotals.deliveryFee : (leadCart?.deliveryFee ?? null)
+        // Si le dernier récap montrait un TOTAL sans répéter la ligne "Frais de livraison"
+        // (ex: message de confirmation court), lastSeenTotals.deliveryFee est null — mais ça
+        // ne veut pas forcément dire "plus de livraison" : retombe sur le dernier frais connu
+        // de lead_cart plutôt que d'effacer silencieusement une livraison déjà confirmée.
+        const deliveryFee = hasLastSeenTotal && lastSeenTotals.deliveryFee !== null
+            ? lastSeenTotals.deliveryFee
+            : (leadCart?.deliveryFee ?? null)
 
         // Fusionne l'instruction capturée par code dans lead_notes si l'IA ne l'y a pas
         // déjà mise (elle atterrit parfois uniquement dans "interest" à la place).

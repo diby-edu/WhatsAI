@@ -147,6 +147,24 @@ describe('tool-capture-lead', () => {
         expect(row.items).toEqual([{ product_name: 'sac enfant', quantity: 15 }])
     })
 
+    test("régression trouvée en revue de code : un récap qui ne répète pas la ligne livraison ne doit jamais effacer un frais de livraison déjà connu", async () => {
+        const { supabase, getInsertedRow } = createSupabase({
+            metadata: {
+                lead_cart: { total: 206500, deliveryFee: 2000, items: [] },
+                // Un message ultérieur ne montrant que le TOTAL (ex: confirmation courte),
+                // sans répéter "Frais de livraison" — ne doit PAS être interprété comme
+                // "plus de livraison", juste comme une ligne non répétée.
+                lead_last_seen_totals: { total: 206500, deliveryFee: null },
+            },
+        })
+
+        await handleCaptureLead({}, 'agent-1', '+2250000000', 'conv-1', supabase)
+
+        const row = getInsertedRow()
+        expect(row.estimated_total).toBe(206500)
+        expect(row.delivery_fee).toBe(2000)
+    })
+
     test('retombe sur lead_cart quand aucun récap avec TOTAL n\'a encore été vu', async () => {
         const { supabase, getInsertedRow } = createSupabase({
             metadata: {

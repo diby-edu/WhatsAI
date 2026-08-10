@@ -558,7 +558,10 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             /souhaitez-vous ajouter une instruction/i.test(previousAssistantMessage)
         ) {
             const instructionAnswer = message.text.trim()
-            const isNegativeAnswer = /^(non|no|nan|rien|aucune?|pas\b|ça va|ca va|c'est bon|cest bon)/i.test(instructionAnswer)
+            // \b après chaque alternative courte : sans lui, "no" matche le préfixe de
+            // "Nous voulons..." et une vraie instruction positive serait jetée comme si
+            // le client avait dit "non" (bug réel trouvé en revue de code).
+            const isNegativeAnswer = /^(non\b|no\b|nan\b|rien\b|aucune?\b|pas\b|ça va|ca va|ça ira|ca ira|c'est bon|cest bon)/i.test(instructionAnswer)
             if (instructionAnswer && !isNegativeAnswer) {
                 await conversation.updateMetadata({ lead_instruction_answer: instructionAnswer })
             }
@@ -988,16 +991,30 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // ce que preview_cart a calculé en dernier — les deux peuvent diverger si l'IA
         // ajoute la livraison "à la main" sans rappeler l'outil, déjà observé en prod :
         // lead_cart restait à 204 500 alors que le client avait vu et confirmé 206 500).
-        // capture_lead lit cette valeur en priorité sur metadata.lead_cart. Passe par
-        // conversation.updateMetadata (merge en mémoire, pas de SELECT) plutôt qu'un
-        // read-modify-write direct, pour éviter la race condition que ce module évite
-        // déjà ailleurs (voir ConversationService.updateMetadata).
+        // capture_lead lit cette valeur en priorité sur metadata.lead_cart.
+        //
+        // ⚠️ Écriture ciblée via SELECT frais + UPDATE (PAS conversation.updateMetadata) :
+        // preview_cart (tool-cart-preview.js#persistLeadCart) écrit metadata.lead_cart par
+        // son propre appel Supabase brut, indépendant de l'instance `conversation` — donc
+        // this.metadata en mémoire ne reflète PAS ce lead_cart flambant neuf au moment où ce
+        // bloc s'exécute (juste après que l'IA a potentiellement appelé preview_cart). Un
+        // conversation.updateMetadata ici fusionnerait sur this.metadata PÉRIMÉ et écraserait
+        // en base le lead_cart que preview_cart vient d'écrire (bug réel trouvé en revue de
+        // code). On relit donc la métadonnée la plus fraîche juste avant de fusionner cette
+        // seule clé, comme le fait déjà persistLeadCart pour la même raison.
         if (isLeadOnlyMode && aiResponse.content) {
             try {
                 const { extractRecapTotals } = require('../services/lead-state.service')
                 const recapTotals = extractRecapTotals(aiResponse.content)
                 if (recapTotals) {
-                    await conversation.updateMetadata({ lead_last_seen_totals: recapTotals })
+                    const { data: freshConv } = await supabase
+                        .from('conversations')
+                        .select('metadata')
+                        .eq('id', conversation.id)
+                        .single()
+                    const mergedMetadata = { ...(freshConv?.metadata || conversation.metadata || {}), lead_last_seen_totals: recapTotals }
+                    await supabase.from('conversations').update({ metadata: mergedMetadata }).eq('id', conversation.id)
+                    conversation.metadata = mergedMetadata
                 }
             } catch (recapErr) {
                 console.error(`⚠️ [${agentId}] mémorisation des totaux du récap échouée (non-bloquant):`, recapErr?.message || recapErr)

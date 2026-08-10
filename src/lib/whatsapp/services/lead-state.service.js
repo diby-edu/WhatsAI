@@ -15,6 +15,13 @@
  */
 
 const { calculateItemPrice } = require('../ai/tools/pricing-logic')
+// Même vérité que calculateItemPrice (pricing-logic.js l'utilise déjà en interne pour
+// décider si un produit a de vraies variantes sélectionnables) — un simple
+// `variants?.length > 0` dirait "oui" pour un produit digital ou un groupe de
+// variantes sans options réelles, alors que calculateItemPrice le traite comme sans
+// variante ; sans cette cohérence, on flaguerait une "variante invalide" pour un
+// produit qui n'en a jamais eu.
+const { productHasRealVariants } = require('../ai/tools/tool-helpers')
 
 function normalizeText(value) {
     return String(value || '')
@@ -44,6 +51,9 @@ const STOPWORDS = new Set([
     'pour', 'avec', 'sans', 'dans', 'chez', 'sur', 'sous', 'vers', 'par',
     'des', 'les', 'une', 'un', 'du', 'de', 'la', 'le', 'et', 'ou', 'aussi',
     'plus', 'moins', 'ca', 'cela', 'ceci', 'que', 'qui', 'quoi',
+    // Devise — sans ça, "2 sacs à 5000 FCFA" isole "FCFA" comme reliquat après avoir
+    // retiré le produit, et le fait passer à tort pour une couleur/valeur invalide.
+    'fcfa', 'cfa', 'franc', 'francs', 'euro', 'euros', 'dollar', 'dollars',
 ])
 
 // Pluriel français basique ("gourdes" -> "gourde") — appliqué avant comparaison
@@ -52,18 +62,6 @@ const STOPWORDS = new Set([
 // que son singulier "gourde" (distance 2) passe.
 function singularize(word) {
     return word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word
-}
-
-// Un mot "appartient" au nom du produit s'il matche un de ses termes en préfixe
-// (pluriels simples) ou par tolérance aux fautes de frappe une fois singularisé
-// (pluriel + typo combinés, ex: "gourdes" -> "goube"). Utilisé à la fois pour le
-// score de findBestProduct et pour isoler ce qui reste après le nom du produit.
-function termMatchesProductTerm(term, pt) {
-    if (pt === term || pt.startsWith(term) || term.startsWith(pt)) return true
-    const st = singularize(term)
-    const maxLen = Math.max(st.length, pt.length)
-    const maxDist = maxLen <= 5 ? 1 : maxLen <= 9 ? 2 : 3
-    return levenshtein(st, pt) <= maxDist
 }
 
 // Distance de Levenshtein — tolère les fautes de frappe ("goude" ↔ "goube").
@@ -82,6 +80,28 @@ function levenshtein(a, b) {
         }
     }
     return dp[m][n]
+}
+
+// Tolérance faute de frappe, seuil basé sur le plus long des deux mots (une
+// insertion/suppression allonge le mot, un seuil sur le plus court serait trop
+// strict — ex: "gourde"(6) vs "goube"(5), distance 2, doit passer).
+function fuzzyDistanceOk(a, b) {
+    const maxLen = Math.max(a.length, b.length)
+    const maxDist = maxLen <= 5 ? 1 : maxLen <= 9 ? 2 : 3
+    return levenshtein(a, b) <= maxDist
+}
+
+// Un mot "appartient" au nom du produit s'il matche un de ses termes en préfixe
+// (pluriels simples) ou par tolérance aux fautes de frappe — comparé à la fois en
+// forme BRUTE et SINGULARISÉE (jamais l'une à la place de l'autre : singulariser
+// AIDE à détecter un pluriel de nom déjà typo, ex: "gourdes"->"gourde" pour matcher
+// "goube", mais un terme raccourci resserre parfois le seuil de tolérance — sans
+// garder aussi la forme brute, singulariser peut faire ÉCHOUER une correspondance
+// qui passait déjà avant, régression réelle trouvée en revue de code). Utilisé à la
+// fois pour le score de findBestProduct et pour isoler ce qui reste après le produit.
+function termMatchesProductTerm(term, pt) {
+    if (pt === term || pt.startsWith(term) || term.startsWith(pt)) return true
+    return fuzzyDistanceOk(term, pt) || fuzzyDistanceOk(singularize(term), pt)
 }
 
 // Correspondance floue produit : exact > substring > préfixe partagé (pluriels)
@@ -113,18 +133,11 @@ function findBestProduct(products, text) {
             )
             if (strongMatches.length > 0) score = Math.max(score, strongMatches.length * 20)
 
-            // Tolérance faute de frappe, basée sur le plus long des deux mots (une
-            // insertion/suppression allonge le mot, un seuil sur le plus court serait
-            // trop strict — ex: "gourde"(6) vs "goube"(5), distance 2, doit passer).
-            // Comparé après singularisation ("gourdes" -> "gourde") pour que le pluriel
-            // d'un nom déjà typo reste détectable (sinon distance 3, hors seuil).
+            // Tolérance faute de frappe (brute + singularisée) — même règle que
+            // termMatchesProductTerm, appelée ici plutôt que redupliquée pour que les
+            // deux ne puissent jamais diverger.
             const fuzzyMatches = queryTerms.filter(term =>
-                productTerms.some(pt => {
-                    const st = singularize(term)
-                    const maxLen = Math.max(st.length, pt.length)
-                    const maxDist = maxLen <= 5 ? 1 : maxLen <= 9 ? 2 : 3
-                    return levenshtein(st, pt) <= maxDist
-                })
+                productTerms.some(pt => termMatchesProductTerm(term, pt))
             )
             if (fuzzyMatches.length > 0) score = Math.max(score, fuzzyMatches.length * 18)
         }
@@ -143,15 +156,44 @@ function findBestProduct(products, text) {
     return null
 }
 
+// Un mot purement numérique ("5000") n'est jamais un nom de variante/couleur — sans
+// ce filtre, un prix résiduel dans le texte (ex: "à 5000 FCFA") survivrait au
+// nettoyage et serait pris à tort pour une tentative de variante invalide.
+const isPurelyNumeric = (w) => /^\d+$/.test(w)
+
+const isNoiseWord = (w) => {
+    const norm = normalizeText(w)
+    return norm.length <= 2 || STOPWORDS.has(norm) || isPurelyNumeric(norm)
+}
+
+// Nettoie un texte "réponse client" pour ne garder que ce qui pourrait être une
+// vraie tentative de variante — retire ponctuation de bord et mots courants FR
+// ("svp", "je", "veux"...). Utilisé aussi bien pour la réponse nue à une question
+// pendante ("svp vert" -> "vert") que par extractLeftoverAfterProductName (mêmes
+// règles, jamais deux logiques de nettoyage différentes pour le même concept).
+function cleanCandidateVariantText(text) {
+    return text.split(/\s+/).filter(Boolean).map(stripEdgePunctuation).filter(Boolean)
+        .filter(w => !isNoiseWord(w))
+        .join(' ').trim()
+}
+
 // Retire les mots correspondant au nom du produit d'un segment, pour isoler ce qui
-// reste — généralement une tentative de variante. Ex: "gourdes noire" + produit
-// "goube enfant" (matché via "gourdes") → reste "noire".
+// reste APRÈS lui — généralement une tentative de variante. Ex: "gourdes noire" +
+// produit "goube enfant" (matché via "gourdes") → reste "noire".
 //
-// Priorité au texte APRÈS le dernier mot du nom du produit (ordre naturel FR :
-// "gourdes noire", "sac vert") — ça évite qu'un préambule avant le produit
-// ("Salut je suis monsieur koffi je veux gourdes noire") pollue l'extraction en
-// gardant "koffi"/"monsieur" comme si c'était une tentative de variante. Repli sur
-// le filtre classique (tout le segment) si l'ordre est inversé ("vert sac").
+// Se limite au texte APRÈS le dernier mot du nom du produit (ordre naturel FR :
+// "gourdes noire", "sac vert") — ne tente PAS de repli sur "tout ce qui reste" si
+// rien ne suit ALORS QUE le nom du produit est bien présent dans ce texte : un
+// préambule avant le produit ("Salut je suis monsieur koffi je veux gourdes",
+// aucune couleur donnée) ne doit jamais être pris pour une tentative de variante —
+// mieux vaut "variante manquante" que "le client a demandé 'suis monsieur koffi'"
+// (faux positif réel constaté en vérification approfondie).
+//
+// Si en revanche le nom du produit n'apparaît PAS DU TOUT dans ce texte (cas de
+// l'énumération compacte "Gourde 5 rouge 13 vert" : le 2e morceau "13 vert" hérite
+// du produit d'un morceau précédent via anchorProduct, sans jamais nommer "gourde"
+// lui-même), il n'y a pas de "avant/après le produit" à distinguer — tout le texte
+// nettoyé EST la tentative de variante.
 function extractLeftoverAfterProductName(rest, product) {
     const productTerms = getMeaningfulTerms(product.name)
     const words = rest.split(/\s+/).filter(Boolean).map(stripEdgePunctuation).filter(Boolean)
@@ -161,21 +203,13 @@ function extractLeftoverAfterProductName(rest, product) {
         if (norm.length <= 2) return false
         return productTerms.some(pt => termMatchesProductTerm(norm, pt))
     }
-    const isNoiseWord = (w) => {
-        const norm = normalizeText(w)
-        return norm.length <= 2 || STOPWORDS.has(norm)
-    }
-    const keepWord = (w) => !isNoiseWord(w) && !isProductWord(w)
 
     let lastProductIdx = -1
     words.forEach((w, i) => { if (isProductWord(w)) lastProductIdx = i })
+    if (lastProductIdx < 0) return cleanCandidateVariantText(words.join(' '))
 
-    if (lastProductIdx >= 0) {
-        const afterLeftover = words.slice(lastProductIdx + 1).filter(keepWord)
-        if (afterLeftover.length > 0) return afterLeftover.join(' ').trim()
-    }
-
-    return words.filter(keepWord).join(' ').trim()
+    const afterWords = words.slice(lastProductIdx + 1).filter(w => !isProductWord(w))
+    return cleanCandidateVariantText(afterWords.join(' '))
 }
 
 // Découpe un message en segments indépendants (lignes + virgules + " et ").
@@ -184,6 +218,35 @@ function splitSegments(text) {
         .split(/\n|,|\bet\b/i)
         .map(s => s.trim())
         .filter(Boolean)
+}
+
+// Un nombre immédiatement suivi d'un mot de devise ("5000 FCFA") est un PRIX, jamais
+// une nouvelle quantité — sans cette exclusion, "2 sacs à 5000 FCFA" se découpe à tort
+// en 2 morceaux et le second (quantité=5000, aucun produit nommé) hérite du produit du
+// 1er morceau via anchorProduct puis ÉCRASE sa quantité correcte (bug réel constaté en
+// vérification approfondie : 2 devient 5000).
+const CURRENCY_WORD = /^(fcfa|cfa|francs?|euros?|dollars?)\b/i
+
+// Sous-découpe un segment contenant PLUSIEURS nombres sans séparateur (virgule/" et ")
+// entre eux, ex: "Gourde 5 rouge 13 bleu" — le nom du produit n'est donné qu'une fois,
+// suivi de deux paires quantité+variante. Sans cette étape, parseSegment ne trouve que
+// le PREMIER nombre (5) et le second ("13 bleu") reste noyé dans le texte, silencieusement
+// perdu (bug réel observé sur données de production : "13 bleu" jamais capturé). Chaque
+// nombre à partir du 2e démarre un nouveau morceau ; le 1er morceau garde le préambule.
+function splitByRepeatedQuantities(segment) {
+    const positions = [...segment.matchAll(/\b\d{1,4}\b/g)]
+        .filter(m => !CURRENCY_WORD.test(segment.slice(m.index + m[0].length).trimStart()))
+        .map(m => m.index)
+    if (positions.length <= 1) return [segment]
+
+    const chunks = []
+    for (let i = 0; i < positions.length; i++) {
+        const start = i === 0 ? 0 : positions[i]
+        const end = i + 1 < positions.length ? positions[i + 1] : segment.length
+        const chunk = segment.slice(start, end).trim()
+        if (chunk) chunks.push(chunk)
+    }
+    return chunks
 }
 
 // Quantité = premier nombre isolé du segment, où qu'il soit ("15 sac",
@@ -199,7 +262,20 @@ function parseSegment(segment) {
 
 function cloneState(state = {}) {
     return {
-        items: Array.isArray(state.items) ? state.items.map(it => ({ ...it })) : [],
+        // { ...it } ne copie qu'une réf vers invalid_variant_attempts (même tableau
+        // partagé entre l'ancien et le nouvel item) — sans le cloner explicitement,
+        // addInvalidVariantAttempt() (qui fait .push() en place) mute l'état PRÉCÉDENT
+        // en même temps que le nouveau. Conséquence réelle constatée : previousState et
+        // nextState deviennent JSON.stringify-identiques après un .push(), donc le test
+        // de changement dans message.js (`JSON.stringify(prev) !== JSON.stringify(next)`)
+        // ne détecte plus rien à persister — la tentative invalide est montrée à l'IA ce
+        // tour-ci mais jamais sauvegardée en base.
+        items: Array.isArray(state.items)
+            ? state.items.map(it => ({
+                ...it,
+                invalid_variant_attempts: Array.isArray(it.invalid_variant_attempts) ? [...it.invalid_variant_attempts] : [],
+            }))
+            : [],
         unmatched_mentions: Array.isArray(state.unmatched_mentions) ? [...state.unmatched_mentions] : [],
         fulfillment_mode: state.fulfillment_mode || null,
         updated_at: state.updated_at || null,
@@ -256,10 +332,18 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
     const segments = splitSegments(text)
 
     for (const segment of segments) {
-        const { quantity, rest } = parseSegment(segment)
+        // Produit identifié plus tôt DANS CE MÊME SEGMENT (ex: "Gourde" dans "Gourde 5
+        // rouge 13 bleu") — hérité par les morceaux suivants qui ne renomment pas le
+        // produit, sans quoi "13 bleu" (2e paire quantité+variante) serait perdu.
+        let anchorProduct = null
+        const chunks = splitByRepeatedQuantities(segment)
+
+        for (const chunk of chunks) {
+        const { quantity, rest } = parseSegment(chunk)
         if (!rest) continue
 
-        const product = findBestProduct(products, rest)
+        let product = findBestProduct(products, rest)
+        if (!product && anchorProduct) product = anchorProduct
         if (!product) {
             // Le segment ne nomme aucun produit — peut être une réponse "nue" à une
             // question de variante déjà posée (ex: le client répond juste "bleu" sans
@@ -284,7 +368,7 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                     // variante réelle de ce produit — probablement une couleur invalide
                     // donnée en réponse directe (ex: le sac demandé n'existe pas en "vert").
                     const restWordCount = rest.split(/\s+/).filter(Boolean).length
-                    if (pendingProduct.variants?.length > 0 && restWordCount > 0 && restWordCount <= 3) {
+                    if (productHasRealVariants(pendingProduct) && restWordCount > 0 && restWordCount <= 3) {
                         addInvalidVariantAttempt(pendingItem, stripEdgePunctuation(rest.trim()))
                         if (quantity !== null) pendingItem.quantity = quantity
                         continue
@@ -303,6 +387,7 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             }
             continue
         }
+        anchorProduct = product
 
         const pricingResult = calculateItemPrice(product, {}, rest, quantity || 1)
         const variant = pricingResult.variantOptionName || null
@@ -317,7 +402,7 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
         // pas fiable comme tentative de variante — mieux vaut "manquante" que d'injecter
         // du texte non pertinent dans le prompt envoyé à l'IA.
         let invalidVariantAttempt = null
-        if (!variant && product.variants?.length > 0) {
+        if (!variant && productHasRealVariants(product)) {
             const leftover = extractLeftoverAfterProductName(rest, product)
             const leftoverWordCount = leftover ? leftover.split(/\s+/).filter(Boolean).length : 0
             if (leftover && leftoverWordCount <= 3) invalidVariantAttempt = leftover
@@ -330,11 +415,21 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
         // produit était déjà en attente (variante null, éventuellement avec des
         // tentatives invalides déjà enregistrées), on le résout dans le même item
         // au lieu d'en créer un second en doublon (clé différente : "produit::" vs
-        // "produit::bleu").
+        // "produit::bleu"). Autorisé dans deux cas : (a) l'article en attente vient
+        // d'un tour PRÉCÉDENT (correction/clarification normale), ou (b) l'article en
+        // attente est une simple mention nue SANS AUCUNE info (ni quantité, ni
+        // tentative invalide) — ex: "Gourde enfant\n15 gourde enfant rouge" en un seul
+        // message : rien n'est perdu à fusionner puisque le 1er item était vide. Si le
+        // 1er item avait déjà une quantité ou une tentative invalide, on NE fusionne
+        // PAS (ex: "15 gourdes noire, 4 gourdes verte, 2 gourde rouge" — 3 lignes
+        // distinctes, pas une correction du même item).
         if (!existing && variant) {
             const pendingKey = itemKey(product.name, null)
             const pendingItem = existingByKey.get(pendingKey)
-            if (pendingItem && keysFromPreviousTurns.has(pendingKey)) {
+            const pendingIsEmptyPlaceholder = pendingItem
+                && pendingItem.quantity === null
+                && (pendingItem.invalid_variant_attempts?.length ?? 0) === 0
+            if (pendingItem && (keysFromPreviousTurns.has(pendingKey) || pendingIsEmptyPlaceholder)) {
                 existingByKey.delete(pendingKey)
                 existing = pendingItem
                 existingByKey.set(key, existing)
@@ -359,6 +454,7 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             }
             state.items.push(newItem)
             existingByKey.set(key, newItem)
+        }
         }
     }
 
@@ -409,15 +505,24 @@ const FCFA_NUMBER_PATTERN = `([\\d](?:${THOUSANDS_SEPARATOR_CLASS}|\\d)*)\\s*FCF
  * périmé — mais le texte réellement montré au client, lui, reste la source
  * de vérité de ce qu'il a vu/accepté.
  */
+// Retourne le DERNIER match d'un pattern global (pas le premier) : si un message
+// contient exceptionnellement deux mentions de "TOTAL" (ex: l'IA cite un montant
+// précédent avant de donner le montant corrigé), c'est la dernière — la plus
+// récente, donc la plus fiable — qui doit l'emporter, pas la première rencontrée.
+function lastMatch(text, pattern) {
+    const matches = [...text.matchAll(new RegExp(pattern, 'gi'))]
+    return matches.length > 0 ? matches[matches.length - 1] : null
+}
+
 function extractRecapTotals(text) {
     if (!text) return null
-    const totalMatch = text.match(new RegExp(`TOTAL\\s*:\\s*${FCFA_NUMBER_PATTERN}`, 'i'))
+    const totalMatch = lastMatch(text, `TOTAL\\s*:\\s*${FCFA_NUMBER_PATTERN}`)
     if (!totalMatch) return null
     const stripSeparators = new RegExp(THOUSANDS_SEPARATOR_CLASS, 'g')
     const total = parseInt(totalMatch[1].replace(stripSeparators, ''), 10)
     if (Number.isNaN(total)) return null
 
-    const feeMatch = text.match(new RegExp(`Frais de livraison\\s*:\\s*${FCFA_NUMBER_PATTERN}`, 'i'))
+    const feeMatch = lastMatch(text, `Frais de livraison\\s*:\\s*${FCFA_NUMBER_PATTERN}`)
     const parsedFee = feeMatch ? parseInt(feeMatch[1].replace(stripSeparators, ''), 10) : null
 
     return { total, deliveryFee: Number.isNaN(parsedFee) ? null : parsedFee }

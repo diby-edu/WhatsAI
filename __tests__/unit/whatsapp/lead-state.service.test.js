@@ -4,6 +4,7 @@ const {
     updateLeadStateFromUserMessage,
     buildLeadStateSummary,
     findBestProduct,
+    extractRecapTotals,
 } = require('../../../src/lib/whatsapp/services/lead-state.service')
 
 const PRODUCTS = [
@@ -83,6 +84,46 @@ describe('lead-state.service', () => {
             const goube = state.items.find(i => i.product_name === 'goube enfant')
             expect(sac).toMatchObject({ variant: 'Noir', quantity: 5 })
             expect(goube).toMatchObject({ variant: 'Rouge', quantity: 10 })
+        })
+
+        test('régression réelle : "Gourde 5 rouge 13 bleu" (2 paires quantité+variante sans virgule ni "et") capture les DEUX', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'Gourde 5 rouge 13 bleu', PRODUCTS)
+            const rouge = state.items.find(i => i.variant === 'Rouge')
+            const bleu = state.items.find(i => i.variant === 'Bleu')
+            expect(state.items).toHaveLength(2)
+            expect(rouge).toMatchObject({ product_name: 'goube enfant', quantity: 5 })
+            expect(bleu).toMatchObject({ product_name: 'goube enfant', quantity: 13 })
+        })
+
+        test('énumération compacte sur plusieurs lignes : le produit nommé une fois s\'applique à chaque paire suivante de la même ligne', () => {
+            const state = updateLeadStateFromUserMessage(
+                emptyState, 'Pour les sacs, couleur bleu\nGourde 5 rouge 13 bleu', PRODUCTS
+            )
+            expect(state.items).toHaveLength(3)
+            expect(state.items.find(i => i.product_name === 'sac enfant')).toMatchObject({ variant: 'Bleu', quantity: null })
+            expect(state.items.filter(i => i.product_name === 'goube enfant')).toHaveLength(2)
+        })
+
+        test('énumération compacte avec une 2e couleur invalide : distincte de la 1re, pas fusionnée', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'Gourde 5 rouge 13 vert', PRODUCTS)
+            const rouge = state.items.find(i => i.variant === 'Rouge')
+            const invalide = state.items.find(i => i.variant === null)
+            expect(rouge).toMatchObject({ quantity: 5 })
+            expect(invalide).toMatchObject({ quantity: 13 })
+            expect(invalide.invalid_variant_attempts).toEqual(['vert'])
+        })
+
+        test('énumération compacte sur un seul produit, sans virgule : "sac 5 bleu 3 jaune"', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'sac 5 bleu 3 jaune', PRODUCTS)
+            expect(state.items).toHaveLength(2)
+            expect(state.items.find(i => i.variant === 'Bleu')).toMatchObject({ quantity: 5 })
+            expect(state.items.find(i => i.variant === 'Jaune')).toMatchObject({ quantity: 3 })
+        })
+
+        test('un seul nombre par segment continue de fonctionner normalement (pas de sous-découpage inutile)', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, '15 sac', PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ quantity: 15, variant: null })
         })
 
         test('ne modifie jamais un article déjà complet sans nouvelle information', () => {
@@ -217,6 +258,90 @@ describe('lead-state.service', () => {
 
             const restored = getLeadState(metadata)
             expect(restored.items).toEqual(state.items)
+        })
+    })
+
+    describe('régressions trouvées en revue de code approfondie', () => {
+        test('cloneState ne partage jamais le tableau invalid_variant_attempts entre deux appels successifs (bug de mutation en place)', () => {
+            const prev = updateLeadStateFromUserMessage(emptyState, '10 goube noire', PRODUCTS)
+            const prevSnapshot = JSON.stringify(prev)
+            const next = updateLeadStateFromUserMessage(prev, '10 goube verte', PRODUCTS)
+
+            // prev ne doit JAMAIS être modifié par un appel ultérieur — sinon la
+            // détection de changement par JSON.stringify(prev) !== JSON.stringify(next)
+            // dans message.js échoue silencieusement et la nouvelle tentative invalide
+            // n'est jamais persistée en base.
+            expect(JSON.stringify(prev)).toBe(prevSnapshot)
+            expect(prev.items[0].invalid_variant_attempts).toEqual(['noire'])
+            expect(next.items[0].invalid_variant_attempts).toEqual(['noire', 'verte'])
+            expect(JSON.stringify(prev)).not.toBe(JSON.stringify(next))
+        })
+
+        test('une mention nue sans aucune info suivie d\'une mention complète dans le MÊME message fusionne en un seul article', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'Gourde enfant\n15 gourde enfant rouge', PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ variant: 'Rouge', quantity: 15 })
+        })
+
+        test('un prix mentionné dans le même message ("à 5000 FCFA") n\'écrase jamais la quantité réelle ni ne devient une fausse variante invalide', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'je veux 2 sacs a 5000 FCFA', PRODUCTS)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ quantity: 2, variant: null })
+            expect(state.items[0].invalid_variant_attempts).toEqual([])
+            expect(state.unmatched_mentions).toEqual([])
+        })
+
+        test('une couleur héritée du produit-ancre (énumération compacte) sans nommer à nouveau le produit est bien signalée comme invalide si elle ne matche aucune variante', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, 'Gourde 5 rouge 13 vert', PRODUCTS)
+            const invalide = state.items.find(i => i.quantity === 13)
+            expect(invalide.invalid_variant_attempts).toEqual(['vert'])
+        })
+
+        test('singulariser un terme ne doit jamais faire échouer une correspondance qui passait déjà sur sa forme brute', () => {
+            const typoProducts = [{ id: 'x', name: 'fleru', variants: [] }]
+            // "fleurs" (6) -> singularisé "fleur" (5) vs "fleru" (5) : distance 2, seuil
+            // resserré à 1 après singularisation si on ne compare QUE la forme courte —
+            // doit quand même matcher grâce à la forme brute (maxLen 6, seuil 2).
+            expect(findBestProduct(typoProducts, 'fleurs')?.name).toBe('fleru')
+        })
+
+        test('un produit dont le seul groupe de variantes a des options vides n\'est jamais traité comme ayant de vraies variantes', () => {
+            const noRealVariantProduct = [{
+                id: 'y', name: 'porte cle', price_fcfa: 500,
+                variants: [{ id: 'v', name: 'Couleur', type: 'fixed', options: [] }],
+            }]
+            const state = updateLeadStateFromUserMessage(emptyState, '5 porte cle rouge', noRealVariantProduct)
+            expect(state.items[0].invalid_variant_attempts).toEqual([])
+        })
+    })
+
+    describe('extractRecapTotals', () => {
+        test('lit TOTAL et Frais de livraison au format exact de preview_cart (toLocaleString fr-FR)', () => {
+            const text = `Voici votre commande :\n*Frais de livraison : ${(2000).toLocaleString('fr-FR')} FCFA*\n*TOTAL : ${(206500).toLocaleString('fr-FR')} FCFA*`
+            expect(extractRecapTotals(text)).toEqual({ total: 206500, deliveryFee: 2000 })
+        })
+
+        test('deliveryFee reste null quand seul TOTAL est présent (retrait en boutique)', () => {
+            expect(extractRecapTotals(`*TOTAL : ${(75000).toLocaleString('fr-FR')} FCFA*`)).toEqual({ total: 75000, deliveryFee: null })
+        })
+
+        test('retourne null si aucun TOTAL dans le texte', () => {
+            expect(extractRecapTotals('Bonjour, que puis-je pour vous ?')).toBeNull()
+            expect(extractRecapTotals('')).toBeNull()
+            expect(extractRecapTotals(null)).toBeNull()
+        })
+
+        test('régression : prend le DERNIER total mentionné, pas le premier', () => {
+            const text = '*TOTAL : 100 FCFA*\n... correction ...\n*TOTAL : 50 000 FCFA*'
+            expect(extractRecapTotals(text)).toEqual({ total: 50000, deliveryFee: null })
+        })
+
+        test('accepte un total sans séparateur de milliers (montant court)', () => {
+            expect(extractRecapTotals('*TOTAL : 9500 FCFA*')).toEqual({ total: 9500, deliveryFee: null })
+        })
+
+        test('frais de livraison à 0 FCFA (livraison gratuite) est distingué de "pas de livraison"', () => {
+            expect(extractRecapTotals('*Frais de livraison : 0 FCFA*\n*TOTAL : 5000 FCFA*')).toEqual({ total: 5000, deliveryFee: 0 })
         })
     })
 })
