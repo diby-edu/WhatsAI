@@ -379,12 +379,25 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                         // Réponse courte, un seul article en attente, mais ne matche AUCUNE
                         // variante réelle de ce produit — probablement une couleur invalide
                         // donnée en réponse directe (ex: le sac demandé n'existe pas en "vert").
-                        const restWordCount = rest.split(/\s+/).filter(Boolean).length
-                        if (productHasRealVariants(pendingProduct) && restWordCount > 0 && restWordCount <= 3) {
-                            existingByKey.delete(keyOf(pendingItem))
-                            applyStatus(pendingItem, 'invalid', stripEdgePunctuation(rest.trim()), quantity)
-                            existingByKey.set(keyOf(pendingItem), pendingItem)
-                            continue
+                        // Cette supposition est FAIBLE (aucun rapport confirmé avec le produit,
+                        // contrairement à extractLeftoverAfterProductName qui part d'un nom de
+                        // produit réellement reconnu) — on ne l'autorise donc QUE si l'article
+                        // n'a encore AUCUNE valeur invalide déjà enregistrée. Sans ce garde-fou,
+                        // un segment sans rapport plus loin dans le même message (ex: "j'habite
+                        // à Abobo", une présentation) peut écraser une couleur invalide déjà
+                        // correctement détectée par un texte qui n'a jamais été une couleur —
+                        // bug réel constaté en testant sur données de production. Nettoyage
+                        // identique à extractLeftoverAfterProductName (mots courants FR retirés),
+                        // jamais deux logiques de nettoyage différentes pour le même concept.
+                        if (productHasRealVariants(pendingProduct) && pendingItem.variant_status === 'missing') {
+                            const cleaned = cleanCandidateVariantText(rest)
+                            const cleanedWordCount = cleaned ? cleaned.split(/\s+/).filter(Boolean).length : 0
+                            if (cleaned && cleanedWordCount <= 3) {
+                                existingByKey.delete(keyOf(pendingItem))
+                                applyStatus(pendingItem, 'invalid', cleaned, quantity)
+                                existingByKey.set(keyOf(pendingItem), pendingItem)
+                                continue
+                            }
                         }
                     }
                 }

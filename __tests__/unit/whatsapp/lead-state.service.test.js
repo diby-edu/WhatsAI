@@ -234,6 +234,26 @@ describe('lead-state.service', () => {
             expect(state.items[0]).toMatchObject({ variant: 'Bleu', quantity: 10, variant_status: 'valid' })
         })
 
+        test('régression réelle (Traoré) : une couleur invalide déjà connue n\'est jamais écrasée par un segment sans rapport plus loin dans le même message', () => {
+            const state = updateLeadStateFromUserMessage(
+                emptyState,
+                "Je veux 8 sacs roses. Je suis madame Traoré, j'habite à abobo et je veux aussi 5 chapex rouges",
+                PRODUCTS
+            )
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'roses', quantity: 8 })
+        })
+
+        test('une réponse courte à une question en attente ne devine une couleur invalide QUE si aucune n\'est encore connue', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS)
+            expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'vert' })
+
+            // "en fait" (3 mots courts, aucun produit nommé) ne doit PAS remplacer "vert"
+            // par un texte sans rapport, puisqu'une tentative invalide est déjà connue.
+            state = updateLeadStateFromUserMessage(state, 'ah pardon voila', PRODUCTS)
+            expect(state.items[0]).toMatchObject({ variant_status: 'invalid', requested_variant: 'vert' })
+        })
+
         test('un préambule ("je veux", "je suis monsieur X") n\'est jamais pris pour une tentative de variante', () => {
             const state = updateLeadStateFromUserMessage(emptyState, 'Bonjour, je veux 15 sac', PRODUCTS)
             expect(state.items[0]).toMatchObject({ variant: null, quantity: 15, variant_status: 'missing' })
