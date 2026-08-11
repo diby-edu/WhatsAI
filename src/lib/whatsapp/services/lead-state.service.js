@@ -67,6 +67,22 @@ const STOPWORDS = new Set([
     // être pris pour une tentative de couleur invalide (bug réel constaté : un article
     // fantôme avait fini avec requested_variant="boutique").
     'boutique', 'livraison', 'livre', 'livree', 'livrer', 'domicile', 'retrait', 'recuperation',
+    // Verbes de parole — le client qui répète ou confirme ("J'ai dis 10", "je précise 10")
+    // ne nomme aucun article. Sans ces mots, "J'ai dis" survivait au nettoyage et le
+    // moteur enregistrait un article fantôme « J'ai dis » de quantité 10 (bug réel
+    // constaté en production le 11/08/2026).
+    'ai', 'as', 'avons', 'avez', 'ont', 'dis', 'dit', 'dire', 'disais', 'redis',
+    'precise', 'precisais', 'confirme', 'confirmais', 'repete', 'repetais', 'redemande',
+    // Verbes/pronoms fréquents d'une phrase ordinaire — sans eux, des fragments comme
+    // "c'est bien noté", "suis cocody riviera" ou "moi" devenaient des articles fantômes
+    // (constaté sur un corpus de messages difficiles, 11/08/2026).
+    'est', 'sont', 'suis', 'etes', 'sommes', 'etait', 'sera', 'bien', 'note', 'notee',
+    'moi', 'toi', 'lui', 'eux', 'mon', 'ton', 'son', 'mes', 'tes', 'ses', 'notre', 'votre',
+    'autre', 'autres', 'meme', 'memes', 'habite', 'appelle', 'nomme', 'juste', 'seulement',
+    // Destinataires — "4 autres pour mon fils" laissait "fils" comme article commandé.
+    // Volontairement SANS "enfant", qui fait partie des noms de produits du catalogue.
+    'fils', 'fille', 'filles', 'femme', 'mari', 'frere', 'soeur', 'ami', 'amie',
+    'maman', 'papa', 'mere', 'pere', 'cousin', 'cousine', 'neveu', 'niece',
 ])
 
 // Pluriel français basique ("gourdes" -> "gourde") — appliqué avant comparaison
@@ -174,9 +190,16 @@ function findBestProduct(products, text) {
 // nettoyage et serait pris à tort pour une tentative de variante invalide.
 const isPurelyNumeric = (w) => /^\d+$/.test(w)
 
+// Pronom élidé collé au verbe : "j'ai", "n'ai", "qu'il" forment un seul token, donc
+// aucun mot de STOPWORDS ne les couvre. Sans ce dépliage, "J'ai dis 10" laisse le
+// reliquat "J'ai dis" et le moteur l'enregistre comme un article inconnu.
+const ELIDED_PRONOUN_PREFIX = /^(?:[jnmtsldc]|qu)['’]/
+
 const isNoiseWord = (w) => {
     const norm = normalizeText(w)
-    return norm.length <= 2 || STOPWORDS.has(norm) || isPurelyNumeric(norm)
+    const stem = ELIDED_PRONOUN_PREFIX.test(norm) ? norm.replace(ELIDED_PRONOUN_PREFIX, '') : norm
+    return norm.length <= 2 || stem.length <= 2 ||
+        STOPWORDS.has(norm) || STOPWORDS.has(stem) || isPurelyNumeric(norm)
 }
 
 // Nettoie un texte "réponse client" pour ne garder que ce qui pourrait être une
@@ -237,7 +260,11 @@ function isNegationSegment(text) {
     const norm = normalizeText(text)
     const hasNeMarker = /n['’]|(?:^|\s)ne(?:\s|$)/.test(norm)
     const hasPas = /\bpas\b/.test(norm)
-    return (hasNeMarker && hasPas) || /\bsans\b/.test(norm) || /\baucune?\b/.test(norm)
+    // "pas de gourde pour moi" : à l'oral le "ne" saute presque toujours. Exiger les deux
+    // marqueurs laissait passer la négation la plus courante, et le segment créait une
+    // ligne fantôme pour le produit que le client venait justement de refuser.
+    const hasSpokenNegation = /\bpas\s+(?:de|d['’])/.test(norm)
+    return (hasNeMarker && hasPas) || hasSpokenNegation || /\bsans\b/.test(norm) || /\baucune?\b/.test(norm)
 }
 
 // Retrait/modification ("enlève 5 sacs", "retire 2 gourdes", "annule les sacs") : le
@@ -319,6 +346,81 @@ function parseSegment(segment) {
     return { quantity, rest: rest || segment.trim() }
 }
 
+// Quantités écrites en toutes lettres. Volontairement NON utilisé par parseSegment :
+// "un"/"une" sont d'abord des déterminants, et les traiter comme des quantités en
+// amont ferait naître des articles fantômes sur des phrases banales ("une autre
+// couleur" -> article inconnu "autre couleur" de quantité 1). On ne s'en sert donc
+// qu'APRÈS avoir identifié un produit réel, là où "une gourde bleue" ne peut vouloir
+// dire qu'une chose. Bug réel : "4 gourde rouge, une goude bleu" enregistrait la
+// gourde bleue avec quantity=null.
+const WORD_QUANTITIES = new Map([
+    ['un', 1], ['une', 1], ['deux', 2], ['trois', 3], ['quatre', 4], ['cinq', 5],
+    ['six', 6], ['sept', 7], ['huit', 8], ['neuf', 9], ['dix', 10],
+    ['onze', 11], ['douze', 12], ['treize', 13], ['quatorze', 14], ['quinze', 15],
+    ['seize', 16], ['vingt', 20], ['trente', 30], ['cinquante', 50], ['cent', 100],
+])
+
+// Le texte est-il EXACTEMENT une valeur de variante de ce produit ? Volontairement
+// strict, contrairement à calculateItemPrice qui matche aussi par inclusion : « ardoise
+// noir » contient « noir » et serait accepté comme la couleur Noir du sac, ce qui ferait
+// disparaître un vrai article inconnu du catalogue (régression constatée en écrivant ce
+// correctif). Ici on ne veut reconnaître qu'une réponse nue du type « jaune ».
+function matchesVariantOptionExactly(product, text) {
+    const norm = normalizeText(text)
+    if (!norm) return null
+    for (const variant of product?.variants || []) {
+        for (const option of variant.options || []) {
+            const value = option?.value ?? option?.name ?? option
+            // Tolérance au genre et au pluriel ("2 bleues" pour l'option "Bleu"), mais sur
+            // le texte ENTIER : "ardoise noir" reste à distance 8 de "noir" et n'est donc
+            // jamais confondu avec la couleur, contrairement au matching par inclusion.
+            if (fuzzyDistanceOk(singularize(norm), singularize(normalizeText(value)))) return value
+        }
+    }
+    return null
+}
+
+// Ce mot apparaît-il dans une des valeurs de variante du produit ? Sert à repérer un
+// mot "étranger" dans une réponse censée être une variante nue — comparaison tolérante
+// aux fautes et au genre ("noire" ↔ "Noir"), contrairement à matchesVariantOptionExactly
+// qui compare la valeur entière.
+function productHasVariantWord(product, word) {
+    const norm = singularize(normalizeText(stripEdgePunctuation(word)))
+    if (!norm) return true
+    for (const variant of product?.variants || []) {
+        // Le nom du groupe fait partie du vocabulaire légitime d'une réponse de variante :
+        // le client répond souvent "couleur bleu" et pas seulement "bleu".
+        const vocabulary = [variant.name, ...(variant.options || []).map(o => o?.value ?? o?.name ?? o)]
+        for (const entry of vocabulary) {
+            for (const entryWord of normalizeText(entry).split(/\s+/).filter(Boolean)) {
+                if (fuzzyDistanceOk(norm, singularize(entryWord))) return true
+            }
+        }
+    }
+    return false
+}
+
+// "une dizaine", "deux douzaines" : le nombre porte sur un COLLECTIF approximatif, pas
+// sur les articles. Lire "une" comme la quantité 1 y produit une valeur fausse — pire
+// qu'une absence, puisque l'agent ne la demandera plus. On préfère ne rien conclure et
+// laisser l'IA demander le nombre exact (règle "n'invente jamais une quantité").
+const COLLECTIVE_QUANTITIES = new Set([
+    'dizaine', 'dizaines', 'douzaine', 'douzaines', 'quinzaine', 'quinzaines',
+    'vingtaine', 'vingtaines', 'trentaine', 'trentaines', 'cinquantaine', 'cinquantaines',
+    'centaine', 'centaines', 'millier', 'milliers', 'paire', 'paires', 'poignee', 'poignees',
+])
+
+function parseWordQuantity(text) {
+    const words = normalizeText(text).split(/\s+/).filter(Boolean).map(stripEdgePunctuation)
+    for (let i = 0; i < words.length; i++) {
+        const value = WORD_QUANTITIES.get(words[i])
+        if (value === undefined) continue
+        if (COLLECTIVE_QUANTITIES.has(words[i + 1] || '')) return null
+        return value
+    }
+    return null
+}
+
 // Copie superficielle suffisante : contrairement à l'ancien modèle (un tableau
 // invalid_variant_attempts muté en place), chaque article n'a plus que des champs
 // scalaires (variant_status/variant/requested_variant/quantity) — plus aucun risque
@@ -397,6 +499,10 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
     // rouge" — la virgule sépare "15" de "rouge" en deux segments distincts ; sans ce
     // suivi, "rouge" ne peut jamais se rattacher puisqu'il y a 2 candidats ambigus).
     let lastBareQuantity = null
+    // Dernier produit réellement nommé dans CE message, tous segments confondus —
+    // contrairement à anchorProduct qui est réinitialisé à chaque segment. Sert aux
+    // énumérations elliptiques coupées par une virgule ou un " et ".
+    let messageAnchorProduct = null
 
     for (const segment of segments) {
         // Produit identifié plus tôt DANS CE MÊME SEGMENT (ex: "Gourde" dans "Gourde 5
@@ -406,7 +512,9 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
         const chunks = splitByRepeatedQuantities(segment)
 
         for (const chunk of chunks) {
-            const { quantity, rest } = parseSegment(chunk)
+            // `let` : la quantité peut être complétée plus bas par sa forme en toutes
+            // lettres, une fois seulement qu'un produit réel a été identifié.
+            let { quantity, rest } = parseSegment(chunk)
             if (!rest) continue
 
             // "je n'ai pas choisi de gourde" (rejette un produit) ou "enlève 5 sacs"
@@ -424,6 +532,23 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
 
             let product = findBestProduct(products, rest)
             if (!product && anchorProduct) product = anchorProduct
+
+            // Énumération elliptique répartie sur PLUSIEURS segments : "Sac 5 bleu, 3 jaune
+            // et 2 noir" est découpé par la virgule et " et ", donc anchorProduct — volontairement
+            // limité au segment courant — ne couvre pas "3 jaune" ni "2 noir". Résultat observé
+            // en production : ces deux morceaux étaient enregistrés comme des ARTICLES INCONNUS
+            // du catalogue, et le résumé ordonnait à l'IA d'annoncer au client qu'on ne vend pas
+            // de "jaune".
+            // On étend donc l'ancre au dernier produit nommé dans le MESSAGE, mais uniquement
+            // pour un morceau qui est sans ambiguïté une paire quantité + variante réelle de ce
+            // produit. Sans cette double condition, une phrase sans rapport ("mon nom est Alain")
+            // hériterait du produit et créerait une ligne fantôme.
+            if (!product && messageAnchorProduct && quantity !== null) {
+                const candidate = cleanCandidateVariantText(rest)
+                if (candidate && matchesVariantOptionExactly(messageAnchorProduct, candidate)) {
+                    product = messageAnchorProduct
+                }
+            }
 
             if (!product) {
                 if (quantity !== null) lastBareQuantity = quantity
@@ -449,7 +574,19 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                     const pendingProduct = products.find(p => p.id === pendingItem.product_id)
                     if (pendingProduct) {
                         const pendingResult = calculateItemPrice(pendingProduct, {}, rest, 1)
-                        if (!pendingResult.error && pendingResult.variantOptionName) {
+                        // calculateItemPrice matche par INCLUSION : "10 ardoise noir" contient
+                        // "noir" et serait pris pour la couleur du sac en attente — l'ardoise,
+                        // article inconnu du catalogue, disparaît alors en écrasant la ligne
+                        // existante (bug réel présent avant ce correctif : "4 sac vert, 10
+                        // ardoise noir" ne laissait qu'un "sac Noir ×10").
+                        // Une vraie réponse nue tient en un mot ("noire", "bleu foncé" pour une
+                        // option en deux mots). Dès qu'un mot du reliquat n'appartient à AUCUNE
+                        // option du produit, ce n'est pas une réponse de variante.
+                        const strayWord = pendingResult.variantOptionName
+                            ? cleanCandidateVariantText(rest).split(/\s+/).filter(Boolean)
+                                .find(word => !productHasVariantWord(pendingProduct, word))
+                            : null
+                        if (!pendingResult.error && pendingResult.variantOptionName && !strayWord) {
                             existingByKey.delete(keyOf(pendingItem))
                             applyStatus(pendingItem, 'valid', pendingResult.variantOptionName, quantity)
                             existingByKey.set(keyOf(pendingItem), pendingItem)
@@ -473,6 +610,14 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                         const cleanedWordCount = cleaned ? cleaned.split(/\s+/).filter(Boolean).length : 0
 
                         if (productHasRealVariants(pendingProduct) && pendingItem.variant_status === 'missing') {
+                            // LIMITE CONNUE : ce plafond de 3 mots laisse passer une phrase sans
+                            // rapport comme couleur invalide ("je suis a cocody riviera 3" →
+                            // couleur "cocody riviera"). Le resserrer à 1 mot a été essayé et
+                            // rejeté : il laisse passer les mots isolés ("possible" dans
+                            // "livraison possible ?") tout en cassant des cas légitimes en deux
+                            // mots. La longueur n'est pas le bon discriminant ici — il faudrait
+                            // savoir si une question de variante vient d'être posée, information
+                            // que ce moteur n'a pas (il ne voit que les messages du client).
                             if (cleaned && cleanedWordCount <= 3) {
                                 existingByKey.delete(keyOf(pendingItem))
                                 applyStatus(pendingItem, 'invalid', cleaned, quantity)
@@ -515,7 +660,11 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                 // silencieusement l'une par l'autre.
                 const filteredRest = stripLeadingFiller(rest)
                 const restWordCount = filteredRest.split(/\s+/).filter(Boolean).length
-                if (quantity !== null && filteredRest && restWordCount > 0 && restWordCount <= 4) {
+                // Plafond resserré de 4 à 2 mots : un nom d'article inconnu tient en 1-2 mots
+                // ("chaises blanches", "ardoise noir"). Au-delà, c'est un morceau de phrase —
+                // "autres pour mon fils" et "suis cocody riviera" étaient enregistrés comme
+                // des articles commandés (constaté sur corpus difficile, 11/08/2026).
+                if (quantity !== null && filteredRest && restWordCount > 0 && restWordCount <= 2) {
                     const normRest = normalizeText(filteredRest)
                     const existingMention = state.unmatched_mentions.find(m => normalizeText(m.text) === normRest)
                     if (!existingMention) {
@@ -528,6 +677,11 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             }
 
             anchorProduct = product
+            messageAnchorProduct = product
+
+            // Quantité en toutes lettres : sûre à lire seulement maintenant, un produit réel
+            // ayant été identifié dans ce morceau (voir WORD_QUANTITIES).
+            if (quantity === null) quantity = parseWordQuantity(chunk)
 
             const pricingResult = calculateItemPrice(product, {}, rest, quantity || 1)
             const variant = pricingResult.variantOptionName || null
@@ -560,6 +714,19 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
 
             const key = itemKey(product.name, status, value)
             let existing = existingByKey.get(key)
+
+            // Répétition, pas nouvelle commande : le client qui redit "les 10 sacs c'est bien
+            // noté" ne commande pas 10 sacs de plus. Quand le segment n'apporte AUCUNE
+            // information de variante (status 'missing') mais que ce produit a déjà une ligne
+            // portant exactement cette quantité, c'est un rappel de la ligne existante.
+            // Ne s'applique qu'à 'missing' : un statut valide ou invalide apporte, lui, une
+            // information nouvelle qui mérite sa propre ligne.
+            if (!existing && status === 'missing' && quantity !== null) {
+                const sameQuantityLine = state.items.filter(
+                    it => it.product_id === product.id && it.quantity === quantity
+                )
+                if (sameQuantityLine.length === 1) continue
+            }
 
             // Résolution "article en attente" : uniquement quand ce nouveau statut est
             // 'valid' ET qu'aucun article n'a déjà exactement cette clé. On cherche alors

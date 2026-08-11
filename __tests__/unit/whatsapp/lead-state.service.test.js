@@ -104,6 +104,110 @@ describe('lead-state.service', () => {
             expect(state.items.filter(i => i.product_name === 'goube enfant')).toHaveLength(2)
         })
 
+        // ── Quatre régressions relevées sur des conversations WhatsApp réelles (11/08/2026).
+        // Dans les trois premières, le moteur écrivait un état FAUX et c'est seulement le
+        // refus de l'IA de le suivre qui a sauvé la commande.
+
+        test('une quantité écrite en toutes lettres est lue comme une quantité', () => {
+            // "4 gourde rouge, une goude bleu" enregistrait la gourde bleue avec quantity=null.
+            const state = updateLeadStateFromUserMessage(emptyState, '4 gourde rouge, une goude bleu', PRODUCTS)
+            const bleu = state.items.find(i => i.variant === 'Bleu')
+            expect(bleu).toMatchObject({ product_name: 'goube enfant', quantity: 1 })
+            expect(state.items.find(i => i.variant === 'Rouge')).toMatchObject({ quantity: 4 })
+        })
+
+        test('un mot-quantité isolé ne crée jamais d\'article quand aucun produit n\'est nommé', () => {
+            // Garde-fou du correctif ci-dessus : "une" est d'abord un déterminant.
+            const state = updateLeadStateFromUserMessage(emptyState, 'une autre couleur svp', PRODUCTS)
+            expect(state.items).toHaveLength(0)
+            expect(state.unmatched_mentions).toHaveLength(0)
+        })
+
+        test('énumération elliptique séparée par des virgules et "et" : le produit reste porté', () => {
+            // "Sac 5 bleu, 3 jaune et 2 noir" : splitSegments coupe sur "," et " et ", donc
+            // "3 jaune" et "2 noir" étaient enregistrés comme ARTICLES INCONNUS du catalogue.
+            const state = updateLeadStateFromUserMessage(emptyState, 'Sac 5 bleu, 3 jaune et 2 noir', PRODUCTS)
+            expect(state.unmatched_mentions).toHaveLength(0)
+            const sacs = state.items.filter(i => i.product_name === 'sac enfant')
+            expect(sacs).toHaveLength(3)
+            expect(sacs.find(i => i.variant === 'Bleu')).toMatchObject({ quantity: 5 })
+            expect(sacs.find(i => i.variant === 'Jaune')).toMatchObject({ quantity: 3 })
+            expect(sacs.find(i => i.variant === 'Noir')).toMatchObject({ quantity: 2 })
+        })
+
+        test('une phrase de confirmation ne devient jamais un article fantôme', () => {
+            // "J'ai dis 10" produisait un article inconnu « J'ai dis » de quantité 10 : le
+            // pronom élidé "j'ai" formait un seul token qu'aucun mot courant ne couvrait.
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac noir', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, "J'ai dis 10", PRODUCTS)
+            expect(state.unmatched_mentions).toHaveLength(0)
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ product_name: 'sac enfant', variant: 'Noir', quantity: 10 })
+        })
+
+        test('un article inconnu contenant un mot de couleur n\'écrase pas l\'article en attente', () => {
+            // "4 sac vert, 10 ardoise noir" ne laissait qu'un "sac Noir ×10" : calculateItemPrice
+            // matche par inclusion, donc "ardoise noir" passait pour la couleur du sac en attente.
+            const state = updateLeadStateFromUserMessage(emptyState, 'Je veux 4 sac vert, 10 ardoise noir', PRODUCTS)
+            expect(state.items.find(i => i.requested_variant === 'vert')).toMatchObject({ quantity: 4 })
+            expect(state.unmatched_mentions).toContainEqual({ text: 'ardoise noir', quantity: 10 })
+        })
+
+        // ── Corpus de messages difficiles (11/08/2026). Mesurer 20 fois le MÊME message
+        // ne dit rien de la robustesse : ces cas viennent d'un corpus volontairement varié,
+        // où 7 messages sur 17 produisaient un état faux.
+
+        test('une variante accordée en genre et en nombre est reconnue dans une énumération', () => {
+            // "2 bleues" (féminin pluriel) devenait un ARTICLE INCONNU au lieu de la couleur Bleu.
+            const state = updateLeadStateFromUserMessage(emptyState, 'je veux 3 gourdes rouges, 2 bleues', PRODUCTS)
+            expect(state.unmatched_mentions).toHaveLength(0)
+            expect(state.items.find(i => i.variant === 'Bleu')).toMatchObject({ product_name: 'goube enfant', quantity: 2 })
+            expect(state.items.find(i => i.variant === 'Rouge')).toMatchObject({ quantity: 3 })
+        })
+
+        test('une quantité approximative ("une dizaine") ne devient jamais un nombre précis', () => {
+            // Régression introduite puis corrigée : "une dizaine" était lu comme quantité 1.
+            // Une valeur fausse est pire qu'une absence — sans quantité, l'IA la demande.
+            const state = updateLeadStateFromUserMessage(emptyState, 'il me faut une dizaine de sacs bleus', PRODUCTS)
+            expect(state.items[0]).toMatchObject({ variant: 'Bleu', quantity: null })
+        })
+
+        test('une confirmation qui répète une ligne connue ne la duplique pas', () => {
+            // "les 10 sacs c'est bien noté" créait une 2e ligne de 10 sacs sans variante.
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac noir', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, "les 10 sacs c'est bien noté, rajoute 3 gourdes rouges", PRODUCTS)
+            expect(state.items.filter(i => i.product_name === 'sac enfant')).toHaveLength(1)
+            expect(state.items.find(i => i.product_name === 'sac enfant')).toMatchObject({ variant: 'Noir', quantity: 10 })
+            expect(state.items.find(i => i.product_name === 'goube enfant')).toMatchObject({ variant: 'Rouge', quantity: 3 })
+        })
+
+        test('un destinataire ne devient jamais un article commandé', () => {
+            // "4 autres pour mon fils" enregistrait un article inconnu "fils" de quantité 4.
+            const state = updateLeadStateFromUserMessage(
+                emptyState, 'il me faut 4 gourde rouge pour ma fille et 4 autres pour mon fils', PRODUCTS
+            )
+            expect(state.unmatched_mentions).toHaveLength(0)
+        })
+
+        test('une négation orale sans "ne" est reconnue', () => {
+            // "pas de gourde pour moi" créait une ligne gourde pour le produit refusé :
+            // isNegationSegment exigeait "ne" ET "pas", or le "ne" saute presque toujours.
+            const state = updateLeadStateFromUserMessage(
+                emptyState, 'bonsoir, pas de gourde pour moi, juste 9 sacs enfant noir', PRODUCTS
+            )
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ product_name: 'sac enfant', variant: 'Noir', quantity: 9 })
+        })
+
+        test('un numéro de téléphone dans la phrase n\'est jamais pris pour une quantité', () => {
+            const state = updateLeadStateFromUserMessage(
+                emptyState, "bonjour je m'appelle Koffi Alain, mon numero est 0707123456, je veux 6 sacs noir", PRODUCTS
+            )
+            expect(state.items).toHaveLength(1)
+            expect(state.items[0]).toMatchObject({ variant: 'Noir', quantity: 6 })
+            expect(state.unmatched_mentions).toHaveLength(0)
+        })
+
         test('énumération compacte avec une 2e couleur invalide : distincte de la 1re, pas fusionnée', () => {
             const state = updateLeadStateFromUserMessage(emptyState, 'Gourde 5 rouge 13 vert', PRODUCTS)
             const rouge = state.items.find(i => i.variant === 'Rouge')
