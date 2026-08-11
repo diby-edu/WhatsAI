@@ -61,7 +61,7 @@ async function handleToolCall(toolCall, agentId, customerPhone, products, conver
             return await handleCreateRestaurantCheckout(args, agentId, products, conversationId, supabase)
 
         case 'capture_lead':
-            return await handleCaptureLead(args, agentId, customerPhone, conversationId, supabase)
+            return await handleCaptureLead(args, agentId, customerPhone, conversationId, supabase, products)
 
         case 'preview_cart':
             return await handlePreviewCart(args, products, conversationId, supabase)

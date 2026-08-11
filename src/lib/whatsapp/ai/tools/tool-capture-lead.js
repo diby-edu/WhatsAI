@@ -5,7 +5,52 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
-async function handleCaptureLead(args, agentId, customerPhone, conversationId, supabase) {
+const { calculateItemPrice } = require('./pricing-logic')
+
+/**
+ * Filet de dernier recours sur le détail du lead.
+ *
+ * `lead_cart` n'existe que si l'IA a appelé preview_cart. Observé en production : une
+ * conversation entière ("10 sacs enfant noir", retrait en boutique, nom, téléphone) s'est
+ * terminée sans un seul appel à l'outil — le lead enregistré n'avait ni montant ni articles,
+ * et le vendeur devait rouvrir WhatsApp pour savoir quoi facturer.
+ *
+ * Or le moteur d'extraction, lui, connaît les articles : ils sont dans
+ * conversation.metadata.lead_state, calculés par code à chaque message. On reconstruit
+ * donc le détail à partir de cette source quand le panier manque — avec calculateItemPrice,
+ * exactement la même fonction de tarification que preview_cart et create_order, jamais un
+ * second calcul maison.
+ *
+ * Ne remplace JAMAIS un lead_cart existant : celui-ci reflète ce que le client a réellement
+ * vu et validé à l'écran, ce qui prime toujours sur une reconstruction.
+ */
+function buildItemsFromLeadState(leadState, products) {
+    if (!leadState || !Array.isArray(leadState.items) || !Array.isArray(products) || products.length === 0) return null
+
+    const items = []
+    for (const line of leadState.items) {
+        // Uniquement les lignes exploitables : une quantité connue et, si le produit a des
+        // variantes, une variante valide. Une ligne incomplète n'a pas de prix fiable.
+        if (line.quantity === null || line.variant_status === 'invalid') continue
+        const product = products.find(p => p.id === line.product_id)
+        if (!product) continue
+
+        const pricing = calculateItemPrice(product, {}, line.variant || product.name, line.quantity)
+        const unitPrice = pricing?.price || 0
+        if (!unitPrice) continue
+
+        items.push({
+            product_name: product.name,
+            variant: line.variant || null,
+            quantity: line.quantity,
+            unit_price: unitPrice,
+            subtotal: unitPrice * line.quantity,
+        })
+    }
+    return items.length > 0 ? items : null
+}
+
+async function handleCaptureLead(args, agentId, customerPhone, conversationId, supabase, products = []) {
     try {
         console.log('Executing tool: capture_lead', args)
         const {
@@ -34,6 +79,7 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
         let locationLink = null
         let instructionAnswer = null
         let lastSeenTotals = null
+        let leadState = null
         if (conversationId) {
             const { data: conversation } = await supabase
                 .from('conversations')
@@ -44,6 +90,16 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             locationLink = conversation?.metadata?.last_location_link || null
             instructionAnswer = conversation?.metadata?.lead_instruction_answer || null
             lastSeenTotals = conversation?.metadata?.lead_last_seen_totals || null
+            leadState = conversation?.metadata?.lead_state || null
+        }
+
+        // preview_cart jamais appelé → on reconstruit depuis l'état du moteur plutôt que
+        // d'enregistrer un lead sans articles ni montant (voir buildItemsFromLeadState).
+        const fallbackItems = (!leadCart?.items || leadCart.items.length === 0)
+            ? buildItemsFromLeadState(leadState, products)
+            : null
+        if (fallbackItems) {
+            console.log(`ℹ️ [capture_lead] Aucun panier calculé — détail reconstruit depuis lead_state (${fallbackItems.length} ligne(s))`)
         }
 
         // Le TOTAL/frais de livraison réellement montrés au client (extraits du dernier
@@ -52,7 +108,12 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
         // total "à la main" (ex: ajout de la livraison sans rappeler l'outil) — déjà
         // observé en prod (lead à 204 500 alors que le client avait vu/confirmé 206 500).
         const hasLastSeenTotal = lastSeenTotals && lastSeenTotals.total !== null && lastSeenTotals.total !== undefined
-        const estimatedTotal = hasLastSeenTotal ? lastSeenTotals.total : (leadCart?.total ?? null)
+        const fallbackTotal = fallbackItems
+            ? fallbackItems.reduce((sum, item) => sum + (item.subtotal || 0), 0)
+            : null
+        const estimatedTotal = hasLastSeenTotal
+            ? lastSeenTotals.total
+            : (leadCart?.total ?? fallbackTotal)
         // Si le dernier récap montrait un TOTAL sans répéter la ligne "Frais de livraison"
         // (ex: message de confirmation court), lastSeenTotals.deliveryFee est null — mais ça
         // ne veut pas forcément dire "plus de livraison" : retombe sur le dernier frais connu
@@ -71,6 +132,21 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             }
         }
 
+        // lead_location et lead_address sont deux champs DISTINCTS : le quartier/la ville
+        // d'un côté, l'adresse de livraison complète de l'autre. Le prompt l'explique, mais
+        // le modèle recopie régulièrement la même valeur dans les deux (observé en prod :
+        // "Port Bouët" dans les deux champs). Un export ou une automatisation qui lit les
+        // deux y voit alors un doublon — on ne garde la localisation que si elle apporte
+        // réellement une information différente de l'adresse.
+        const normalizeForCompare = value => String(value || '')
+            .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[\s,.-]+/g, ' ').trim()
+        const locationDuplicatesAddress = lead_location && lead_address &&
+            normalizeForCompare(lead_location) === normalizeForCompare(lead_address)
+        if (locationDuplicatesAddress) {
+            console.log('ℹ️ [capture_lead] lead_location identique à lead_address — localisation ignorée')
+        }
+
         const leadRow = {
             agent_id:          agentId,
             user_id:           agent.user_id,
@@ -79,7 +155,7 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             lead_name:         lead_name        || null,
             lead_phone:        lead_phone       || null,
             lead_email:        lead_email       || null,
-            lead_location:     lead_location    || null,
+            lead_location:     locationDuplicatesAddress ? null : (lead_location || null),
             lead_address:      lead_address     || null,
             lead_company:      lead_company     || null,
             interest:          interest         || null,
@@ -90,7 +166,7 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             custom_fields:     (custom_fields && Object.keys(custom_fields).length > 0) ? custom_fields : null,
             estimated_total:   estimatedTotal,
             delivery_fee:      deliveryFee,
-            items:             leadCart?.items ?? null,
+            items:             leadCart?.items ?? fallbackItems ?? null,
             location_link:     locationLink     || null,
         }
 
@@ -150,4 +226,4 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
     }
 }
 
-module.exports = { handleCaptureLead }
+module.exports = { handleCaptureLead, buildItemsFromLeadState }
