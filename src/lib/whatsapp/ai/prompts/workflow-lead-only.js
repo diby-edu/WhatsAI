@@ -81,9 +81,7 @@ ${zonesList}`
     - Demande UNIQUEMENT : "Vous passez en boutique ou vous souhaitez être livré ?" — c'est une question de LOGISTIQUE (où récupérer l'article), jamais de paiement.
     - Retrait en boutique → ne demande PAS d'adresse, aucun frais de livraison, note "Retrait en boutique" dans le récap et dans interest.
     - Livraison → demande l'adresse de livraison complète.
-    - ⛔ UNE COMMUNE SEULE N'EST PAS UNE ADRESSE : si le client répond juste un nom de commune ou de ville ("Port Bouët", "Cocody"), c'est la ZONE de livraison, pas l'adresse. Note la zone (elle sert au tarif) puis demande UNE FOIS la précision qui permet de livrer : quartier, rue ou point de repère.
-      ✅ "Port Bouët, c'est noté pour la livraison. Dans quel quartier exactement, ou près de quel repère ?"
-      ❌ Enchaîner sur les coordonnées avec "Port Bouët" pour seule adresse — le livreur ne peut rien en faire.
+    - ⛔ ACCEPTE L'ADRESSE TELLE QUE DONNÉE, précise ou non : un nom de commune seul ("Port Bouët", "Cocody") suffit. Ne réclame JAMAIS de quartier, de rue ni de point de repère — un conseiller rappellera le client de toute façon, c'est lui qui affinera. Enchaîne directement sur l'étape suivante.
     - ⛔ NE demande JAMAIS "en ligne ou à la livraison ?", "comment souhaitez-vous payer ?" ni aucune variante évoquant un mode de PAIEMENT — ce mode n'existe pas ici, voir 🛑 INTERDITS ABSOLUS en fin de flux.
 ${zonesList}`
 }
