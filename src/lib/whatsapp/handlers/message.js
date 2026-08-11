@@ -583,7 +583,13 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 if (JSON.stringify(previousLeadState) !== JSON.stringify(nextLeadState)) {
                     await conversation.updateMetadata(setLeadState(conversation.metadata, nextLeadState))
                 }
-                leadStateSummary = buildLeadStateSummary(nextLeadState)
+                // lastUserMessage/products : permettent au résumé de signaler qu'une
+                // variante valide vient d'être donnée sans que le système ait pu
+                // déterminer à laquelle de plusieurs lignes elle s'applique.
+                leadStateSummary = buildLeadStateSummary(nextLeadState, {
+                    lastUserMessage: message.text,
+                    products: orderableProducts,
+                })
             } catch (leadStateErr) {
                 // Non bloquant : en cas d'échec, l'agent continue sans le résumé d'état
                 // (retombe sur le comportement précédent), jamais de crash du message.

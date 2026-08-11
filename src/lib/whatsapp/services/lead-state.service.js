@@ -632,21 +632,58 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
 }
 
 /**
+ * Une valeur de variante VALIDE vient-elle d'être donnée alors que plusieurs lignes
+ * du même produit l'attendent ? Le moteur refuse (à raison) de deviner laquelle est
+ * visée — mais sans le dire, le résumé continue d'affirmer au tour suivant que la
+ * couleur demandée est celle, invalide, du premier tour. L'IA lit alors un état qui
+ * contredit la conversation et repose une question déjà répondue.
+ * Ceci ne décide rien : ça constate qu'une affectation reste à faire, et c'est l'IA
+ * qui choisit quoi en demander.
+ * Calculé à partir du message du tour courant, jamais persisté : un marqueur stocké
+ * survivrait à la situation qu'il décrit — exactement le défaut qu'on corrige ici.
+ */
+function detectPendingVariantAssignment(state, lastUserMessage, products) {
+    if (!lastUserMessage || !Array.isArray(products) || products.length === 0) return null
+
+    const pendingItems = state.items.filter(it => it.variant_status !== 'valid' && it.product_id)
+    if (pendingItems.length < 2) return null
+    if (new Set(pendingItems.map(it => it.product_id)).size !== 1) return null
+
+    const product = products.find(p => p.id === pendingItems[0].product_id)
+    if (!product) return null
+
+    // Même validation que le reste du moteur — jamais une seconde logique de matching.
+    const result = calculateItemPrice(product, {}, cleanCandidateVariantText(lastUserMessage), 1)
+    if (result.error || !result.variantOptionName) return null
+
+    return { variant: result.variantOptionName, items: pendingItems }
+}
+
+/**
  * Construit un résumé texte de l'état, à injecter dans le prompt — l'IA n'a
  * plus qu'à s'en servir pour formuler sa question suivante, jamais à
  * reconstruire cet état lui-même depuis l'historique brut.
+ *
+ * `options` est facultatif : sans lui le résumé reste correct, il perd seulement
+ * la mention d'une affectation de variante non résolue (voir ci-dessus).
  */
-function buildLeadStateSummary(state) {
+function buildLeadStateSummary(state, options = {}) {
     if (!state || (state.items.length === 0 && state.unmatched_mentions.length === 0)) return null
 
     const lines = []
     for (const item of state.items) {
-        const qtyPart = item.quantity === null ? 'quantité MANQUANTE' : `quantité ${item.quantity}`
+        const quantityKnown = item.quantity !== null
+        const qtyPart = quantityKnown ? `quantité ${item.quantity}` : 'quantité MANQUANTE'
         let variantPart
         if (item.variant_status === 'valid') {
             variantPart = `variante ${item.variant}`
         } else if (item.variant_status === 'invalid') {
-            variantPart = `⛔ le client a demandé "${item.requested_variant}" — CETTE VALEUR N'EXISTE PAS pour cet article, ne l'accepte jamais, dis-le clairement au client et redemande une variante réelle`
+            // Énonce un FAIT, jamais un ordre. La version précédente finissait par
+            // "et redemande une variante réelle" : cet impératif était ré-émis à chaque
+            // tour, y compris APRÈS que le client ait donné une couleur valide, et l'IA
+            // l'exécutait — elle reposait une question déjà répondue (mesuré : le cas
+            // échouait 8 fois sur 8, contre 8/8 correct sans l'impératif).
+            variantPart = `⛔ le client a demandé "${item.requested_variant}" — CETTE VALEUR N'EXISTE PAS pour cet article, dis-le clairement au client`
         } else {
             variantPart = 'variante manquante si applicable'
         }
@@ -656,13 +693,26 @@ function buildLeadStateSummary(state) {
         // précisément quand un autre article du même message posait problème (produit
         // non reconnu). L'instruction collée au fait au moment où l'IA le lit est plus
         // fiable qu'une règle à se rappeler et réappliquer depuis ailleurs.
-        const completeSuffix = (item.variant_status === 'valid' && item.quantity !== null)
-            ? ' ✅ COMPLET — ne redemande JAMAIS cette quantité ni cette variante, elles sont déjà connues'
-            : ''
-        lines.push(`- ${item.product_name} (${variantPart}) : ${qtyPart}${completeSuffix}`)
+        let knownSuffix = ''
+        if (item.variant_status === 'valid' && quantityKnown) {
+            knownSuffix = ' ✅ COMPLET — ne redemande JAMAIS cette quantité ni cette variante, elles sont déjà connues'
+        } else if (quantityKnown) {
+            // Une quantité connue reste connue même quand la variante ne l'est pas : sans
+            // cette protection, la seule donnée acquise de la ligne arrivait nue et c'est
+            // elle que l'IA redemandait.
+            knownSuffix = ' ✅ QUANTITÉ ACQUISE — ne la redemande JAMAIS, seule la variante reste à déterminer'
+        }
+        lines.push(`- ${item.product_name} (${variantPart}) : ${qtyPart}${knownSuffix}`)
     }
     for (const mention of state.unmatched_mentions) {
         lines.push(`- "${mention.text}" (quantité ${mention.quantity}) : article non reconnu dans le catalogue`)
+    }
+
+    const pending = detectPendingVariantAssignment(state, options.lastUserMessage, options.products)
+    if (pending) {
+        const quantities = pending.items.map(it => it.quantity).filter(q => q !== null)
+        lines.push(`⚠️ Le client a répondu "${pending.variant}" (valeur valide). Le système n'a PAS pu déterminer si cela concerne la ligne de ${quantities.join(', celle de ')}, ou toutes — cette information n'existe nulle part, ne la devine pas.`)
+        lines.push(`⚠️ Le SEUL trou restant est cette affectation. Les quantités ${quantities.join(' et ')} sont définitives : aucune question de quantité n'a de sens ici, quelle que soit la formulation.`)
     }
 
     return lines.join('\n')

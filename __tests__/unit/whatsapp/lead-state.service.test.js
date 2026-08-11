@@ -470,6 +470,56 @@ describe('lead-state.service', () => {
             const invalid = buildLeadStateSummary(updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS))
             expect(invalid).not.toMatch(/✅ COMPLET/)
         })
+
+        // ── Régression réelle : l'IA reposait une question déjà répondue ──────────
+        // Le résumé est ré-injecté à CHAQUE tour. Tout impératif qu'il contient est
+        // donc ré-exécuté, y compris quand le client y a déjà répondu au tour d'avant.
+        // Mesuré sur la conversation réelle : 8 échecs sur 8 avec l'impératif,
+        // 8 réussites sur 8 sans lui.
+        test('la ligne d\'une variante invalide énonce un fait, jamais un ordre de redemander', () => {
+            const summary = buildLeadStateSummary(updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS))
+            expect(summary).toMatch(/N'EXISTE PAS/)
+            expect(summary).not.toMatch(/redemande une variante/i)
+            expect(summary).not.toMatch(/ne l'accepte jamais/i)
+        })
+
+        test('une quantité connue reste protégée même quand la variante est invalide', () => {
+            // Sans cette protection, la seule donnée acquise de la ligne arrive nue —
+            // et c'est elle que l'IA redemandait.
+            const summary = buildLeadStateSummary(updateLeadStateFromUserMessage(emptyState, '10 sac vert', PRODUCTS))
+            expect(summary).toMatch(/✅ QUANTITÉ ACQUISE/)
+            expect(summary).toMatch(/quantité 10/)
+        })
+
+        test('aucun marqueur de quantité acquise quand la quantité est réellement manquante', () => {
+            const summary = buildLeadStateSummary(updateLeadStateFromUserMessage(emptyState, 'sac vert', PRODUCTS))
+            expect(summary).not.toMatch(/✅ QUANTITÉ ACQUISE/)
+            expect(summary).toMatch(/quantité MANQUANTE/)
+        })
+
+        test('signale une variante valide reçue que le système n\'a pas pu affecter entre plusieurs lignes', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sac rose et 6 sac orange', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'bleu', PRODUCTS)
+            const summary = buildLeadStateSummary(state, { lastUserMessage: 'bleu', products: PRODUCTS })
+            expect(summary).toMatch(/n'a PAS pu déterminer/i)
+            expect(summary).toMatch(/aucune question de quantité n'a de sens/i)
+        })
+
+        test('ne signale aucune affectation en attente quand il n\'y a pas d\'ambiguïté', () => {
+            // Une seule ligne en attente : le moteur applique la couleur lui-même,
+            // il n'y a rien à signaler.
+            let state = updateLeadStateFromUserMessage(emptyState, '5 sac rose', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'bleu', PRODUCTS)
+            const summary = buildLeadStateSummary(state, { lastUserMessage: 'bleu', products: PRODUCTS })
+            expect(summary).not.toMatch(/n'a PAS pu déterminer/i)
+        })
+
+        test('reste correct sans le second argument (appel historique à un seul paramètre)', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sac rose et 6 sac orange', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'bleu', PRODUCTS)
+            expect(() => buildLeadStateSummary(state)).not.toThrow()
+            expect(buildLeadStateSummary(state)).toMatch(/✅ QUANTITÉ ACQUISE/)
+        })
     })
 
     describe('getLeadState / setLeadState', () => {
