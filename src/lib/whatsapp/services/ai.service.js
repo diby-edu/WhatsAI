@@ -52,6 +52,10 @@ class AIService {
             hasKnowledgeBase: context.hasKnowledgeBase ?? false,
             featureFlags: context.featureFlags || {},
             leadStateSummary: context.leadStateSummary || null,
+            // État structuré, indispensable au garde-fou "question sur une quantité déjà
+            // connue" de generator.js. Oublier cette ligne le rend silencieusement inerte :
+            // c'est arrivé, le bug est repassé en production sans qu'aucun log ne le signale.
+            leadState: context.leadState || null,
             justOrdered // Signal pour le prompt builder
         }
 
