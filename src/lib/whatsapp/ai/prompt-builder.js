@@ -7,7 +7,15 @@
  * Il assemble les modules situés dans ./prompts/
  */
 
-const { buildResetContext, variantsRules, antiLoopRules, toolsDefinition } = require('./prompts/context-rules')
+const {
+    buildResetContext,
+    variantsRules,
+    antiLoopRules,
+    toolsDefinition,
+    variantsRulesLeadOnly,
+    antiLoopRulesLeadOnly,
+    toolsDefinitionLeadOnly,
+} = require('./prompts/context-rules')
 const { buildGenericWorkflow } = require('./prompts/workflow-generic')
 const { prompt_STAY } = require('./prompts/workflow-service-stay')
 const { prompt_TABLE } = require('./prompts/workflow-service-table')
@@ -274,6 +282,13 @@ ${knowledgeSection}`.trim()
 
     // 3. CONSTRUCTION DES SECTIONS
 
+    // Mode lead_only : les blocs génériques écrits pour le flux de commande structuré
+    // (create_order, les 3 récaps "On continue ?", le lien de paiement, la validation de
+    // l'indicatif téléphonique) contredisent le workflow lead_only assemblé juste à côté.
+    // On bascule sur leurs variantes dédiées — voir context-rules.js. Le flux normal
+    // (tous les autres agents) continue de recevoir les blocs d'origine inchangés.
+    const isLeadOnlyMode = agent.conversation_mode === 'lead_only'
+
     // Section 0: Reset (Anti-Zombie)
     const resetContext = buildResetContext(orders, justOrdered)
 
@@ -427,17 +442,24 @@ PAIEMENT POUR LES RESERVATIONS DE SERVICE :
 - N'annonce jamais qu'un lien de paiement sera genere automatiquement apres create_booking, sauf si le systeme l'a explicitement retourne.`
     }
 
+    // Aucun encaissement n'existe en mode lead_only : le total annoncé est une estimation.
+    // Laisser la section paiement ici pousserait l'IA à annoncer un lien de paiement, ce que
+    // le workflow lead_only interdit explicitement (🛑 INTERDITS ABSOLUS).
+    if (isLeadOnlyMode) {
+        paymentSection = ''
+    }
+
     // 4. ASSEMBLAGE FINAL
     return `${resetContext}
-${variantsRules}
+${isLeadOnlyMode ? variantsRulesLeadOnly : variantsRules}
 ${identity}
 ${missionSection}
 ${buildCatalogConsistencySection(products)}
 ${catalogueSection}
 ${collectOrder}
-${antiLoopRules}
+${isLeadOnlyMode ? antiLoopRulesLeadOnly : antiLoopRules}
 ${customRulesSection}
-${toolsDefinition}
+${isLeadOnlyMode ? toolsDefinitionLeadOnly : toolsDefinition}
 ${clientHistory}
 ${knowledgeSection}
 ${businessInfo}
