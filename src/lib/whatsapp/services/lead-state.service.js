@@ -930,4 +930,10 @@ module.exports = {
     buildLeadStateSummary,
     findBestProduct,
     extractRecapTotals,
+    // Exportés pour que generator.js reconnaisse un produit dans une phrase de l'IA avec
+    // EXACTEMENT la même tolérance que le moteur (fautes, pluriels) — sans quoi il faudrait
+    // une troisième copie locale de la distance de Levenshtein, vouée à diverger.
+    normalizeText,
+    singularize,
+    fuzzyDistanceOk,
 }

@@ -14,6 +14,7 @@ const { findStaleQuantityQuestion } = require('../../../src/lib/whatsapp/ai/gene
 
 const SAC_COMPLET = { product_name: 'sac enfant', variant_status: 'valid', variant: 'Noir', quantity: 10 }
 const GOUBE_SANS_QUANTITE = { product_name: 'goube enfant', variant_status: 'valid', variant: 'Rouge', quantity: null }
+const GOUBE_COMPLET = { product_name: 'goube enfant', variant_status: 'valid', variant: 'Bleu', quantity: 1 }
 
 describe('findStaleQuantityQuestion', () => {
     describe('détecte la question impossible', () => {
@@ -44,6 +45,35 @@ describe('findStaleQuantityQuestion', () => {
         })
     })
 
+    describe('angles morts découverts en vérification de bout en bout', () => {
+        test('la question NUE, sans nom de produit, est détectée', () => {
+            // Forme la plus fréquente : le modèle scinde en deux phrases et la question
+            // se retrouve sans produit. Exiger le nom dans la même phrase rendait le
+            // détecteur aveugle 5 fois sur 6.
+            const content = 'Vous avez choisi une gourde enfant en bleu. Combien en souhaitez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [GOUBE_COMPLET] })).not.toBeNull()
+        })
+
+        test('une question nue reste légitime si un article attend encore sa quantité', () => {
+            const content = 'Pour les 10 sacs noirs, c\'est noté. Combien en voulez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET, GOUBE_SANS_QUANTITE] })).toBeNull()
+        })
+
+        test('reconnaît le produit malgré une faute dans le nom du catalogue', () => {
+            // Le catalogue dit "goube enfant", le client et le modèle écrivent "gourde".
+            // Une comparaison littérale ne voyait jamais le produit.
+            const content = 'Pour les gourdes enfant bleues, quelle quantité souhaitez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [GOUBE_COMPLET] })).not.toBeNull()
+        })
+
+        test('tolère pluriels et accords sans confondre deux produits distincts', () => {
+            const content = 'Pour les sacs enfants noirs, combien en voulez-vous ?'
+            const stale = findStaleQuantityQuestion(content, { items: [SAC_COMPLET, GOUBE_SANS_QUANTITE] })
+            expect(stale).not.toBeNull()
+            expect(stale.item.product_name).toBe('sac enfant')
+        })
+    })
+
     describe('se tait quand la question est légitime', () => {
         test('question portant sur l\'article dont la quantité manque vraiment', () => {
             const content = 'Pour les 10 sacs enfant noir, c\'est noté. Concernant les goube enfant rouge, quelle quantité souhaitez-vous ?'
@@ -65,9 +95,20 @@ describe('findStaleQuantityQuestion', () => {
             expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET] })).toBeNull()
         })
 
-        test('question de quantité sur un article absent de l\'état', () => {
+        test('une question sur un article absent de l\'état est traitée comme suspecte', () => {
+            // Arbitrage assumé : depuis la règle "question nue", une demande de quantité
+            // alors que PLUS AUCUNE ligne n'en attend déclenche une reformulation, même si
+            // elle nomme un article inconnu ("Pour les chapeaux, combien en voulez-vous ?").
+            // C'est le prix à payer pour couvrir la forme scindée en deux phrases, qui est
+            // le vrai défaut de terrain. Le coût est nul : demander à l'IA de reformuler une
+            // question portant sur un article qu'on ne vend pas n'a aucun inconvénient.
             const content = 'Pour les chapeaux, combien en voulez-vous ?'
-            expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET] })).toBeNull()
+            expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET] })).not.toBeNull()
+        })
+
+        test('mais reste muet si une ligne attend réellement une quantité', () => {
+            const content = 'Pour les chapeaux, combien en voulez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET, GOUBE_SANS_QUANTITE] })).toBeNull()
         })
 
         test('entrées vides ou absentes', () => {

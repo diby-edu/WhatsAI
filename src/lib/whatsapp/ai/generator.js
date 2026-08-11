@@ -31,6 +31,9 @@ const {
     hasRestaurantStateData,
     mergeRestaurantStateIntoToolArgs,
 } = require('../services/restaurant-state.service')
+// Même tolérance aux fautes/pluriels que le moteur d'extraction : indispensable pour
+// reconnaître un produit dans une phrase écrite par l'IA (voir findStaleQuantityQuestion).
+const { normalizeText, singularize, fuzzyDistanceOk } = require('../services/lead-state.service')
 
 // Configuration
 const MAX_RETRIES = 3
@@ -149,6 +152,34 @@ function stripLeadOnlyUnfilledRecap(content, isLeadOnlyMode) {
 }
 
 /**
+ * Le résumé d'état injecté dans le prompt porte des marqueurs destinés au MODÈLE
+ * ("✅ COMPLET", "✅ QUANTITÉ ACQUISE", les notes ⚠️ d'affectation non résolue). Observé
+ * en production : le modèle les recopie tels quels dans sa réponse au client —
+ * "- 10 sacs enfant (Noir) ✅ COMPLET" est parti sur WhatsApp.
+ *
+ * Ces marqueurs sont de la mécanique interne : ils ne veulent rien dire pour un client
+ * et trahissent le fonctionnement du système. On les retire sans toucher au reste de la
+ * ligne, qui elle est légitime.
+ */
+function stripLeadOnlyInternalMarkers(content, isLeadOnlyMode) {
+    if (!isLeadOnlyMode || !content) return content
+
+    let cleaned = content
+        // Marqueur accolé à une ligne d'article : on coupe du marqueur à la fin de la ligne.
+        .replace(/\s*✅\s*(?:COMPLET|QUANTITÉ ACQUISE)[^\n]*/gi, '')
+        // Consignes internes recopiées mot pour mot.
+        .replace(/[^\n]*(?:Le système n'a PAS pu déterminer|Le SEUL trou restant)[^\n]*\n?/gi, '')
+        .replace(/\s*—?\s*dis-le clairement au client/gi, '')
+        .replace(/\s*⛔\s*le client a demandé[^\n]*/gi, '')
+
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim()
+    if (cleaned !== content.trim()) {
+        console.log('⚠️ [lead_only] Marqueur interne du résumé d\'état retiré de la réponse IA')
+    }
+    return cleaned
+}
+
+/**
  * Une question de quantité portant sur un article dont la quantité est DÉJÀ connue est
  * prouvablement fausse : l'information existe dans lead_state, elle a été affichée à l'IA,
  * et la reposer fait répéter le client ("J'ai dis 10", observé en prod).
@@ -173,18 +204,39 @@ function findStaleQuantityQuestion(content, leadState) {
     if (known.length === 0) return null
 
     const mentions = (sentence, name) => {
-        // Compare sur le premier mot significatif du nom produit ("sac" pour "sac enfant") —
+        // Compare sur le premier mot significatif du nom produit ("sac" pour "sac enfant") :
         // l'IA écrit "sacs enfants", "sac enfant Noir", rarement le nom exact du catalogue.
-        const head = String(name).trim().split(/\s+/)[0]
-        if (!head || head.length < 3) return false
-        return new RegExp(`\\b${head.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\w*`, 'i').test(sentence)
+        // Le second mot est écarté volontairement — "enfant" est commun aux deux produits de
+        // ce catalogue et confondrait les lignes.
+        //
+        // Comparaison TOLÉRANTE, pas littérale : le catalogue peut contenir une faute que le
+        // client et le modèle ne reprennent pas. Cas réel — le produit s'appelle "goube
+        // enfant", tout le monde écrit "gourde" ; une comparaison stricte ne voyait donc
+        // jamais le produit et le garde-fou restait muet (8 échecs sur 8 en vérification
+        // de bout en bout).
+        const head = singularize(normalizeText(String(name).trim().split(/\s+/)[0] || ''))
+        if (head.length < 3) return false
+        return normalizeText(sentence).split(/\s+/).filter(Boolean)
+            .some(word => fuzzyDistanceOk(singularize(word.replace(/[^\p{L}\p{N}]/gu, '')), head))
     }
 
     for (const sentence of content.split(/(?<=[?!.])\s+|\n/)) {
         if (!QUANTITY_QUESTION.test(sentence)) continue
         if (stillMissing.some(item => mentions(sentence, item.product_name))) continue
+
         const target = known.find(item => mentions(sentence, item.product_name))
         if (target) return { sentence: sentence.trim(), item: target }
+
+        // Question NUE, sans nom de produit : "Vous avez choisi une gourde enfant en bleu.
+        // Combien en souhaitez-vous ?" — le modèle scinde régulièrement en deux phrases, et
+        // exiger le produit dans la même phrase rendait le détecteur aveugle à cette forme,
+        // pourtant la plus fréquente (5 fois sur 6 en vérification de bout en bout).
+        // Elle porte forcément sur le sujet en cours : elle n'est donc fautive que si PLUS
+        // AUCUN article n'attend de quantité. S'il en reste un, la question est légitime et
+        // on ne touche à rien.
+        if (stillMissing.length === 0) {
+            return { sentence: sentence.trim(), item: known[0] }
+        }
     }
     return null
 }
@@ -791,14 +843,19 @@ async function generateAIResponse(options, dependencies) {
         // Avant le filet capture_lead ci-dessous : un récap de clôture non rempli ne doit
         // ni partir au client, ni compter comme une clôture qui déclenche l'enregistrement.
         content = stripLeadOnlyUnfilledRecap(content, isLeadOnlyMode)
+        content = stripLeadOnlyInternalMarkers(content, isLeadOnlyMode)
 
         // Question portant sur une quantité déjà connue : on ne la corrige pas nous-mêmes,
         // on renvoie le constat au modèle et on le laisse reformuler (voir
         // findStaleQuantityQuestion). Un seul essai : au-delà, mieux vaut la réponse
         // imparfaite qu'une latence supplémentaire pour le client.
         if (isLeadOnlyMode) {
+            // Jusqu'à 2 tentatives : mesuré, une seule ne suffit pas quand le signal de
+            // quantité est faible ("une gourde" = 1), le modèle voulant reconfirmer.
+            for (let attempt = 1; attempt <= 2; attempt++) {
             const stale = findStaleQuantityQuestion(content, leadState)
-            if (stale) {
+            if (!stale) break
+            {
                 try {
                     // La phrase fautive est journalisée telle quelle : sans elle, impossible
                     // de comprendre a posteriori pourquoi le modèle a reposé la question.
@@ -831,7 +888,9 @@ async function generateAIResponse(options, dependencies) {
                     }
                 } catch (retryErr) {
                     console.error('⚠️ [lead_only] Reformulation échouée, réponse initiale conservée:', retryErr?.message || retryErr)
+                    break
                 }
+            }
             }
         }
 
