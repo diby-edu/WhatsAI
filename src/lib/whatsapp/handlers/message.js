@@ -572,6 +572,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         // capacité du modèle à relire correctement l'historique brut. Voir
         // lead-state.service.js pour le détail ; injectée dans le prompt plus bas.
         let leadStateSummary = null
+        // État structuré (pas seulement son résumé texte) : sert de garde-fou côté
+        // generator.js pour rejeter une question portant sur une donnée déjà acquise.
+        let leadStateForGuard = null
         // Exclut les messages de position ("Ma position : <lieu> (<lien>)") — leurs
         // coordonnées GPS contiennent des nombres qui n'ont rien à voir avec des
         // quantités d'articles, et pollueraient l'état avec des fragments d'URL.
@@ -590,6 +593,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     lastUserMessage: message.text,
                     products: orderableProducts,
                 })
+                leadStateForGuard = nextLeadState
             } catch (leadStateErr) {
                 // Non bloquant : en cas d'échec, l'agent continue sans le résumé d'état
                 // (retombe sur le comportement précédent), jamais de crash du message.
@@ -979,6 +983,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     hasKnowledgeBase,
                     featureFlags,
                     leadStateSummary,
+                    leadState: leadStateForGuard,
                     supabase,
                     activeSessions,
                     CinetPay

@@ -350,6 +350,9 @@ const variantsRulesLeadOnly = `
 
 const antiLoopRulesLeadOnly = `
 📌 RÈGLES ANTI-BOUCLE (TRÈS IMPORTANT) :
+    - 🚫 AUCUN RÉCAP FABRIQUÉ À LA MAIN : toute liste d'articles affichée au client DOIT être
+      le recap_text renvoyé par preview_cart, reproduit tel quel. Ne compose jamais toi-même
+      une liste d'articles, même courte, même sans prix, même "juste pour confirmer".
     - 🧩 VARIANTES MANQUANTES : si le client donne une couleur mais oublie la taille (ou
       l'inverse), demande la partie manquante tout de suite. N'attends pas la fin.
 
@@ -389,7 +392,12 @@ const toolsDefinitionLeadOnly = `
     Reproduis son champ recap_text EXACTEMENT tel quel, sans recalculer.
 • capture_lead → Enregistrer la demande du client une fois ses coordonnées collectées.
     C'est la SEULE façon de clôturer une conversation dans ce mode.
-• send_image → Montrer un article ou une image de la base de connaissance
+• send_image → Montrer un article, UNIQUEMENT si le client vient de demander une photo.
+    ⛔ N'appelle JAMAIS send_image de ta propre initiative. Tant que le client n'a pas
+    explicitement demandé à voir un article dans SON DERNIER message ("montre", "photo",
+    "image", "je veux voir"), aucune image ne doit partir — surtout pas en accompagnement
+    d'un récapitulatif ou d'une question de collecte. Une photo surgie sans raison au milieu
+    d'une prise de commande déroute le client (déjà observé en prod).
 
 ⛔ Aucun outil de commande, de réservation, de paiement ou de suivi de commande n'existe ici.
 N'annonce JAMAIS au client qu'une commande a été enregistrée, qu'un paiement va être demandé

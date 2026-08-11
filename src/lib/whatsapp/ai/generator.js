@@ -106,6 +106,89 @@ function stripLeadOnlyPaymentMentions(content, isLeadOnlyMode) {
     return result
 }
 
+/**
+ * Filet de sécurité mode lead_only : l'ÉTAPE 5 du workflow donne un GABARIT de récap
+ * de clôture ("*• Nom : <valeur>*"). Observé en prod : le modèle recopie ce gabarit
+ * sans le remplir, et le client reçoit littéralement "<valeur>" sur WhatsApp — alors
+ * qu'il n'a encore donné ni nom ni téléphone.
+ *
+ * Deux dégâts : le message est incompréhensible pour le client, ET le bloc
+ * "*Vos coordonnées :*" déclenche le filet capture_lead plus bas, qui enregistre un
+ * lead vide avant que le client ait rien fourni.
+ *
+ * On retire donc le bloc de clôture entier quand il contient un champ non rempli. Le
+ * reste du message (récap chiffré, question de collecte) est conservé intact — c'est
+ * justement la question qu'il fallait poser.
+ */
+const LEAD_ONLY_PLACEHOLDER = /<\s*valeur\s*>|\[\s*(?:valeur|non\s+fourni|non\s+renseign[ée]|manquant[e]?|à\s+compléter)\s*\]/i
+
+function stripLeadOnlyUnfilledRecap(content, isLeadOnlyMode) {
+    if (!isLeadOnlyMode || !content || !LEAD_ONLY_PLACEHOLDER.test(content)) return content
+
+    const lines = content.split('\n')
+    const kept = []
+    let insideCoordinatesBlock = false
+
+    for (const line of lines) {
+        if (/^\s*\*?\s*Vos coordonnées\s*:/i.test(line)) {
+            insideCoordinatesBlock = true
+            continue
+        }
+        if (insideCoordinatesBlock) {
+            // Le bloc court jusqu'à la première ligne qui n'est plus une puce de champ.
+            if (/^\s*$/.test(line) || /^\s*\*?\s*[•\-]/.test(line)) continue
+            insideCoordinatesBlock = false
+        }
+        if (LEAD_ONLY_PLACEHOLDER.test(line)) continue
+        kept.push(line)
+    }
+
+    const result = kept.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+    console.log('⚠️ [lead_only] Récap de clôture non rempli (<valeur>) retiré de la réponse IA')
+    return result
+}
+
+/**
+ * Une question de quantité portant sur un article dont la quantité est DÉJÀ connue est
+ * prouvablement fausse : l'information existe dans lead_state, elle a été affichée à l'IA,
+ * et la reposer fait répéter le client ("J'ai dis 10", observé en prod).
+ *
+ * Quatre règles de prompt successives n'ont pas suffi à l'éliminer — il reste ~20 % des
+ * réponses. On détecte donc le cas par code, comme preCheckCreateOrder rejette un appel
+ * d'outil invalide. Ce détecteur ne CHOISIT PAS la question suivante : il constate qu'une
+ * question précise est impossible et laisse l'IA reformuler librement.
+ *
+ * Ciblage strict pour éviter les faux positifs : on n'examine que la phrase interrogative
+ * contenant la demande de quantité, et on ne la rejette QUE si elle nomme un article
+ * complet SANS nommer d'article dont la quantité manque réellement (cas légitime :
+ * "10 sacs noirs, c'est noté. Pour les gourdes rouges, quelle quantité ?").
+ */
+const QUANTITY_QUESTION = /(quelle\s+(?:est\s+la\s+)?quantit[ée]|combien\s+(?:en\s+|de\s+)?(?:voulez|souhaitez|d[ée]sirez)|combien\s+de\s+|nombre\s+(?:de|d')\s*\w+\s+souhait)/i
+
+function findStaleQuantityQuestion(content, leadState) {
+    if (!content || !leadState || !Array.isArray(leadState.items)) return null
+
+    const known = leadState.items.filter(item => item.quantity !== null && item.product_name)
+    const stillMissing = leadState.items.filter(item => item.quantity === null && item.product_name)
+    if (known.length === 0) return null
+
+    const mentions = (sentence, name) => {
+        // Compare sur le premier mot significatif du nom produit ("sac" pour "sac enfant") —
+        // l'IA écrit "sacs enfants", "sac enfant Noir", rarement le nom exact du catalogue.
+        const head = String(name).trim().split(/\s+/)[0]
+        if (!head || head.length < 3) return false
+        return new RegExp(`\\b${head.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\w*`, 'i').test(sentence)
+    }
+
+    for (const sentence of content.split(/(?<=[?!.])\s+|\n/)) {
+        if (!QUANTITY_QUESTION.test(sentence)) continue
+        if (stillMissing.some(item => mentions(sentence, item.product_name))) continue
+        const target = known.find(item => mentions(sentence, item.product_name))
+        if (target) return { sentence: sentence.trim(), item: target }
+    }
+    return null
+}
+
 function stripMarkdownImages(content) {
     if (!content) return content
     // Supprimer ![alt](url)
@@ -354,7 +437,8 @@ async function generateAIResponse(options, dependencies) {
             restaurantState,
             restaurantQuestionDetected = false,
             hasKnowledgeBase = false,
-            leadStateSummary = null
+            leadStateSummary = null,
+            leadState = null
         } = options
 
         // RAG - Documents pertinents
@@ -704,6 +788,52 @@ async function generateAIResponse(options, dependencies) {
         content = stripMarkdownImages(content)
         content = stripImageDoublons(content, imageActions)
         content = stripLeadOnlyPaymentMentions(content, isLeadOnlyMode)
+        // Avant le filet capture_lead ci-dessous : un récap de clôture non rempli ne doit
+        // ni partir au client, ni compter comme une clôture qui déclenche l'enregistrement.
+        content = stripLeadOnlyUnfilledRecap(content, isLeadOnlyMode)
+
+        // Question portant sur une quantité déjà connue : on ne la corrige pas nous-mêmes,
+        // on renvoie le constat au modèle et on le laisse reformuler (voir
+        // findStaleQuantityQuestion). Un seul essai : au-delà, mieux vaut la réponse
+        // imparfaite qu'une latence supplémentaire pour le client.
+        if (isLeadOnlyMode) {
+            const stale = findStaleQuantityQuestion(content, leadState)
+            if (stale) {
+                try {
+                    // La phrase fautive est journalisée telle quelle : sans elle, impossible
+                    // de comprendre a posteriori pourquoi le modèle a reposé la question.
+                    // Tronquée à 160 caractères pour rester lisible dans les logs PM2.
+                    console.log(`⚠️ [lead_only] Question sur une quantité déjà connue (${stale.item.product_name} = ${stale.item.quantity}) — reformulation demandée`)
+                    console.log(`   ↳ phrase fautive : "${stale.sentence.slice(0, 160)}"`)
+                    const correction = `${systemPrompt}\n\n🚨 CORRECTION IMMÉDIATE (prioritaire sur tout le reste) : ta réponse précédente contenait « ${stale.sentence} ». Or la quantité de "${stale.item.product_name}" est DÉJÀ connue : ${stale.item.quantity}. Cette question est impossible, elle oblige le client à répéter ce qu'il vient de dire. Réécris ta réponse en entier sans elle : traite ce qui est réellement en attente, ou enchaîne sur l'étape suivante du flux.`
+                    const retry = await callOpenAIWithRetry(openai, {
+                        model: modelToUse,
+                        messages: [{ role: 'system', content: correction }, ...messages.slice(1)],
+                        max_tokens: agent.max_tokens || 500,
+                        temperature: agent.temperature || 0.7,
+                        ...toolsConfig,
+                    })
+                    const retried = retry.choices[0]?.message
+                    if (retried?.content) {
+                        content = stripLeadOnlyUnfilledRecap(
+                            stripLeadOnlyPaymentMentions(stripMarkdownImages(retried.content), isLeadOnlyMode),
+                            isLeadOnlyMode
+                        )
+                        // Vérifie que la reformulation a réellement réglé le problème : c'est
+                        // le seul moyen de savoir, en production, si le garde-fou tient ou si
+                        // le modèle repose la même question malgré la correction.
+                        const stillStale = findStaleQuantityQuestion(content, leadState)
+                        console.log(stillStale
+                            ? `   ↳ ❌ reformulation INSUFFISANTE, la question persiste : "${stillStale.sentence.slice(0, 160)}"`
+                            : '   ↳ ✅ reformulation OK, la question a disparu')
+                    } else {
+                        console.log('   ↳ ⚠️ reformulation sans texte (appel d\'outil seul), réponse initiale conservée')
+                    }
+                } catch (retryErr) {
+                    console.error('⚠️ [lead_only] Reformulation échouée, réponse initiale conservée:', retryErr?.message || retryErr)
+                }
+            }
+        }
 
         // Filet de sécurité mode lead_only : le récap de clôture (bloc "*Vos coordonnées :*"
         // imposé par l'ÉTAPE 5 du workflow) ne doit JAMAIS être envoyé sans que capture_lead
@@ -774,4 +904,6 @@ async function generateAIResponse(options, dependencies) {
     }
 }
 
-module.exports = { generateAIResponse }
+// stripLeadOnlyUnfilledRecap est exporté uniquement pour être testable unitairement :
+// son déclenchement dépend d'une sortie du modèle, impossible à provoquer autrement.
+module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion }
