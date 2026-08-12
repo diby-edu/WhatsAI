@@ -618,6 +618,57 @@ describe('lead-state.service', () => {
             expect(summary).not.toMatch(/n'a PAS pu déterminer/i)
         })
 
+        // ── Mode de récupération ──────────────────────────────────────────────────
+        // Le champ existait dans l'état mais restait null en permanence. Conséquence
+        // mesurée : l'agent reposait « boutique ou livraison ? » 6 fois sur 8 sur une
+        // commune donnée, et n'ajoutait alors aucun frais de livraison au récap.
+
+        test('capte le choix de la livraison', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Je veux être livré', PRODUCTS)
+            expect(state.fulfillment_mode).toBe('delivery')
+            expect(buildLeadStateSummary(state)).toMatch(/LIVRAISON ✅ déjà choisi/)
+        })
+
+        test('capte le choix du retrait en boutique', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Je passe en boutique', PRODUCTS)
+            expect(state.fulfillment_mode).toBe('pickup')
+            expect(buildLeadStateSummary(state)).toMatch(/RETRAIT EN BOUTIQUE ✅ déjà choisi/)
+        })
+
+        test('ne tranche pas quand les deux modes sont cités (question de l\'agent recopiée)', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'vous passez en boutique ou vous souhaitez être livré ?', PRODUCTS)
+            expect(state.fulfillment_mode).toBeNull()
+        })
+
+        test('un changement d\'avis explicite remplace le mode précédent', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Je veux être livré', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'finalement je passe en boutique', PRODUCTS)
+            expect(state.fulfillment_mode).toBe('pickup')
+        })
+
+        test('un message sans rapport ne change pas le mode déjà choisi', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Je veux être livré', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Port bouet', PRODUCTS)
+            expect(state.fulfillment_mode).toBe('delivery')
+        })
+
+        test('les accents ne bloquent pas la détection (piège du \\b en JavaScript)', () => {
+            // /livré\b/ ne matche jamais "livré " : "é" n'est pas un caractère de mot.
+            let state = updateLeadStateFromUserMessage(emptyState, '10 sac bleu', PRODUCTS)
+            state = updateLeadStateFromUserMessage(state, 'Je veux être livré à Cocody Angré', PRODUCTS)
+            expect(state.fulfillment_mode).toBe('delivery')
+        })
+
+        test('aucune mention du mode dans le résumé tant qu\'il n\'est pas choisi', () => {
+            const state = updateLeadStateFromUserMessage(emptyState, '10 sac bleu', PRODUCTS)
+            expect(buildLeadStateSummary(state)).not.toMatch(/Mode de récupération/)
+        })
+
         test('reste correct sans le second argument (appel historique à un seul paramètre)', () => {
             let state = updateLeadStateFromUserMessage(emptyState, '8 sac rose et 6 sac orange', PRODUCTS)
             state = updateLeadStateFromUserMessage(state, 'bleu', PRODUCTS)

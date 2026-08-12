@@ -430,6 +430,11 @@ function cloneState(state = {}) {
         items: Array.isArray(state.items) ? state.items.map(it => ({ ...it })) : [],
         unmatched_mentions: Array.isArray(state.unmatched_mentions) ? state.unmatched_mentions.map(m => ({ ...m })) : [],
         fulfillment_mode: state.fulfillment_mode || null,
+        // Le client a exprimé un retrait ou une annulation que le moteur n'applique
+        // volontairement pas (c'est un jugement conversationnel, laissé à l'IA). L'état
+        // cesse alors de refléter la commande réelle, et tout code qui s'en sert comme
+        // source de vérité doit s'abstenir — voir buildItemsFromLeadState.
+        has_unapplied_change: state.has_unapplied_change === true,
         updated_at: state.updated_at || null,
     }
 }
@@ -480,6 +485,29 @@ function applyStatus(item, status, value, quantity) {
  * avec l'état déjà connu — n'écrase jamais silencieusement une quantité déjà
  * connue par une quantité différente, ne fait qu'ajouter ou compléter.
  */
+// Retrait en boutique ou livraison ? Information capitale, et jusqu'ici jamais captée :
+// le champ existait dans l'état mais restait null en permanence. Conséquences observées —
+// le mode n'atteignait le lead que si l'IA pensait à l'écrire dans un texte libre, et rien
+// ne permettait de vérifier qu'un récap de livraison portait bien des frais.
+//
+// Détecté sur le texte BRUT, avant tout nettoyage : "boutique", "livraison", "retrait" sont
+// des mots courants filtrés plus bas pour la reconnaissance produit (voir STOPWORDS).
+// Comparaison sur le texte NORMALISÉ (minuscules, accents retirés) : en JavaScript, `\b`
+// ne reconnaît pas les lettres accentuées comme des caractères de mot, si bien que
+// /livré\b/ ne matche jamais "livré" suivi d'un espace. Piège rencontré ici même.
+const PICKUP_PATTERN = /\b(en boutique|au magasin|sur place|je passe.{0,15}(prendre|chercher|recuperer)|je viens.{0,15}(chercher|prendre|recuperer)|retrait)\b/
+const DELIVERY_PATTERN = /(\blivr\w*|\ba domicile\b)/
+
+function detectFulfillmentMode(text) {
+    const value = normalizeText(text)
+    const pickup = PICKUP_PATTERN.test(value)
+    const delivery = DELIVERY_PATTERN.test(value)
+    // Les deux dans la même phrase = la question posée par l'agent recopiée, ou une
+    // hésitation. On ne tranche pas : c'est un choix du client, jamais une déduction.
+    if (pickup === delivery) return null
+    return pickup ? 'pickup' : 'delivery'
+}
+
 function updateLeadStateFromUserMessage(previousState, text, products = []) {
     const state = cloneState(previousState)
     if (!text || products.length === 0) return state
@@ -488,6 +516,10 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
     // (pas seulement chez l'appelant) pour que la fonction reste sûre quel que soit
     // l'appelant, présent ou futur.
     if (/^Ma position\s*:/.test(text)) return state
+
+    // Un mode déjà choisi n'est écrasé que par un choix explicite contraire du client.
+    const fulfillment = detectFulfillmentMode(text)
+    if (fulfillment) state.fulfillment_mode = fulfillment
 
     const existingByKey = new Map(state.items.map(it => [keyOf(it), it]))
     const segments = splitSegments(text)
@@ -520,7 +552,14 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
             // "je n'ai pas choisi de gourde" (rejette un produit) ou "enlève 5 sacs"
             // (modifie une ligne existante) ne sont jamais des commandes à tracker —
             // voir isNegationSegment/isModificationSegment pour les bugs réels évités.
-            if (isNegationSegment(rest) || isModificationSegment(rest)) continue
+            if (isNegationSegment(rest) || isModificationSegment(rest)) {
+                // On ne devine pas CE QUI change, mais on note QUE quelque chose a changé :
+                // sans ce drapeau, l'état continue d'affirmer des lignes que le client vient
+                // d'annuler. Cas réel : "Non je ne veux pas 10 sac enfant noir" — l'IA retire
+                // bien la ligne de la commande, l'état la garde indéfiniment.
+                state.has_unapplied_change = true
+                continue
+            }
 
             // "7" seul (réponse à "combien en voulez-vous ?") : parseSegment retombe sur
             // le segment entier ("rest || segment.trim()") quand il ne reste rien après
@@ -873,6 +912,16 @@ function buildLeadStateSummary(state, options = {}) {
     }
     for (const mention of state.unmatched_mentions) {
         lines.push(`- "${mention.text}" (quantité ${mention.quantity}) : article non reconnu dans le catalogue`)
+    }
+
+    // Le mode de récupération est un FAIT donné par le client, au même titre qu'une
+    // quantité. Sans lui dans le résumé, l'agent reposait la question « boutique ou
+    // livraison ? » alors qu'elle avait déjà été tranchée (mesuré : 6 fois sur 8 sur une
+    // commune donnée), et n'ajoutait alors aucun frais de livraison au récap.
+    if (state.fulfillment_mode === 'pickup') {
+        lines.push('- Mode de récupération : RETRAIT EN BOUTIQUE ✅ déjà choisi par le client — ne le redemande JAMAIS, ne demande aucune adresse, aucun frais de livraison.')
+    } else if (state.fulfillment_mode === 'delivery') {
+        lines.push('- Mode de récupération : LIVRAISON ✅ déjà choisi par le client — ne le redemande JAMAIS. Le récap chiffré DOIT porter les frais de livraison de sa commune.')
     }
 
     const pending = detectPendingVariantAssignment(state, options.lastUserMessage, options.products)

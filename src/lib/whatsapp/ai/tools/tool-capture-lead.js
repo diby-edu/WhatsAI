@@ -27,6 +27,24 @@ const { calculateItemPrice } = require('./pricing-logic')
 function buildItemsFromLeadState(leadState, products) {
     if (!leadState || !Array.isArray(leadState.items) || !Array.isArray(products) || products.length === 0) return null
 
+    // ⛔ Deux situations où l'état ne reflète PLUS la commande réelle. Reconstruire un lead
+    // à partir de là produirait un détail FAUX — pire qu'un lead sans détail, parce que le
+    // vendeur y croirait. Les deux ont été observées sur des conversations réelles :
+    //
+    // 1) Le client a annulé ou modifié quelque chose ("Non je ne veux pas 10 sac enfant
+    //    noir"). L'IA retire bien la ligne de la commande, le moteur la conserve — il ne
+    //    devine jamais quelle ligne réduire. Reconstruire réintroduirait les 10 sacs annulés.
+    // 2) Une ligne porte une variante invalide non résolue. La conversation l'a tranchée
+    //    (rose → Bleu, orange → Jaune), l'état non. Reconstruire perdrait ces lignes.
+    if (leadState.has_unapplied_change === true) {
+        console.log('ℹ️ [capture_lead] État écarté pour la reconstruction : le client a annulé ou modifié une ligne')
+        return null
+    }
+    if (leadState.items.some(line => line.variant_status === 'invalid')) {
+        console.log('ℹ️ [capture_lead] État écarté pour la reconstruction : une variante reste non résolue')
+        return null
+    }
+
     const items = []
     for (const line of leadState.items) {
         // Uniquement les lignes exploitables : une quantité connue et, si le produit a des
@@ -122,6 +140,23 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             ? lastSeenTotals.deliveryFee
             : (leadCart?.deliveryFee ?? null)
 
+        // Mode de récupération : capté par le moteur à partir des mots du client, jamais
+        // déduit. Il n'atteignait le lead que si l'IA pensait à l'écrire dans "interest",
+        // texte libre — donc de façon aléatoire. La table `leads` n'ayant pas de colonne
+        // dédiée, on garantit au moins sa présence dans "interest", que le tableau de bord
+        // affiche déjà. Une vraie colonne demanderait une migration.
+        const fulfillmentLabel = leadState?.fulfillment_mode === 'pickup' ? 'retrait en boutique'
+            : leadState?.fulfillment_mode === 'delivery' ? 'livraison'
+                : null
+        let finalInterest = interest || null
+        if (fulfillmentLabel) {
+            const alreadyStated = new RegExp(fulfillmentLabel.split(' ')[0], 'i').test(finalInterest || '')
+            if (!alreadyStated) {
+                finalInterest = finalInterest ? `${finalInterest}, ${fulfillmentLabel}` : fulfillmentLabel
+                console.log(`ℹ️ [capture_lead] Mode de récupération ajouté au lead : ${fulfillmentLabel}`)
+            }
+        }
+
         // Fusionne l'instruction capturée par code dans lead_notes si l'IA ne l'y a pas
         // déjà mise (elle atterrit parfois uniquement dans "interest" à la place).
         let finalLeadNotes = lead_notes || null
@@ -158,7 +193,7 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             lead_location:     locationDuplicatesAddress ? null : (lead_location || null),
             lead_address:      lead_address     || null,
             lead_company:      lead_company     || null,
-            interest:          interest         || null,
+            interest:          finalInterest,
             preferred_date:    preferred_date   || null,
             preferred_time:    preferred_time   || null,
             service_requested: service_requested || null,

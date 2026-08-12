@@ -62,13 +62,43 @@ describe('buildItemsFromLeadState', () => {
         expect(buildItemsFromLeadState({ items: [line({ quantity: null })] }, PRODUCTS)).toBeNull()
     })
 
-    test('ne garde que les lignes exploitables quand l\'état est mixte', () => {
+    test('refuse TOUT l\'état dès qu\'une ligne est invalide, plutôt qu\'un détail partiel', () => {
+        // Comportement volontairement durci après la conversation réelle du 11/08/2026 :
+        // ne garder que les lignes exploitables produisait un lead amputé. Là-bas, 8 sacs
+        // "rose" et 6 "orange" avaient été résolus en Bleu et Jaune DANS la conversation
+        // mais jamais dans l'état — un détail partiel aurait facturé la seule gourde et
+        // perdu les 14 sacs. Une ligne invalide signale que l'état a décroché : on s'abstient.
         const items = buildItemsFromLeadState({ items: [
             line({ variant: 'Noir', quantity: 10 }),
             line({ variant_status: 'invalid', variant: null, requested_variant: 'rose', quantity: 8 }),
         ] }, PRODUCTS)
-        expect(items).toHaveLength(1)
-        expect(items[0]).toMatchObject({ variant: 'Noir', quantity: 10 })
+        expect(items).toBeNull()
+    })
+
+    // ── Refus de reconstruire quand l'état ne reflète plus la commande ────────────
+    // Les deux cas viennent de conversations réelles où reconstruire aurait produit un
+    // lead FAUX — plus nuisible qu'un lead sans détail, parce que le vendeur y croirait.
+
+    test('refuse de reconstruire après une annulation du client', () => {
+        // Conv. réelle : "Non je ne veux pas 10 sac enfant noir". L'IA retire la ligne de
+        // la commande, le moteur la garde. Reconstruire réintroduirait les 10 sacs annulés.
+        const state = { items: [line()], has_unapplied_change: true }
+        expect(buildItemsFromLeadState(state, PRODUCTS)).toBeNull()
+    })
+
+    test('refuse de reconstruire tant qu\'une variante reste non résolue', () => {
+        // Conv. réelle : 8 rose + 6 orange devenus Bleu et Jaune dans la conversation,
+        // jamais dans l'état. Reconstruire perdrait les 14 sacs.
+        const state = { items: [
+            line({ variant_status: 'invalid', variant: null, requested_variant: 'rose', quantity: 8 }),
+            line({ variant: 'Noir', quantity: 10 }),
+        ] }
+        expect(buildItemsFromLeadState(state, PRODUCTS)).toBeNull()
+    })
+
+    test('reconstruit normalement quand l\'état est sain', () => {
+        const state = { items: [line()], has_unapplied_change: false }
+        expect(buildItemsFromLeadState(state, PRODUCTS)).toHaveLength(1)
     })
 
     test('retourne null sur une entrée vide, absente ou sans catalogue', () => {
