@@ -798,10 +798,19 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             }
 
             await MessagingService.sendText(activeSessions.get(agentId), message.from, handoverMessage)
+            await supabase.from('messages').insert({
+                conversation_id: conversation.id,
+                agent_id: agentId,
+                role: 'assistant',
+                content: handoverMessage,
+                status: 'sent',
+            })
             return
         }
 
-        const sentimentAnalysis = await analyzeSentiment(openai, structuredMessageText)
+        // L'historique est indispensable : analysé seul, « Angre cgk » (le client donne son
+        // quartier) était classé `angry` de façon déterministe et la conversation coupée.
+        const sentimentAnalysis = await analyzeSentiment(openai, structuredMessageText, historyForAI)
         console.log(`❤️ Sentiment: ${sentimentAnalysis.sentiment}`)
 
         if (conversation.shouldEscalate(sentimentAnalysis)) {
@@ -822,6 +831,16 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 message.from,
                 handoverMessage
             )
+            // Sans cet enregistrement, le message de transfert part au client mais reste
+            // absent de la table `messages` : l'historique en base est alors incomplet et
+            // ne montre plus pourquoi la conversation s'est arrêtée.
+            await supabase.from('messages').insert({
+                conversation_id: conversation.id,
+                agent_id: agentId,
+                role: 'assistant',
+                content: handoverMessage,
+                status: 'sent',
+            })
 
             return // Stop AI
         }
