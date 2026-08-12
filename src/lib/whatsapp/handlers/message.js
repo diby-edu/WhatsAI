@@ -582,7 +582,15 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             try {
                 const { getLeadState, setLeadState, updateLeadStateFromUserMessage, buildLeadStateSummary } = require('../services/lead-state.service')
                 const previousLeadState = getLeadState(conversation.metadata)
-                const nextLeadState = updateLeadStateFromUserMessage(previousLeadState, message.text, orderableProducts)
+                // Le dernier message de l'agent est indispensable : sans lui, le moteur ne
+                // sait pas à quelle ligne se rapporte une réponse nue ("Bleu") quand
+                // plusieurs lignes du même produit attendent une couleur — il s'abstenait,
+                // l'état restait faux, et toute la chaîne en découlait (ni prix, ni total,
+                // ni lead). Voir narrowPendingByAssistantQuestion.
+                const nextLeadState = updateLeadStateFromUserMessage(
+                    previousLeadState, message.text, orderableProducts,
+                    { lastAssistantMessage: previousAssistantMessage }
+                )
                 if (JSON.stringify(previousLeadState) !== JSON.stringify(nextLeadState)) {
                     await conversation.updateMetadata(setLeadState(conversation.metadata, nextLeadState))
                 }

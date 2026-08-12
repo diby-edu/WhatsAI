@@ -508,7 +508,92 @@ function detectFulfillmentMode(text) {
     return pickup ? 'pickup' : 'delivery'
 }
 
-function updateLeadStateFromUserMessage(previousState, text, products = []) {
+/**
+ * À quelle ligne se rapporte une réponse nue du client ?
+ *
+ * Le moteur ne voyait jusqu'ici que les messages du CLIENT. Quand plusieurs lignes du même
+ * produit attendaient une couleur, il refusait d'appliquer un « Bleu » isolé — à raison, il
+ * ne pouvait pas savoir laquelle était visée. Sauf que l'agent, lui, avait posé la question
+ * ligne par ligne : « Et pour les 6 sacs enfants, quelle couleur ? ».
+ *
+ * Conséquence réelle (conversation du 12/08/2026) : les deux lignes sont restées en couleur
+ * invalide, donc aucun article complet, donc preview_cart jamais appelé, donc ni prix ni
+ * total ni mise en forme, et un lead enregistré vide. Une seule cause, trois symptômes.
+ *
+ * On lit donc la question de l'agent — uniquement ses phrases INTERROGATIVES, car
+ * « Pour les 8 sacs vous avez choisi Bleu. Et pour les 6, quelle couleur ? » parle des deux
+ * lignes mais n'en interroge qu'une. Et on n'agit que si UNE SEULE ligne correspond : sinon
+ * l'ambiguïté est réelle et on continue de s'abstenir.
+ */
+function narrowPendingByAssistantQuestion(assistantMessage, pendingItems) {
+    if (!assistantMessage || !Array.isArray(pendingItems) || pendingItems.length < 2) return null
+
+    const questions = String(assistantMessage)
+        .split(/(?<=[.!?])\s+|\n+/)
+        .filter(sentence => sentence.includes('?'))
+    if (questions.length === 0) return null
+
+    const quantities = new Set()
+    for (const question of questions) {
+        for (const match of question.matchAll(/\b(\d{1,4})\b/g)) {
+            // Un nombre suivi d'une devise est un PRIX, jamais une quantité de ligne.
+            if (CURRENCY_WORD.test(question.slice(match.index + match[0].length).trimStart())) continue
+            quantities.add(parseInt(match[1], 10))
+        }
+    }
+    if (quantities.size !== 1) return null
+
+    const target = pendingItems.filter(item => item.quantity === [...quantities][0])
+    return target.length === 1 ? target[0] : null
+}
+
+/**
+ * L'agent a-t-il ACTÉ une couleur pour une ligne précise au tour d'avant ?
+ *
+ * Complément de narrowPendingByAssistantQuestion : la question dit quelle ligne est
+ * interrogée, l'affirmation dit quelle ligne est résolue. Sans lire les deux, l'état reste
+ * à moitié faux — « Pour les 8 sacs enfants, vous avez choisi la couleur Bleu » resterait
+ * une ligne « rose invalide » pour toujours, et le résumé continuerait d'affirmer à l'IA
+ * que cette couleur n'existe pas.
+ *
+ * On n'enregistre pas une décision du backend : on enregistre ce que l'agent a annoncé au
+ * client, qui l'a lu sans le contredire. Conditions strictes — phrase NON interrogative,
+ * une quantité, une couleur qui existe réellement au catalogue, et une seule ligne en
+ * attente portant cette quantité.
+ */
+const CONFIRMATION_MARKER = /(vous avez choisi|c'est not[ée]|bien not[ée]|est confirm[ée]|j'ai (?:bien )?enregistr[ée])/i
+
+function applyAssistantConfirmations(state, assistantMessage, products) {
+    if (!assistantMessage || !Array.isArray(products) || products.length === 0) return
+
+    for (const sentence of String(assistantMessage).split(/(?<=[.!?])\s+|\n+/)) {
+        if (sentence.includes('?')) continue
+        if (!CONFIRMATION_MARKER.test(sentence)) continue
+
+        const quantityMatch = sentence.match(/\b(\d{1,4})\b/)
+        if (!quantityMatch) continue
+        if (CURRENCY_WORD.test(sentence.slice(quantityMatch.index + quantityMatch[0].length).trimStart())) continue
+        const quantity = parseInt(quantityMatch[1], 10)
+
+        const pending = state.items.filter(it => it.variant_status !== 'valid' && it.quantity === quantity && it.product_id)
+        if (pending.length !== 1) continue
+
+        const product = products.find(p => p.id === pending[0].product_id)
+        if (!product) continue
+
+        // La couleur doit exister VRAIMENT au catalogue : on ne recopie pas une invention.
+        let confirmed = null
+        for (const word of normalizeText(sentence).split(/\s+/).filter(Boolean)) {
+            confirmed = matchesVariantOptionExactly(product, stripEdgePunctuation(word))
+            if (confirmed) break
+        }
+        if (!confirmed) continue
+
+        applyStatus(pending[0], 'valid', confirmed, pending[0].quantity)
+    }
+}
+
+function updateLeadStateFromUserMessage(previousState, text, products = [], options = {}) {
     const state = cloneState(previousState)
     if (!text || products.length === 0) return state
     // Un message de position ("Ma position : <lieu> (<lien>)") contient des coordonnées
@@ -520,6 +605,9 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
     // Un mode déjà choisi n'est écrasé que par un choix explicite contraire du client.
     const fulfillment = detectFulfillmentMode(text)
     if (fulfillment) state.fulfillment_mode = fulfillment
+
+    // Ce que l'agent a acté au tour précédent fait partie de l'état de la conversation.
+    applyAssistantConfirmations(state, options.lastAssistantMessage, products)
 
     const existingByKey = new Map(state.items.map(it => [keyOf(it), it]))
     const segments = splitSegments(text)
@@ -606,6 +694,13 @@ function updateLeadStateFromUserMessage(previousState, text, products = []) {
                 if (pendingItems.length > 1 && lastBareQuantity !== null) {
                     const narrowed = pendingItems.filter(it => it.quantity === lastBareQuantity)
                     if (narrowed.length === 1) pendingItems = narrowed
+                }
+
+                // Dernier recours avant de s'abstenir : la question que l'agent vient de
+                // poser désigne peut-être la ligne sans ambiguïté (voir la fonction).
+                if (pendingItems.length > 1) {
+                    const answered = narrowPendingByAssistantQuestion(options.lastAssistantMessage, pendingItems)
+                    if (answered) pendingItems = [answered]
                 }
 
                 if (pendingItems.length === 1) {

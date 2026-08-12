@@ -675,6 +675,57 @@ describe('lead-state.service', () => {
             expect(() => buildLeadStateSummary(state)).not.toThrow()
             expect(buildLeadStateSummary(state)).toMatch(/✅ QUANTITÉ ACQUISE/)
         })
+
+        // ── Lire la question/confirmation de l'agent pour désambiguïser ────────────
+        // Régression réelle (12/08/2026) : 2 lignes invalides du même produit restaient
+        // bloquées pour toujours, faute de savoir à quelle ligne une réponse nue du client
+        // se rapportait — alors que l'agent avait posé la question ligne par ligne.
+
+        test('une réponse nue se rattache à la ligne visée par la question ciblée de l\'agent', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sac rose et 6 sac orange', PRODUCTS)
+            state = updateLeadStateFromUserMessage(
+                state, 'Bleu', PRODUCTS,
+                { lastAssistantMessage: 'Nous n\'avons pas ces couleurs. Pour les 8 sacs enfants, quelle couleur souhaitez-vous ?' }
+            )
+            const huit = state.items.find(i => i.quantity === 8)
+            const six = state.items.find(i => i.quantity === 6)
+            expect(huit).toMatchObject({ variant_status: 'valid', variant: 'Bleu' })
+            expect(six).toMatchObject({ variant_status: 'invalid', requested_variant: 'orange' })
+        })
+
+        test('sans question ciblée (ambiguïté réelle), ne devine toujours pas', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sac rose et 6 sac orange', PRODUCTS)
+            state = updateLeadStateFromUserMessage(
+                state, 'Bleu', PRODUCTS,
+                { lastAssistantMessage: 'Nous n\'avons pas ces couleurs. Pour les 8 sacs et les 6 sacs, quelle couleur souhaitez-vous ?' }
+            )
+            expect(state.items.every(i => i.variant_status === 'invalid')).toBe(true)
+        })
+
+        test('une confirmation de l\'agent au tour précédent résout la ligne qu\'elle désigne', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sac rose et 6 sac orange', PRODUCTS)
+            // Le "Bleu" du tour précédent n'a jamais pu être appliqué par le moteur lui-même
+            // (2 lignes en attente à ce moment) — mais l'IA l'a acté dans sa réponse, qui
+            // redemande aussi la couleur des 6 restants.
+            state = updateLeadStateFromUserMessage(
+                state, 'Jaune', PRODUCTS,
+                { lastAssistantMessage: 'Pour les 8 sacs enfants, vous avez choisi la couleur Bleu. Et pour les 6 sacs enfants, quelle couleur souhaitez-vous ?' }
+            )
+            const huit = state.items.find(i => i.quantity === 8)
+            const six = state.items.find(i => i.quantity === 6)
+            expect(huit).toMatchObject({ variant_status: 'valid', variant: 'Bleu' })
+            expect(six).toMatchObject({ variant_status: 'valid', variant: 'Jaune' })
+        })
+
+        test('une confirmation portant sur une couleur qui n\'existe pas au catalogue est ignorée', () => {
+            let state = updateLeadStateFromUserMessage(emptyState, '8 sac rose et 6 sac orange', PRODUCTS)
+            state = updateLeadStateFromUserMessage(
+                state, '6', PRODUCTS,
+                { lastAssistantMessage: 'Pour les 8 sacs enfants, vous avez choisi la couleur Violet. Et pour les 6, combien ?' }
+            )
+            const huit = state.items.find(i => i.quantity === 8)
+            expect(huit).toMatchObject({ variant_status: 'invalid', requested_variant: 'rose' })
+        })
     })
 
     describe('getLeadState / setLeadState', () => {
