@@ -180,6 +180,163 @@ function stripLeadOnlyInternalMarkers(content, isLeadOnlyMode) {
 }
 
 /**
+ * L'agent annonce-t-il indisponible une variante qui EXISTE au catalogue ?
+ *
+ * Cas réel (conversation du 11/08/2026) : le client ouvre par « pas de gourde pour moi,
+ * juste 9 sacs », puis se ravise et demande 4 gourdes rouges. L'agent répond « Nous n'avons
+ * pas de gourde rouge » — alors que le Rouge est au catalogue à 9 000 FCFA, et qu'il le
+ * liste comme disponible deux lignes plus bas. Le client insiste, l'agent refuse, la vente
+ * est perdue. Le modèle a transformé le refus du CLIENT en indisponibilité de la BOUTIQUE.
+ *
+ * C'est vérifiable sans jugement : ou bien la variante est dans le catalogue, ou bien elle
+ * n'y est pas. On ne réécrit rien nous-mêmes — on renvoie le constat au modèle.
+ */
+const UNAVAILABILITY_CLAIM = /(?:n['’]\s*(?:avons|ai|avez)\s+(?:pas|plus)|ne\s+(?:vendons|vend|proposons)\s+pas|pas\s+disponible|non\s+disponible|indisponible|n['’]?existe\s+pas|nous\s+n['’]en\s+avons\s+pas)/i
+// Coupe la fenêtre d'analyse avant une éventuelle ÉNUMÉRATION des couleurs réellement
+// proposées : sans ça, "pas de sac en rose, seulement Bleu, Jaune et Noir" ferait croire
+// à tort que l'agent déclare Bleu indisponible.
+const LISTING_MARKER = /\b(seulement|uniquement|disponibles?|voici|nos couleurs|les options|les couleurs|par contre|en revanche|mais)\b|[:•]/i
+
+function findFalseUnavailabilityClaim(content, products) {
+    if (!content || !Array.isArray(products) || products.length === 0) return null
+
+    for (const sentence of content.split(/(?<=[?!.])\s+|\n/)) {
+        const claim = sentence.match(UNAVAILABILITY_CLAIM)
+        if (!claim) continue
+
+        // Fenêtre = la phrase entière, car la négation peut venir APRÈS le produit
+        // ("La couleur rouge pour la gourde n'est pas disponible"). On la tronque
+        // seulement à une énumération qui SUIT la négation.
+        const afterClaim = claim.index + claim[0].length
+        const listing = sentence.slice(afterClaim).search(LISTING_MARKER)
+        const window = listing >= 0 ? sentence.slice(0, afterClaim + listing) : sentence
+
+        const normalizedWindow = normalizeText(window)
+        const windowWords = normalizedWindow.split(/\s+/).filter(Boolean)
+
+        for (const product of products) {
+            const head = singularize(normalizeText(String(product.name || '').split(/\s+/)[0] || ''))
+            if (head.length < 3) continue
+            if (!windowWords.some(w => fuzzyDistanceOk(singularize(w), head))) continue
+
+            for (const variant of product.variants || []) {
+                for (const option of variant.options || []) {
+                    const value = option?.value ?? option?.name ?? option
+                    const normalizedValue = singularize(normalizeText(value))
+                    if (normalizedValue.length < 3) continue
+                    if (windowWords.some(w => fuzzyDistanceOk(singularize(w), normalizedValue))) {
+                        return { sentence: sentence.trim(), product: product.name, variant: value }
+                    }
+                }
+            }
+        }
+    }
+    return null
+}
+
+/**
+ * Corrige une réponse fautive par une RÉÉCRITURE, pas par une nouvelle génération.
+ *
+ * L'approche précédente rejouait toute la conversation avec le prompt système entier
+ * (~33 000 caractères) augmenté d'une note de correction. Elle échouait jusqu'à 7 fois
+ * sur 8 sur les cas tenaces, et c'est logique : ce prompt répète en boucle « ne suppose
+ * jamais une quantité, si elle manque demande-la ». Le modèle repartait du même contexte,
+ * refaisait le même raisonnement, et rejetait la note de correction. On ne lui demandait
+ * pas de reformuler, on lui demandait de se contredire.
+ *
+ * Ici, aucune règle métier : un message écrit, les faits acquis, les derniers échanges
+ * pour ne pas redemander ce qui a déjà été donné, et une consigne d'édition. Le modèle
+ * choisit toujours la question suivante — on lui retire seulement celle qui est impossible.
+ */
+async function rewriteWithoutImpossibleQuestion(openai, model, content, leadState, recentMessages, reason, offendingSentence) {
+    const facts = []
+    for (const item of leadState?.items || []) {
+        const parts = []
+        if (item.variant_status === 'valid' && item.variant) parts.push(`couleur ${item.variant}`)
+        if (item.quantity !== null) parts.push(`quantité ${item.quantity}`)
+        if (parts.length > 0) facts.push(`- ${item.product_name} : ${parts.join(', ')}`)
+    }
+    if (leadState?.fulfillment_mode === 'pickup') facts.push('- mode de récupération : retrait en boutique')
+    if (leadState?.fulfillment_mode === 'delivery') facts.push('- mode de récupération : livraison')
+
+    // Ce qui manque VRAIMENT, d'après l'état — jamais une étape que le backend décide.
+    // Sans cette liste, la réécriture comblait le vide en inventant une question sur une
+    // information déjà connue : elle remplaçait « quelle quantité ? » par « quelle
+    // couleur ? » pour un article dont la couleur était acquise.
+    const pending = []
+    for (const item of leadState?.items || []) {
+        if (item.variant_status !== 'valid') pending.push(`- la couleur de ${item.product_name}`)
+        if (item.quantity === null) pending.push(`- la quantité de ${item.product_name}`)
+    }
+    if (!leadState?.fulfillment_mode) pending.push('- le mode de récupération : retrait en boutique ou livraison')
+
+    const exchanges = (recentMessages || []).slice(-4)
+        .map(m => `${m.role === 'user' ? 'Client' : 'Agent'}: ${String(m.content || '').slice(0, 300)}`)
+        .join('\n')
+
+    const completion = await callOpenAIWithRetry(openai, {
+        model,
+        temperature: 0,
+        max_tokens: 500,
+        messages: [
+            {
+                role: 'system',
+                content: [
+                    "Tu réécris un message WhatsApp déjà rédigé. Tu ne conseilles pas un client, tu édites un texte.",
+                    // La phrase à retirer est citée mot pour mot : sans ça, le modèle
+                    // conservait l'affirmation fautive au nom du « garde le reste intact »,
+                    // et produisait un message qui refusait et acceptait à la fois.
+                    `Ta tâche : SUPPRIMER INTÉGRALEMENT cette phrase du message : « ${String(offendingSentence || '').slice(0, 300)} »`,
+                    `Raison : ${reason}`,
+                    'Cette phrase doit disparaître entièrement. Ne la reformule pas, ne la nuance pas, ne la remplace pas par une variante du même propos.',
+                    'Les informations listées comme acquises ne se discutent pas, ne se vérifient pas et ne se redemandent pas.',
+                    'Garde tout le reste intact : ton, emojis, mise en forme, et toute question portant sur autre chose.',
+                    "Si la suppression laisse le message sans suite, enchaîne sur ce qui manque encore d'après les échanges ci-dessous. Tu choisis la formulation.",
+                    "Ne pose qu'UNE seule question. Ne redemande jamais une information déjà donnée par le client dans ces échanges.",
+                    'Ne termine jamais par une formule vague ("je suis à votre disposition", "quelle est la prochaine étape").',
+                    'Réponds UNIQUEMENT par le message réécrit, sans commentaire ni guillemets.',
+                ].join('\n'),
+            },
+            {
+                role: 'user',
+                content: [
+                    facts.length > 0 ? `INFORMATIONS ACQUISES :\n${facts.join('\n')}` : 'INFORMATIONS ACQUISES : aucune.',
+                    pending.length > 0
+                        ? `\nCE QUI MANQUE ENCORE :\n${pending.join('\n')}`
+                        : "\nCE QUI MANQUE ENCORE : rien sur les articles ni sur le mode de récupération — il reste à collecter les coordonnées du client, sauf si les échanges ci-dessous montrent qu'elles ont déjà été données.",
+                    exchanges ? `\nDERNIERS ÉCHANGES :\n${exchanges}` : '',
+                    `\nMESSAGE À RÉÉCRIRE :\n${content}`,
+                ].join('\n'),
+            },
+        ],
+    })
+    return (completion.choices[0]?.message?.content || '').trim()
+}
+
+/**
+ * Récapitulatif chiffré d'une commande EN LIVRAISON, mais sans ligne de frais.
+ *
+ * Cas réel mesuré : quand le client répond « Cocody », les frais de 1 000 FCFA sont absents
+ * du récap 7 fois sur 8 — alors que Port-Bouët (2 000) et Yopougon (2 000) passent sans
+ * problème. Le lead part donc sous-facturé. Le prompt dit déjà de rappeler preview_cart
+ * avec delivery_fee ; le modèle ne le fait pas de façon fiable.
+ *
+ * Vérifiable sans jugement : la livraison est choisie (état du moteur), un total est
+ * affiché, aucune ligne de frais n'apparaît, et la boutique facture bien la livraison.
+ */
+function findMissingDeliveryFee(content, leadState, agent) {
+    if (!content || !leadState) return null
+    if (leadState.fulfillment_mode !== 'delivery') return null
+    if (agent?.delivery_fee_mode !== 'zones') return null
+
+    // Uniquement sur un vrai récap chiffré : une phrase sans total n'a rien à porter.
+    if (!/TOTAL\s*:/i.test(content)) return null
+    if (/frais de livraison/i.test(content)) return null
+
+    return { sentence: (content.match(/[^\n]*TOTAL\s*:[^\n]*/i) || [''])[0].trim() }
+}
+
+/**
  * Une question de quantité portant sur un article dont la quantité est DÉJÀ connue est
  * prouvablement fausse : l'information existe dans lead_state, elle a été affichée à l'IA,
  * et la reposer fait répéter le client ("J'ai dis 10", observé en prod).
@@ -195,13 +352,22 @@ function stripLeadOnlyInternalMarkers(content, isLeadOnlyMode) {
  * "10 sacs noirs, c'est noté. Pour les gourdes rouges, quelle quantité ?").
  */
 const QUANTITY_QUESTION = /(quelle\s+(?:est\s+la\s+)?quantit[ée]|combien\s+(?:en\s+|de\s+)?(?:voulez|souhaitez|d[ée]sirez)|combien\s+de\s+|nombre\s+(?:de|d')\s*\w+\s+souhait)/i
+// Symétrique de la quantité : redemander une couleur déjà choisie est tout aussi
+// impossible. Découvert en vérifiant la réécriture — elle remplaçait la question de
+// quantité par une question de couleur sur un article dont la couleur était connue,
+// et ma mesure ne voyait rien puisqu'elle ne cherchait que les quantités.
+const VARIANT_QUESTION = /(quelle\s+(?:est\s+la\s+)?(?:couleur|taille|variante)|quel\s+(?:coloris|mod[èe]le)|choisir\s+(?:une\s+)?couleur)/i
 
 function findStaleQuantityQuestion(content, leadState) {
     if (!content || !leadState || !Array.isArray(leadState.items)) return null
 
     const known = leadState.items.filter(item => item.quantity !== null && item.product_name)
     const stillMissing = leadState.items.filter(item => item.quantity === null && item.product_name)
-    if (known.length === 0) return null
+    // Pour les variantes : une ligne dont la couleur est acquise ne doit plus être
+    // questionnée ; une ligne dont la couleur manque ou a été refusée, si.
+    const variantKnown = leadState.items.filter(item => item.variant_status === 'valid' && item.product_name)
+    const variantMissing = leadState.items.filter(item => item.variant_status !== 'valid' && item.product_name)
+    if (known.length === 0 && variantKnown.length === 0) return null
 
     const mentions = (sentence, name) => {
         // Compare sur le premier mot significatif du nom produit ("sac" pour "sac enfant") :
@@ -221,6 +387,16 @@ function findStaleQuantityQuestion(content, leadState) {
     }
 
     for (const sentence of content.split(/(?<=[?!.])\s+|\n/)) {
+        // Question de VARIANTE sur une couleur déjà acquise (même raisonnement que la
+        // quantité : on ne signale rien tant qu'une ligne attend réellement sa couleur).
+        if (VARIANT_QUESTION.test(sentence) && variantMissing.length === 0) {
+            const namedTarget = variantKnown.find(item => mentions(sentence, item.product_name))
+            const target = namedTarget || (variantKnown.length > 0 ? variantKnown[0] : null)
+            if (target) {
+                return { sentence: sentence.trim(), item: target, variantAlreadyKnown: true }
+            }
+        }
+
         if (!QUANTITY_QUESTION.test(sentence)) continue
         if (stillMissing.some(item => mentions(sentence, item.product_name))) continue
 
@@ -853,35 +1029,69 @@ async function generateAIResponse(options, dependencies) {
             // Jusqu'à 2 tentatives : mesuré, une seule ne suffit pas quand le signal de
             // quantité est faible ("une gourde" = 1), le modèle voulant reconfirmer.
             for (let attempt = 1; attempt <= 2; attempt++) {
-            const stale = findStaleQuantityQuestion(content, leadState)
+            const staleQuantity = findStaleQuantityQuestion(content, leadState)
+            const falseUnavailable = findFalseUnavailabilityClaim(content, products || [])
+            const missingFee = findMissingDeliveryFee(content, leadState, agent)
+            const stale = staleQuantity
+                || (falseUnavailable && {
+                    sentence: falseUnavailable.sentence,
+                    item: { product_name: falseUnavailable.product, quantity: null },
+                    unavailable: falseUnavailable,
+                })
+                || (missingFee && {
+                    sentence: missingFee.sentence,
+                    item: { product_name: 'livraison', quantity: null },
+                    missingFee: true,
+                })
             if (!stale) break
             {
                 try {
                     // La phrase fautive est journalisée telle quelle : sans elle, impossible
                     // de comprendre a posteriori pourquoi le modèle a reposé la question.
                     // Tronquée à 160 caractères pour rester lisible dans les logs PM2.
-                    console.log(`⚠️ [lead_only] Question sur une quantité déjà connue (${stale.item.product_name} = ${stale.item.quantity}) — reformulation demandée`)
+                    const motif = stale.unavailable
+                        ? `supprimer l'affirmation « ${stale.unavailable.variant} n'est pas disponible » pour "${stale.unavailable.product}". C'EST FAUX : cette couleur est au catalogue et se vend. Le message doit accepter la demande du client au lieu de la refuser.`
+                        : stale.variantAlreadyKnown
+                            ? `supprimer la question qui redemande la couleur de "${stale.item.product_name}", déjà choisie (${stale.item.variant}).`
+                            : `supprimer la question qui redemande la quantité de "${stale.item.product_name}", déjà connue (${stale.item.quantity}).`
+                    console.log(stale.missingFee
+                        ? '⚠️ [lead_only] Récap de livraison sans frais de livraison — reformulation demandée'
+                        : stale.unavailable
+                            ? `⚠️ [lead_only] Variante du catalogue annoncée indisponible à tort (${stale.unavailable.product} / ${stale.unavailable.variant}) — reformulation demandée`
+                            : `⚠️ [lead_only] Question sur une quantité déjà connue (${stale.item.product_name} = ${stale.item.quantity}) — reformulation demandée`)
                     console.log(`   ↳ phrase fautive : "${stale.sentence.slice(0, 160)}"`)
-                    const correction = `${systemPrompt}\n\n🚨 CORRECTION IMMÉDIATE (prioritaire sur tout le reste) : ta réponse précédente contenait « ${stale.sentence} ». Or la quantité de "${stale.item.product_name}" est DÉJÀ connue : ${stale.item.quantity}. Cette question est impossible, elle oblige le client à répéter ce qu'il vient de dire. Réécris ta réponse en entier sans elle : traite ce qui est réellement en attente, ou enchaîne sur l'étape suivante du flux.`
-                    const retry = await callOpenAIWithRetry(openai, {
-                        model: modelToUse,
-                        messages: [{ role: 'system', content: correction }, ...messages.slice(1)],
-                        max_tokens: agent.max_tokens || 500,
-                        temperature: agent.temperature || 0.7,
-                        ...toolsConfig,
-                    })
-                    const retried = retry.choices[0]?.message
-                    if (retried?.content) {
+                    // Les frais de livraison manquants sont le seul cas qui exige un OUTIL
+                    // (preview_cart recalcule le total) : une réécriture de texte ne peut pas
+                    // inventer le montant. Ce cas garde donc la régénération complète.
+                    const rewritten = stale.missingFee
+                        ? (await callOpenAIWithRetry(openai, {
+                            model: modelToUse,
+                            messages: [
+                                { role: 'system', content: `${systemPrompt}\n\n🚨 CORRECTION IMMÉDIATE : ta réponse précédente affichait un total sans ligne "Frais de livraison" alors que le client a choisi la LIVRAISON. Rappelle preview_cart avec la liste complète des articles ET delivery_fee = le tarif exact de sa commune, puis reproduis le nouveau recap_text.` },
+                                ...messages.slice(1),
+                            ],
+                            max_tokens: agent.max_tokens || 500,
+                            temperature: agent.temperature || 0.7,
+                            ...toolsConfig,
+                        })).choices[0]?.message?.content
+                        // Réécriture ciblée, sans le prompt métier : voir
+                        // rewriteWithoutImpossibleQuestion pour la raison détaillée.
+                        : await rewriteWithoutImpossibleQuestion(
+                            openai, modelToUse, content, leadState, conversationHistory, motif, stale.sentence
+                        )
+                    if (rewritten) {
                         content = stripLeadOnlyUnfilledRecap(
-                            stripLeadOnlyPaymentMentions(stripMarkdownImages(retried.content), isLeadOnlyMode),
+                            stripLeadOnlyPaymentMentions(stripMarkdownImages(rewritten), isLeadOnlyMode),
                             isLeadOnlyMode
                         )
                         // Vérifie que la reformulation a réellement réglé le problème : c'est
                         // le seul moyen de savoir, en production, si le garde-fou tient ou si
                         // le modèle repose la même question malgré la correction.
                         const stillStale = findStaleQuantityQuestion(content, leadState)
+                            || findFalseUnavailabilityClaim(content, products || [])
+                            || findMissingDeliveryFee(content, leadState, agent)
                         console.log(stillStale
-                            ? `   ↳ ❌ reformulation INSUFFISANTE, la question persiste : "${stillStale.sentence.slice(0, 160)}"`
+                            ? `   ↳ ❌ reformulation INSUFFISANTE, l'erreur persiste : "${stillStale.sentence.slice(0, 160)}"`
                             : '   ↳ ✅ reformulation OK, la question a disparu')
                     } else {
                         console.log('   ↳ ⚠️ reformulation sans texte (appel d\'outil seul), réponse initiale conservée')
@@ -965,4 +1175,4 @@ async function generateAIResponse(options, dependencies) {
 
 // stripLeadOnlyUnfilledRecap est exporté uniquement pour être testable unitairement :
 // son déclenchement dépend d'une sortie du modèle, impossible à provoquer autrement.
-module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion }
+module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion, findFalseUnavailabilityClaim }

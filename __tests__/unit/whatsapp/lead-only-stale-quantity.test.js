@@ -90,9 +90,40 @@ describe('findStaleQuantityQuestion', () => {
             expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET] })).toBeNull()
         })
 
-        test('question de variante, pas de quantité', () => {
+        test('une question de couleur reste légitime tant qu\'une ligne attend sa couleur', () => {
+            const sacSansCouleur = { product_name: 'sac enfant', variant_status: 'missing', variant: null, quantity: 6 }
+            const content = 'Pour les 6 sacs enfant, quelle couleur souhaitez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET, sacSansCouleur] })).toBeNull()
+        })
+    })
+
+    describe('couleur déjà choisie — élargissement du 12/08/2026', () => {
+        // Découvert en vérifiant la réécriture de bout en bout : privée de sa question de
+        // quantité, elle la remplaçait par une question de COULEUR sur un article dont la
+        // couleur était déjà acquise. Ma mesure ne voyait rien, ne cherchant que les
+        // quantités — troisième fois que je mesure avec un détecteur aveugle.
+        test('redemander une couleur déjà choisie est détecté', () => {
             const content = 'Pour les 10 sacs enfant, quelle couleur souhaitez-vous ?'
-            expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET] })).toBeNull()
+            const stale = findStaleQuantityQuestion(content, { items: [SAC_COMPLET] })
+            expect(stale).not.toBeNull()
+            expect(stale.variantAlreadyKnown).toBe(true)
+        })
+
+        test('couvre la question nue, sans nom de produit', () => {
+            const content = 'Très bien pour la gourde. Quelle couleur souhaitez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [GOUBE_COMPLET] })).not.toBeNull()
+        })
+
+        test('reste muet si une seule ligne attend encore sa couleur', () => {
+            const goubeSansCouleur = { product_name: 'goube enfant', variant_status: 'missing', variant: null, quantity: 4 }
+            const content = 'Quelle couleur souhaitez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [SAC_COMPLET, goubeSansCouleur] })).toBeNull()
+        })
+
+        test('reste muet sur une variante refusée, qui doit être redemandée', () => {
+            const sacInvalide = { product_name: 'sac enfant', variant_status: 'invalid', requested_variant: 'rose', quantity: 8 }
+            const content = 'Le rose n\'existe pas. Quelle couleur souhaitez-vous ?'
+            expect(findStaleQuantityQuestion(content, { items: [sacInvalide] })).toBeNull()
         })
 
         test('une question sur un article absent de l\'état est traitée comme suspecte', () => {
