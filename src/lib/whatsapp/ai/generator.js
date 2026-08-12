@@ -152,6 +152,51 @@ function stripLeadOnlyUnfilledRecap(content, isLeadOnlyMode) {
 }
 
 /**
+ * L'agent raconte sa mécanique interne au lieu d'agir.
+ *
+ * Observé en production le 12/08/2026 : « Parfait ! Pour les 10 sacs enfant noir, je vais
+ * calculer le récapitulatif avec les frais de livraison. » — puis rien, le calcul arrive au
+ * message suivant. Pire chez un autre client : « Je vais maintenant vérifier les frais pour
+ * Angré Château. Un instant, s'il vous plaît. … » suivi, DANS LE MÊME MESSAGE, du résultat.
+ * L'attente était donc du théâtre : il n'y a jamais eu de pause.
+ *
+ * Le client n'a pas à savoir qu'un calcul va avoir lieu, il attend le résultat. On retire
+ * ces annonces et les points de suspension isolés qui les accompagnent, sans toucher au
+ * reste — le récapitulatif qui suit dans le même message est conservé intact.
+ */
+// Retrait à la PHRASE, jamais à la proposition : la narration est souvent enchâssée
+// ("Pour les 10 sacs enfant noir, je vais calculer le récapitulatif."). Couper la seule
+// proposition laisserait un fragment tronqué — « Parfait ! Pour les 10 sacs enfant noir, ».
+const NARRATION_PATTERNS = [
+    /\b(?:je\s+vais|je\s+m['’]en\s+vais)\s+(?:maintenant\s+|tout\s+de\s+suite\s+|d['’]abord\s+)?(?:calculer|v[ée]rifier|pr[ée]parer|consulter|regarder|proc[ée]der|effectuer|lancer)\b/i,
+    /\b(?:un\s+instant|un\s+moment|patientez|veuillez\s+patienter)\b/i,
+    /\bje\s+(?:vous\s+)?reviens\s+(?:vers\s+vous\s+)?(?:dans|tout\s+de\s+suite)\b/i,
+]
+
+function stripLeadOnlyNarration(content, isLeadOnlyMode) {
+    if (!isLeadOnlyMode || !content) return content
+
+    const keptLines = []
+    for (const line of content.split('\n')) {
+        // Points de suspension seuls sur leur ligne : simulation d'attente, rien d'autre.
+        if (/^\s*(?:\.{2,}|…)\s*$/.test(line)) continue
+
+        const sentences = line.split(/(?<=[.!?])\s+/)
+        const kept = sentences.filter(sentence => !NARRATION_PATTERNS.some(re => re.test(sentence)))
+        if (kept.length === sentences.length) { keptLines.push(line); continue }
+        const rebuilt = kept.join(' ').trim()
+        if (rebuilt) keptLines.push(rebuilt)
+    }
+
+    const cleaned = keptLines.join('\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+
+    if (cleaned !== content.trim()) {
+        console.log('⚠️ [lead_only] Narration interne retirée de la réponse IA')
+    }
+    return cleaned
+}
+
+/**
  * Le résumé d'état injecté dans le prompt porte des marqueurs destinés au MODÈLE
  * ("✅ COMPLET", "✅ QUANTITÉ ACQUISE", les notes ⚠️ d'affectation non résolue). Observé
  * en production : le modèle les recopie tels quels dans sa réponse au client —
@@ -311,6 +356,56 @@ async function rewriteWithoutImpossibleQuestion(openai, model, content, leadStat
         ],
     })
     return (completion.choices[0]?.message?.content || '').trim()
+}
+
+/**
+ * L'agent annonce-t-il un tarif de livraison pour un lieu qui n'est pas dans tes zones ?
+ *
+ * Cas réel (12/08/2026) : le client répond « Angré château ». Angré est un quartier de
+ * Cocody, facturé 1 000 FCFA dans la configuration. L'agent a annoncé 2 000 FCFA — un
+ * montant qui existe ailleurs dans la grille, mais pas pour ce lieu. Le client a vu un
+ * prix, le vendeur en verra un autre.
+ *
+ * Le prompt dit pourtant : si le lieu ne correspond CLAIREMENT à aucune entrée, demander
+ * de préciser la commune. C'est vérifiable sans jugement — ou bien un nom de zone
+ * configurée apparaît dans la conversation, ou bien il n'y en a aucun.
+ */
+const FEE_ANNOUNCEMENT = /(?:frais\s+(?:de\s+)?livraison|frais\s+(?:sont|est|s['’]?[ée]l[èe]vent))[^\n]{0,40}?\d/i
+
+function collectDeliveryZoneNames(agent) {
+    const zones = agent?.delivery_zones || {}
+    return [...(zones.communes || []), ...(zones.hors_abidjan || []), ...(zones.international || [])]
+        .map(zone => normalizeText(zone?.name || ''))
+        .filter(name => name.length >= 3)
+}
+
+function findInventedDeliveryFee(content, agent, conversationHistory) {
+    if (!content || agent?.delivery_fee_mode !== 'zones') return null
+    const announcement = content.match(FEE_ANNOUNCEMENT)
+    if (!announcement) return null
+
+    const zoneNames = collectDeliveryZoneNames(agent)
+    if (zoneNames.length === 0) return null
+
+    // Le lieu peut avoir été donné plusieurs tours plus tôt ("Koumassi"), pas forcément
+    // dans le message qui annonce le tarif — on balaie donc la conversation récente.
+    const haystack = normalizeText([
+        ...(conversationHistory || []).slice(-8).map(m => m?.content || ''),
+        content,
+    ].join(' '))
+    // Le tiret compte comme séparateur des deux côtés : "Port-Bouët" (nom de zone
+    // configuré) et "Port Bouet" (façon la plus courante de l'écrire côté client, sans
+    // tiret ni accent) doivent se découper en les mêmes mots — sinon aucune des deux
+    // graphies ne matche l'autre, et une vraie zone se fait passer pour une invention.
+    const haystackWords = haystack.split(/[\s-]+/).filter(Boolean)
+
+    const zoneFound = zoneNames.some(zone => {
+        const zoneWords = zone.split(/[\s-]+/).filter(Boolean)
+        return zoneWords.every(word => haystackWords.some(w => fuzzyDistanceOk(singularize(w), singularize(word))))
+    })
+    if (zoneFound) return null
+
+    return { sentence: (content.match(/[^\n]*(?:frais[^\n]*\d[^\n]*)/i) || [''])[0].trim() }
 }
 
 /**
@@ -1020,6 +1115,7 @@ async function generateAIResponse(options, dependencies) {
         // ni partir au client, ni compter comme une clôture qui déclenche l'enregistrement.
         content = stripLeadOnlyUnfilledRecap(content, isLeadOnlyMode)
         content = stripLeadOnlyInternalMarkers(content, isLeadOnlyMode)
+        content = stripLeadOnlyNarration(content, isLeadOnlyMode)
 
         // Question portant sur une quantité déjà connue : on ne la corrige pas nous-mêmes,
         // on renvoie le constat au modèle et on le laisse reformuler (voir
@@ -1032,11 +1128,17 @@ async function generateAIResponse(options, dependencies) {
             const staleQuantity = findStaleQuantityQuestion(content, leadState)
             const falseUnavailable = findFalseUnavailabilityClaim(content, products || [])
             const missingFee = findMissingDeliveryFee(content, leadState, agent)
+            const inventedFee = findInventedDeliveryFee(content, agent, conversationHistory)
             const stale = staleQuantity
                 || (falseUnavailable && {
                     sentence: falseUnavailable.sentence,
                     item: { product_name: falseUnavailable.product, quantity: null },
                     unavailable: falseUnavailable,
+                })
+                || (inventedFee && {
+                    sentence: inventedFee.sentence,
+                    item: { product_name: 'livraison', quantity: null },
+                    inventedFee: true,
                 })
                 || (missingFee && {
                     sentence: missingFee.sentence,
@@ -1049,12 +1151,16 @@ async function generateAIResponse(options, dependencies) {
                     // La phrase fautive est journalisée telle quelle : sans elle, impossible
                     // de comprendre a posteriori pourquoi le modèle a reposé la question.
                     // Tronquée à 160 caractères pour rester lisible dans les logs PM2.
-                    const motif = stale.unavailable
+                    const motif = stale.inventedFee
+                        ? `supprimer l'annonce de tarif de livraison. Le lieu donné par le client ne correspond à AUCUNE zone configurée, donc ce montant est inventé. Le message doit demander au client de préciser sa commune au lieu d'annoncer un prix.`
+                        : stale.unavailable
                         ? `supprimer l'affirmation « ${stale.unavailable.variant} n'est pas disponible » pour "${stale.unavailable.product}". C'EST FAUX : cette couleur est au catalogue et se vend. Le message doit accepter la demande du client au lieu de la refuser.`
                         : stale.variantAlreadyKnown
                             ? `supprimer la question qui redemande la couleur de "${stale.item.product_name}", déjà choisie (${stale.item.variant}).`
                             : `supprimer la question qui redemande la quantité de "${stale.item.product_name}", déjà connue (${stale.item.quantity}).`
-                    console.log(stale.missingFee
+                    console.log(stale.inventedFee
+                        ? '⚠️ [lead_only] Tarif de livraison annoncé pour un lieu hors zones configurées — reformulation demandée'
+                        : stale.missingFee
                         ? '⚠️ [lead_only] Récap de livraison sans frais de livraison — reformulation demandée'
                         : stale.unavailable
                             ? `⚠️ [lead_only] Variante du catalogue annoncée indisponible à tort (${stale.unavailable.product} / ${stale.unavailable.variant}) — reformulation demandée`
@@ -1090,6 +1196,7 @@ async function generateAIResponse(options, dependencies) {
                         const stillStale = findStaleQuantityQuestion(content, leadState)
                             || findFalseUnavailabilityClaim(content, products || [])
                             || findMissingDeliveryFee(content, leadState, agent)
+                            || findInventedDeliveryFee(content, agent, conversationHistory)
                         console.log(stillStale
                             ? `   ↳ ❌ reformulation INSUFFISANTE, l'erreur persiste : "${stillStale.sentence.slice(0, 160)}"`
                             : '   ↳ ✅ reformulation OK, la question a disparu')
@@ -1175,4 +1282,4 @@ async function generateAIResponse(options, dependencies) {
 
 // stripLeadOnlyUnfilledRecap est exporté uniquement pour être testable unitairement :
 // son déclenchement dépend d'une sortie du modèle, impossible à provoquer autrement.
-module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion, findFalseUnavailabilityClaim }
+module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion, findFalseUnavailabilityClaim, stripLeadOnlyNarration, findInventedDeliveryFee }
