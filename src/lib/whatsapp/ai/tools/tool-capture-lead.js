@@ -136,25 +136,34 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
         // (ex: message de confirmation court), lastSeenTotals.deliveryFee est null — mais ça
         // ne veut pas forcément dire "plus de livraison" : retombe sur le dernier frais connu
         // de lead_cart plutôt que d'effacer silencieusement une livraison déjà confirmée.
-        const deliveryFee = hasLastSeenTotal && lastSeenTotals.deliveryFee !== null
+        let deliveryFee = hasLastSeenTotal && lastSeenTotals.deliveryFee !== null
             ? lastSeenTotals.deliveryFee
             : (leadCart?.deliveryFee ?? null)
 
-        // Mode de récupération : capté par le moteur à partir des mots du client, jamais
-        // déduit. Il n'atteignait le lead que si l'IA pensait à l'écrire dans "interest",
-        // texte libre — donc de façon aléatoire. La table `leads` n'ayant pas de colonne
-        // dédiée, on garantit au moins sa présence dans "interest", que le tableau de bord
-        // affiche déjà. Une vraie colonne demanderait une migration.
-        const fulfillmentLabel = leadState?.fulfillment_mode === 'pickup' ? 'retrait en boutique'
-            : leadState?.fulfillment_mode === 'delivery' ? 'livraison'
-                : null
-        let finalInterest = interest || null
-        if (fulfillmentLabel) {
-            const alreadyStated = new RegExp(fulfillmentLabel.split(' ')[0], 'i').test(finalInterest || '')
-            if (!alreadyStated) {
-                finalInterest = finalInterest ? `${finalInterest}, ${fulfillmentLabel}` : fulfillmentLabel
-                console.log(`ℹ️ [capture_lead] Mode de récupération ajouté au lead : ${fulfillmentLabel}`)
+        // Livraison annoncée dans le total mais jamais sur sa propre ligne. Cas réel du
+        // 12/08/2026 : l'agent écrit "TOTAL : 37 000 FCFA (incluant la livraison)" sans
+        // ligne "Frais de livraison". Le lead partait alors avec le bon montant global
+        // (37 000) mais delivery_fee à null — une facturation ou un export lisant ce champ
+        // aurait vu zéro livraison. L'écart entre le total affiché et la somme des articles
+        // EST la livraison : on la déduit plutôt que de la perdre.
+        const itemsSource = leadCart?.items?.length ? leadCart.items : fallbackItems
+        if (deliveryFee === null && estimatedTotal !== null && Array.isArray(itemsSource) && itemsSource.length > 0) {
+            const articlesTotal = itemsSource.reduce((sum, item) => sum + (item.subtotal || 0), 0)
+            const ecart = estimatedTotal - articlesTotal
+            if (ecart > 0) {
+                deliveryFee = ecart
+                console.log(`ℹ️ [capture_lead] Frais de livraison déduits de l'écart total/articles : ${ecart} FCFA`)
             }
+        }
+
+        // Mode de récupération : capté par le moteur depuis les mots du client, jamais
+        // déduit, et désormais rangé dans sa propre colonne (migration du 12/08/2026).
+        // Il transitait auparavant par `interest`, un champ de texte libre que le tableau
+        // de bord découpe en puces — « retrait en boutique » y apparaissait comme un
+        // article commandé. `interest` redevient ce qu'il doit être : une phrase lisible.
+        const fulfillmentMode = leadState?.fulfillment_mode || null
+        if (fulfillmentMode) {
+            console.log(`ℹ️ [capture_lead] Mode de récupération enregistré : ${fulfillmentMode}`)
         }
 
         // Fusionne l'instruction capturée par code dans lead_notes si l'IA ne l'y a pas
@@ -193,7 +202,8 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             lead_location:     locationDuplicatesAddress ? null : (lead_location || null),
             lead_address:      lead_address     || null,
             lead_company:      lead_company     || null,
-            interest:          finalInterest,
+            interest:          interest         || null,
+            fulfillment_mode:  fulfillmentMode,
             preferred_date:    preferred_date   || null,
             preferred_time:    preferred_time   || null,
             service_requested: service_requested || null,
