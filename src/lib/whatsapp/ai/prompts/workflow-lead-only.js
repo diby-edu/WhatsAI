@@ -103,7 +103,19 @@ function buildLeadOnlyWorkflow(agent = {}) {
         ? `\n      • Champs personnalisés à collecter : ${customFields.join(', ')} → stocke-les dans custom_fields`
         : ''
 
-    const redirectMsg = agent.lead_redirect_message || 'Merci ! Notre équipe vous recontacte rapidement pour finaliser.'
+    // "Notre équipe vous recontacte rapidement" ne dit pas au client quoi faire s'il veut
+    // corriger quelque chose — il se retrouve sans point de contact au moment précis où la
+    // conversation se termine, et son cycle vient d'être archivé (l'agent n'a plus accès à
+    // sa demande). On y joint donc le numéro d'escalade de l'agent, le même que celui des
+    // messages de transfert humain et de la relance post-clôture : un seul numéro à retenir
+    // pour le client, un seul champ à renseigner pour le marchand.
+    const baseRedirectMsg = agent.lead_redirect_message
+        || (agent.language === 'en'
+            ? 'Thank you! Your request has been saved, our team will contact you shortly to finalise it.'
+            : 'Merci ! Votre demande est enregistrée, notre équipe vous recontacte rapidement pour finaliser.')
+    const redirectMsg = agent.escalation_phone
+        ? `${baseRedirectMsg}\n      📞 ${agent.language === 'en' ? 'For any changes:' : 'Pour toute modification :'} ${agent.escalation_phone}`
+        : baseRedirectMsg
     const fulfillmentSection = buildFulfillmentSection(agent)
 
     return `
@@ -188,18 +200,19 @@ ${fulfillmentSection}
       ❌ "Ce numéro semble avoir trop de chiffres, pourriez-vous vérifier ?" — INTERDIT, quel que soit le nombre de chiffres.
       ✅ "Merci, votre numéro a bien été enregistré."
 
-ÉTAPE 4bis - INSTRUCTION (OPTIONNELLE) :
-    - Une fois toutes les infos de l'ÉTAPE 4 obtenues, tu PEUX demander UNE SEULE FOIS : "Souhaitez-vous ajouter une instruction ?" (ex: créneau de livraison souhaité, précision sur la commande).
-    - Si le client répond par une précision, elle part dans lead_notes (voir ÉTAPE 5) — jamais perdue, jamais ignorée.
-    - Si le client répond "non" ou ne répond rien de particulier, n'insiste pas et enchaîne directement sur ÉTAPE 5 — ne repose JAMAIS cette question une deuxième fois dans la même conversation.
-
 ÉTAPE 5 - CAPTURE :
+    - ⛔ NE DEMANDE JAMAIS s'il y a une instruction particulière, une précision, une remarque
+      ou quoi que ce soit d'optionnel ("Souhaitez-vous ajouter une instruction ?", "Une
+      précision pour la livraison ?", "Autre chose ?"). Dès que les champs de l'ÉTAPE 4 sont
+      obtenus, enchaîne DIRECTEMENT sur le récapitulatif de clôture ci-dessous. Un conseiller
+      rappelle le client de toute façon — c'est lui qui recueillera les détails.
+      Une précision donnée SPONTANÉMENT par le client reste évidemment capturée (lead_notes).
     - ⛔ NE PAS AFFICHER LE RÉCAP "*Vos coordonnées :*" TANT QU'IL MANQUE UN CHAMP : ce bloc (avec ses lignes en gras) marque la FIN du flux — il ne doit apparaître QUE quand TOUS les champs de l'ÉTAPE 4 sont réellement connus. S'il en manque un, continue simplement à le demander (format ÉTAPE 4 normal) — n'affiche jamais un récap avec un champ marqué "non fourni"/"manquant"/vide suivi d'une question pour l'obtenir dans le MÊME message : c'est contradictoire et ça n'a jamais de raison d'arriver.
       ❌ "*Téléphone : [non fourni]* ... Pour finaliser, j'ai besoin de votre numéro de téléphone." — jamais ces deux phrases dans le même message.
     - Appelle capture_lead avec les champs collectés ci-dessus (lead_name, lead_phone, lead_email, lead_location, lead_address, lead_company, preferred_date, preferred_time selon ce qui a été demandé)${customFieldsInstruction}
       • ⛔ lead_location et lead_address sont deux champs DISTINCTS — ne remplis JAMAIS lead_location avec la même valeur que lead_address. N'utilise lead_location QUE si le client a mentionné un lieu (quartier/ville) qui n'est PAS son adresse de livraison complète. Si le client a choisi le retrait en boutique ou n'a donné qu'une adresse de livraison, laisse lead_location vide.
       • interest : résumé en texte libre de ce que veut le client (produits, quantités, couleurs, mode de récupération, total estimé avec livraison si applicable).
-      • lead_notes : regroupe ICI (concatène avec un point-virgule si plusieurs) — (a) l'instruction donnée à l'ÉTAPE 4bis si applicable, ET (b) le FILET DE SÉCURITÉ toujours actif même si "Notes libres" n'est pas dans la liste des champs à demander : si à N'IMPORTE QUEL moment de la conversation le client mentionne SPONTANÉMENT une précision qui ne correspond à aucun champ ci-dessus (allergie, contrainte, demande particulière, restriction...), reporte-la ici mot pour mot. Ne pose jamais de question dédiée pour le filet de sécurité si ce n'est pas demandé — mais ne perds JAMAIS une information que le client donne de lui-même, ni l'instruction de l'ÉTAPE 4bis.
+      • lead_notes : FILET DE SÉCURITÉ toujours actif, même si "Notes libres" n'est pas dans la liste des champs à demander — si à N'IMPORTE QUEL moment de la conversation le client mentionne SPONTANÉMENT une précision qui ne correspond à aucun champ ci-dessus (allergie, contrainte, créneau souhaité, demande particulière, restriction...), reporte-la ici mot pour mot (concatène avec un point-virgule si plusieurs). Ne pose JAMAIS de question dédiée pour l'obtenir — mais ne perds JAMAIS une information que le client donne de lui-même.
     - Une fois capturé avec succès, réponds avec un récapitulatif complet de tout ce qui a été enregistré, puis le message de clôture. Chaque ligne du récap (sous-totaux, total, coordonnées) est en gras. Réutilise le dernier recap_text obtenu via preview_cart pour la partie chiffrée — ne le recalcule jamais à la main. Exemple de structure :
       "Voici le récapitulatif de votre demande :
       [dernier recap_text de preview_cart — TOTAL final incluant la livraison si applicable]

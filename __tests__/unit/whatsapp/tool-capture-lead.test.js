@@ -6,9 +6,20 @@ jest.mock('../../../src/lib/notifications/notify', () => ({
 
 const { handleCaptureLead } = require('../../../src/lib/whatsapp/ai/tools/tool-capture-lead')
 
-function createSupabase({ metadata = {}, existingLeadId = null } = {}) {
+function createSupabase({ metadata = {}, existingLeadId = null, existingLeadCreatedAt = null } = {}) {
     let insertedRow = null
     let updatedRow = null
+
+    // Le lead existant n'est retenu que s'il appartient au cycle courant. `gte` reproduit le
+    // filtre `created_at >= session_anchor_at` posé par capture_lead : sans lui, une seconde
+    // demande passée après le récap final écraserait la première (voir les tests de cycle).
+    const matchesCycle = (anchor) =>
+        !anchor || !existingLeadCreatedAt || new Date(existingLeadCreatedAt) >= new Date(anchor)
+
+    const leadLookupResult = (anchor) => ({
+        data: existingLeadId && matchesCycle(anchor) ? { id: existingLeadId } : null,
+        error: null,
+    })
 
     const supabase = {
         from: jest.fn((table) => {
@@ -37,9 +48,9 @@ function createSupabase({ metadata = {}, existingLeadId = null } = {}) {
                 return {
                     select: jest.fn(() => ({
                         eq: jest.fn(() => ({
-                            maybeSingle: jest.fn(async () => ({
-                                data: existingLeadId ? { id: existingLeadId } : null,
-                                error: null,
+                            maybeSingle: jest.fn(async () => leadLookupResult(null)),
+                            gte: jest.fn((_col, anchor) => ({
+                                maybeSingle: jest.fn(async () => leadLookupResult(anchor)),
                             })),
                         })),
                     })),
@@ -188,5 +199,71 @@ describe('tool-capture-lead', () => {
 
         expect(getUpdatedRow().lead_notes).toBe('livrer avant 10h')
         expect(mockNotify).not.toHaveBeenCalled()
+    })
+})
+
+/**
+ * Identité du lead : une par CYCLE, pas une par conversation.
+ *
+ * Le marchand a demandé qu'après le récap final, une nouvelle demande du même client devienne
+ * un lead SÉPARÉ. Avec l'ancienne règle (un lead par conversation), la seconde demande
+ * écrasait purement et simplement la première : « 5 goube enfant Rouge / 47 000 » devenait
+ * « 3 sac enfant Noir / 23 000 », sans trace ni alerte, et le marchand rappelait le client au
+ * sujet de la mauvaise commande.
+ *
+ * La clôture repose `session_anchor_at` (message.js), qui borne donc le cycle courant.
+ */
+describe('tool-capture-lead — un lead par cycle', () => {
+    beforeEach(() => { mockNotify.mockClear() })
+
+    test('un lead du cycle courant est mis à jour, pas dupliqué', async () => {
+        const { supabase, getInsertedRow, getUpdatedRow } = createSupabase({
+            metadata: { session_anchor_at: '2026-08-13T10:00:00.000Z' },
+            existingLeadId: 'lead-1',
+            existingLeadCreatedAt: '2026-08-13T10:05:00.000Z', // après l'ancre → même cycle
+        })
+
+        await handleCaptureLead(
+            { lead_name: 'Simone Ehivet', lead_phone: '5478986431' },
+            'agent-1', '+2250000000', 'conv-1', supabase
+        )
+
+        expect(getUpdatedRow()).not.toBeNull()
+        expect(getInsertedRow()).toBeNull()
+    })
+
+    test('un lead d\'un cycle précédent n\'est jamais écrasé : nouveau lead créé', async () => {
+        const { supabase, getInsertedRow, getUpdatedRow } = createSupabase({
+            metadata: { session_anchor_at: '2026-08-13T10:00:00.000Z' },
+            existingLeadId: 'lead-1',
+            existingLeadCreatedAt: '2026-08-13T09:30:00.000Z', // avant l'ancre → cycle clos
+        })
+
+        await handleCaptureLead(
+            { lead_name: 'Simone Ehivet', lead_phone: '5478986431', interest: '3 sac enfant Noir' },
+            'agent-1', '+2250000000', 'conv-1', supabase
+        )
+
+        expect(getUpdatedRow()).toBeNull()
+        expect(getInsertedRow()).not.toBeNull()
+        expect(getInsertedRow().interest).toBe('3 sac enfant Noir')
+        // Un nouveau lead notifie le marchand ; une simple mise à jour, non.
+        expect(mockNotify).toHaveBeenCalledTimes(1)
+    })
+
+    // Conversations antérieures à cette mécanique : aucune ancre, comportement d'origine.
+    test('sans ancre de cycle, le comportement historique est conservé', async () => {
+        const { supabase, getInsertedRow, getUpdatedRow } = createSupabase({
+            existingLeadId: 'lead-1',
+            existingLeadCreatedAt: '2026-01-01T00:00:00.000Z',
+        })
+
+        await handleCaptureLead(
+            { lead_name: 'Simone Ehivet', lead_phone: '5478986431' },
+            'agent-1', '+2250000000', 'conv-1', supabase
+        )
+
+        expect(getUpdatedRow()).not.toBeNull()
+        expect(getInsertedRow()).toBeNull()
     })
 })

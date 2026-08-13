@@ -98,6 +98,8 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
         let instructionAnswer = null
         let lastSeenTotals = null
         let leadState = null
+        // Début du cycle courant : borne l'idempotence du lead (voir plus bas).
+        let cycleStartedAt = null
         if (conversationId) {
             const { data: conversation } = await supabase
                 .from('conversations')
@@ -109,6 +111,7 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             instructionAnswer = conversation?.metadata?.lead_instruction_answer || null
             lastSeenTotals = conversation?.metadata?.lead_last_seen_totals || null
             leadState = conversation?.metadata?.lead_state || null
+            cycleStartedAt = conversation?.metadata?.session_anchor_at || null
         }
 
         // preview_cart jamais appelé → on reconstruit depuis l'état du moteur plutôt que
@@ -215,17 +218,32 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             location_link:     locationLink     || null,
         }
 
-        // Idempotent par conversation : une même conversation peut redéclencher
-        // capture_lead plusieurs fois (client qui corrige son numéro, ajoute une
-        // instruction, ou filet de sécurité qui rappelle l'outil) — on met à jour
-        // le lead existant au lieu d'en créer un doublon à chaque fois.
+        // Idempotent par CYCLE, pas par conversation. Une même conversation peut redéclencher
+        // capture_lead plusieurs fois dans le même cycle (client qui corrige son numéro,
+        // filet de sécurité qui rappelle l'outil) — on met alors à jour le lead existant au
+        // lieu d'en créer un doublon.
+        //
+        // Mais après le récap final, le cycle est clos et un nouveau peut s'ouvrir : le
+        // client commande autre chose. Ce doit être un lead SÉPARÉ. Sans le filtre de date
+        // ci-dessous, cette seconde demande écrasait purement et simplement la première —
+        // « 5 goube enfant Rouge / 47 000 » devenait « 3 sac enfant Noir / 23 000 », sans
+        // trace ni alerte, et le marchand rappelait le client au sujet de la mauvaise
+        // commande. session_anchor_at est reposé à chaque clôture (message.js), il borne
+        // donc exactement le cycle courant.
         let isNewLead = true
         if (conversationId) {
-            const { data: existingLead } = await supabase
+            let existingLeadQuery = supabase
                 .from('leads')
                 .select('id')
                 .eq('conversation_id', conversationId)
-                .maybeSingle()
+            if (cycleStartedAt) {
+                existingLeadQuery = existingLeadQuery.gte('created_at', cycleStartedAt)
+            }
+            // Sans ancre (conversations antérieures à cette mécanique), la requête garde
+            // exactement sa forme d'origine et son comportement d'origine. Si plusieurs leads
+            // coexistaient malgré tout sur une telle conversation, maybeSingle ne renverrait
+            // rien et on insérerait un nouveau lead — jamais on n'en écraserait un au hasard.
+            const { data: existingLead } = await existingLeadQuery.maybeSingle()
 
             if (existingLead) {
                 isNewLead = false

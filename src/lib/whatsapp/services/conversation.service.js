@@ -34,6 +34,14 @@ function buildTransactionalMetadataReset(metadata = {}, options = {}) {
         session_anchor_at: sessionAnchorAt,
         last_cycle_closed_at: closedAt ?? metadata?.last_cycle_closed_at ?? null,
         last_cycle_reason: cycleReason ?? metadata?.last_cycle_reason ?? null,
+        // Un nouveau cycle repart d'une page blanche : sans cette remise à zéro, un client
+        // dont le lead a déjà été clos retrouverait la relance « souhaitez-vous passer une
+        // nouvelle commande ? » au lieu d'une conversation neuve. Clés propres au mode
+        // lead_only, sans effet pour les autres agents.
+        lead_followup: null,
+        lead_state: null,
+        lead_cart: null,
+        lead_last_seen_totals: null,
     }
 }
 

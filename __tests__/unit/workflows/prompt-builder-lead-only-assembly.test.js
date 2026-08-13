@@ -190,3 +190,55 @@ describe('Prompt assemblé — flux normal (NON lead_only) inchangé', () => {
         expect(buildPrompt(undefinedModeAgent)).toMatch(/create_order/)
     })
 })
+
+/**
+ * Demandes du marchand après le test terrain du 12/08/2026.
+ *
+ * 1. L'agent ne doit plus demander « Souhaitez-vous ajouter une instruction ? » : la question
+ *    allonge la conversation sans rien apporter, un conseiller rappelle le client de toute
+ *    façon. Une précision donnée SPONTANÉMENT doit continuer d'être capturée.
+ * 2. Le message de clôture « Notre équipe vous recontacte rapidement » a été jugé trop vague :
+ *    il doit porter le numéro d'escalade, le même que celui des messages de transfert humain.
+ */
+describe('Prompt assemblé — mode lead_only, retours terrain', () => {
+    test('ne demande plus d\'instruction particulière', () => {
+        const prompt = buildPrompt(LEAD_ONLY_AGENT)
+        // La formulation ne subsiste que comme exemple INTERDIT, jamais comme consigne.
+        expect(prompt).not.toMatch(/ÉTAPE 4bis/)
+        expect(prompt).toMatch(/NE DEMANDE JAMAIS s'il y a une instruction particulière/)
+        expect(prompt).not.toMatch(/tu PEUX demander UNE SEULE FOIS/)
+    })
+
+    test('conserve le filet de sécurité des précisions spontanées', () => {
+        const prompt = buildPrompt(LEAD_ONLY_AGENT)
+        expect(prompt).toMatch(/lead_notes\s*:\s*FILET DE SÉCURITÉ/)
+        expect(prompt).toMatch(/SPONTANÉMENT/)
+    })
+
+    /**
+     * Le message de clôture porte le numéro d'escalade parce que le cycle est archivé juste
+     * après : l'agent n'aura plus accès à cette demande, seul un humain peut la modifier.
+     * C'est le même numéro que celui de la relance post-clôture et du transfert humain.
+     */
+    test('le message de clôture porte le numéro d\'escalade quand il est configuré', () => {
+        const prompt = buildPrompt({ ...LEAD_ONLY_AGENT, escalation_phone: '+2250700000000' })
+        expect(prompt).toMatch(/Pour toute modification : \+2250700000000/)
+    })
+
+    test('sans numéro configuré, aucune ligne de contact vide', () => {
+        const prompt = buildPrompt(LEAD_ONLY_AGENT)
+        expect(prompt).toMatch(/Votre demande est enregistrée, notre équipe vous recontacte rapidement pour finaliser\./)
+        expect(prompt).not.toMatch(/Pour toute modification :/)
+    })
+
+    test('version anglaise du message de clôture', () => {
+        const prompt = buildPrompt({ ...LEAD_ONLY_AGENT, language: 'en', escalation_phone: '+2250700000000' })
+        expect(prompt).toMatch(/Your request has been saved, our team will contact you shortly/)
+        expect(prompt).toMatch(/For any changes: \+2250700000000/)
+    })
+
+    test('un message de clôture personnalisé par le marchand est respecté', () => {
+        const prompt = buildPrompt({ ...LEAD_ONLY_AGENT, lead_redirect_message: 'À très vite chez Kono !' })
+        expect(prompt).toMatch(/À très vite chez Kono !/)
+    })
+})

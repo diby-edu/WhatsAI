@@ -537,6 +537,57 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
         const isLeadOnlyMode = agent.conversation_mode === 'lead_only'
         const skipStructuredFlows = isSupportClientMode || isLeadOnlyMode
 
+        // ── RELANCE APRÈS CLÔTURE D'UN LEAD ───────────────────────────────────────────
+        // Le récap final a été envoyé : le lead est en base, l'historique a été coupé et la
+        // mémoire des articles vidée. Le message qui arrive maintenant ne peut donc plus
+        // enrichir la demande précédente — mais il peut parfaitement en ouvrir une nouvelle.
+        //
+        // On ne coupe pas le bot et on ne laisse pas non plus l'IA repartir seule (un simple
+        // « Merci » relançait le catalogue complet) : on demande explicitement au client s'il
+        // veut passer une NOUVELLE commande, et on agit selon sa réponse. Toute la logique
+        // est déterministe et vit dans lead-followup.service.js — voir l'en-tête de ce
+        // fichier pour la machine à états et les alternatives écartées.
+        if (isLeadOnlyMode && message.text) {
+            const {
+                getFollowupState, decideFollowupAction, buildFollowupMessages, FOLLOWUP_KEY,
+            } = require('../services/lead-followup.service')
+
+            const followupState = getFollowupState(conversation.metadata)
+            if (followupState) {
+                const decision = decideFollowupAction(followupState, message.text, orderableProducts)
+                console.log(`🔁 [${agentId}] Relance lead (${followupState.stage}) → ${decision.action} — ${decision.reason}`)
+
+                if (decision.action === 'handover') {
+                    // L'IA reprend la main sur un cycle vierge : le message est traité
+                    // normalement par la suite du handler, comme un début de conversation.
+                    await conversation.updateMetadata({ [FOLLOWUP_KEY]: null })
+                } else {
+                    const texts = buildFollowupMessages(agent)
+                    const reply = decision.action === 'ask' ? texts.question
+                        : decision.action === 'decline' ? texts.declined
+                        : decision.action === 'redirect' ? texts.redirect
+                        : texts.escalated
+
+                    await MessagingService.sendText(activeSessions.get(agentId), message.from, reply)
+                    await supabase.from('messages').insert({
+                        conversation_id: conversation.id,
+                        agent_id: agentId,
+                        role: 'assistant',
+                        content: reply,
+                        status: 'sent',
+                    })
+                    await conversation.updateMetadata({ [FOLLOWUP_KEY]: decision.nextState })
+
+                    // Seule situation où le bot se tait : deux messages consécutifs qu'on n'a
+                    // pas su classer. Un humain est prévenu, il a le dossier sous les yeux.
+                    if (decision.action === 'escalate') {
+                        await conversation.escalate('Messages sans suite après clôture du lead')
+                    }
+                    return
+                }
+            }
+        }
+
         // Mémorise le lien de localisation brut (position GPS native ou lien collé, déjà
         // résolu par session.js sous la forme "Ma position : <lieu> (<lien>)") pour que
         // capture_lead puisse le joindre au lead — sans dépendre de l'IA pour le reporter.
@@ -1056,6 +1107,50 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 }
             } catch (recapErr) {
                 console.error(`⚠️ [${agentId}] mémorisation des totaux du récap échouée (non-bloquant):`, recapErr?.message || recapErr)
+            }
+        }
+
+        // ── CLÔTURE DU CYCLE LEAD ─────────────────────────────────────────────────────
+        // Le repère est le bloc "*Vos coordonnées :*" du récap de clôture (ÉTAPE 5 du
+        // workflow) — le MÊME que celui qui déclenche le filet capture_lead dans
+        // generator.js, donc sa présence garantit qu'un lead a bien été enregistré à ce tour.
+        //
+        // On archive le cycle exactement comme le flux normal le fait après une commande :
+        //   • session_anchor_at coupe l'historique lu par l'IA (message.js#getHistory) — sans
+        //     ça, une nouvelle demande se mélangerait à celle qu'on vient de clore ;
+        //   • la mémoire des articles, le panier et les totaux vus sont vidés ;
+        //   • lead_followup passe en attente : le prochain message du client déclenchera la
+        //     relance « souhaitez-vous passer une nouvelle commande ? » (voir plus haut).
+        //
+        // Posé APRÈS l'envoi, volontairement : le récap final part normalement, seul le
+        // message SUIVANT est concerné.
+        //
+        // Écriture par relecture fraîche puis fusion (PAS conversation.updateMetadata) :
+        // preview_cart et capture_lead écrivent metadata par leurs propres appels Supabase,
+        // donc this.metadata en mémoire peut être périmé ici.
+        if (isLeadOnlyMode && aiResponse.content && aiResponse.content.includes('*Vos coordonnées :*')) {
+            try {
+                const { FOLLOWUP_KEY } = require('../services/lead-followup.service')
+                const { data: freshConv } = await supabase
+                    .from('conversations')
+                    .select('metadata')
+                    .eq('id', conversation.id)
+                    .single()
+                const mergedMetadata = {
+                    ...(freshConv?.metadata || conversation.metadata || {}),
+                    session_anchor_at: new Date().toISOString(),
+                    lead_state: null,
+                    lead_cart: null,
+                    lead_last_seen_totals: null,
+                    lead_instruction_answer: null,
+                    last_location_link: null,
+                    [FOLLOWUP_KEY]: { stage: 'pending', unclassified: 0 },
+                }
+                await supabase.from('conversations').update({ metadata: mergedMetadata }).eq('id', conversation.id)
+                conversation.metadata = mergedMetadata
+                console.log(`🔒 [${agentId}] Cycle lead clos — ardoise effacée, relance armée pour le prochain message`)
+            } catch (closeErr) {
+                console.error(`⚠️ [${agentId}] clôture du cycle lead échouée (non-bloquant):`, closeErr?.message || closeErr)
             }
         }
 

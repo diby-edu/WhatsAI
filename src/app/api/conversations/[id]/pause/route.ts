@@ -21,7 +21,7 @@ export async function POST(
         // Check ownership
         const { data: conversation, error: fetchError } = await supabase
             .from('conversations')
-            .select('id, user_id, bot_paused, status')
+            .select('id, user_id, bot_paused, status, metadata')
             .eq('id', id)
             .single()
 
@@ -36,6 +36,14 @@ export async function POST(
         const updatePayload: Record<string, unknown> = { bot_paused: paused }
         if (!paused && conversation.status === 'escalated') {
             updatePayload.status = 'active'
+        }
+
+        // Rendre la main au bot après une escalade repart d'une conversation neuve : la
+        // relance post-clôture (« souhaitez-vous passer une nouvelle commande ? ») ne doit
+        // pas se rejouer, le marchand vient justement de traiter le sujet à la main.
+        const conversationMetadata = conversation.metadata as Record<string, unknown> | null
+        if (!paused && conversationMetadata?.lead_followup) {
+            updatePayload.metadata = { ...conversationMetadata, lead_followup: null }
         }
 
         // Toggle pause
