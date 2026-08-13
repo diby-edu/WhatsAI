@@ -331,11 +331,24 @@ export default function LeadsPage() {
                 </div>
             ) : (
                 <div>
+                    {/*
+                     * Les puces d'articles occupent la colonne la plus large de la ligne repliée.
+                     * Sur un écran étroit, cette colonne ne peut plus se réduire assez et vient
+                     * chevaucher le montant à sa droite : les deux se superposent et deviennent
+                     * illisibles. On la retire donc sous 768 px — l'information n'est pas perdue,
+                     * elle reste intégralement dans "Détail commande" au dépliage de la ligne.
+                     */}
+                    <style>{`
+                        @media (max-width: 768px) {
+                            .leads-items-col { display: none !important; }
+                        }
+                    `}</style>
+
                     {/* En-tête colonnes */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '0 4px 10px', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.6px', borderBottom: '1px solid rgba(148,163,184,0.1)' }}>
                         <div style={{ width: 32 }} />
                         <div style={{ flex: 1.6 }}>Contact</div>
-                        <div style={{ flex: 2.2 }}>Articles</div>
+                        <div className="leads-items-col" style={{ flex: 2.2 }}>Articles</div>
                         <div style={{ width: 130, textAlign: 'right' }}>Total</div>
                         <div style={{ width: 90, textAlign: 'right' }}>Reçu</div>
                         <div style={{ width: 66 }} />
@@ -372,7 +385,7 @@ export default function LeadsPage() {
                                         </div>
                                     </div>
 
-                                    <div style={{ flex: 2.2, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+                                    <div className="leads-items-col" style={{ flex: 2.2, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
                                         {itemChips ? (
                                             <>
                                                 {itemChips.slice(0, 2).map((it, i) => (
