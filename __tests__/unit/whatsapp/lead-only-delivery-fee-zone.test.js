@@ -77,6 +77,41 @@ describe('findInventedDeliveryFee', () => {
         })
     })
 
+    /**
+     * Régression de production (12/08/2026), trouvée dans les logs PM2 : ce garde-fou s'est
+     * déclenché 2 fois depuis sa mise en service, et les 2 fois étaient des FAUX POSITIFS
+     * (Yopougon puis Marcory — deux communes bel et bien configurées à 2 000 FCFA). Il a
+     * fait supprimer une ligne de frais correcte, et le client a reçu un total sans livraison.
+     *
+     * Cause : generateAIResponse ne pousse le message courant du client que dans `messages`,
+     * jamais dans conversationHistory. Or c'est le cas le plus fréquent — l'agent demande
+     * l'adresse, le client répond "Yopougon maroc", l'agent annonce le tarif dans la foulée.
+     * La commune n'apparaissait donc nulle part dans ce que la fonction examinait.
+     *
+     * Les tests précédents ne l'avaient pas vu parce qu'ils plaçaient TOUJOURS le lieu dans
+     * l'historique — une hypothèse que le code appelant ne respecte jamais.
+     */
+    describe('voit le message courant du client, pas seulement l\'historique', () => {
+        test('cas exact de production : la commune est dans le message courant, absent de l\'historique', () => {
+            const content = 'Voici votre commande :\n*• 8 sac enfant Bleu 💰 5 000 FCFA × 8 = 40 000 FCFA*\n*Frais de livraison : 2 000 FCFA*\n*TOTAL : 82 000 FCFA*'
+            const history = [
+                { role: 'assistant', content: 'Quelle est votre adresse de livraison complète ?' },
+            ]
+            expect(findInventedDeliveryFee(content, AGENT_ZONES, history, 'Yopougon maroc')).toBeNull()
+        })
+
+        test('la commune reste inventée si elle n\'est ni dans l\'historique ni dans le message courant', () => {
+            const content = 'Les frais de livraison sont de 2 000 FCFA.'
+            const history = [{ role: 'assistant', content: 'Quelle est votre adresse ?' }]
+            expect(findInventedDeliveryFee(content, AGENT_ZONES, history, 'Zone Inexistante')).not.toBeNull()
+        })
+
+        test('le message courant est facultatif : les appels à 3 arguments restent valides', () => {
+            const content = 'Les frais de livraison sont de 2 000 FCFA.'
+            expect(findInventedDeliveryFee(content, AGENT_ZONES, [{ role: 'user', content: 'Cocody' }])).toBeNull()
+        })
+    })
+
     describe('se tait hors de son périmètre', () => {
         test('agent qui ne facture pas par zones', () => {
             const content = 'Les frais de livraison sont de 2 000 FCFA.'

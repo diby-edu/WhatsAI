@@ -81,3 +81,22 @@ describe('stripLeadOnlyNarration', () => {
         })
     })
 })
+
+/**
+ * Ajouts après le test terrain du 12/08/2026.
+ */
+describe('stripLeadOnlyNarration — compléments terrain', () => {
+    test('« je vais ajouter cela à votre commande » est de la narration', () => {
+        const avant = 'Pour les 5 gourdes en Rouge, je vais ajouter cela à votre commande.\n\nVous passez en boutique ou vous souhaitez être livré ?'
+        const apres = stripLeadOnlyNarration(avant, true)
+        expect(apres).not.toMatch(/je vais ajouter/i)
+        expect(apres).toMatch(/Vous passez en boutique/)
+    })
+
+    // Sans ce filet, un message intégralement narratif était réduit à une chaîne vide et le
+    // client ne recevait plus rien — pire que la narration qu'on cherchait à retirer.
+    test('un message entièrement narratif est conservé plutôt que vidé', () => {
+        const avant = 'Un instant, je vérifie.'
+        expect(stripLeadOnlyNarration(avant, true)).toBe(avant)
+    })
+})

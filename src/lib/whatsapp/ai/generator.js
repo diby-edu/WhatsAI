@@ -168,7 +168,11 @@ function stripLeadOnlyUnfilledRecap(content, isLeadOnlyMode) {
 // ("Pour les 10 sacs enfant noir, je vais calculer le récapitulatif."). Couper la seule
 // proposition laisserait un fragment tronqué — « Parfait ! Pour les 10 sacs enfant noir, ».
 const NARRATION_PATTERNS = [
-    /\b(?:je\s+vais|je\s+m['’]en\s+vais)\s+(?:maintenant\s+|tout\s+de\s+suite\s+|d['’]abord\s+)?(?:calculer|v[ée]rifier|pr[ée]parer|consulter|regarder|proc[ée]der|effectuer|lancer)\b/i,
+    // "ajouter" fait partie de la même famille : « Pour les 5 gourdes en Rouge, je vais
+    // ajouter cela à votre commande. » — observé en production, dans le message qui a
+    // justement fabriqué un récap sans prix (voir findPricelessRecap). Le client n'a pas à
+    // savoir qu'un ajout va avoir lieu : il attend de le voir fait.
+    /\b(?:je\s+vais|je\s+m['’]en\s+vais)\s+(?:maintenant\s+|tout\s+de\s+suite\s+|d['’]abord\s+)?(?:calculer|v[ée]rifier|pr[ée]parer|consulter|regarder|proc[ée]der|effectuer|lancer|ajouter)\b/i,
     /\b(?:un\s+instant|un\s+moment|patientez|veuillez\s+patienter)\b/i,
     /\bje\s+(?:vous\s+)?reviens\s+(?:vers\s+vous\s+)?(?:dans|tout\s+de\s+suite)\b/i,
 ]
@@ -189,6 +193,14 @@ function stripLeadOnlyNarration(content, isLeadOnlyMode) {
     }
 
     const cleaned = keptLines.join('\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+
+    // Filet : si TOUT le message était de la narration (« Un instant, je vérifie. » envoyé
+    // seul), le nettoyage renverrait une chaîne vide et le client ne recevrait rien du tout —
+    // pire que la narration elle-même. On préfère alors laisser le message d'origine.
+    if (!cleaned && content.trim()) {
+        console.log('⚠️ [lead_only] Message entièrement narratif — conservé tel quel plutôt que vidé')
+        return content
+    }
 
     if (cleaned !== content.trim()) {
         console.log('⚠️ [lead_only] Narration interne retirée de la réponse IA')
@@ -293,6 +305,58 @@ function findFalseUnavailabilityClaim(content, products) {
  * pour ne pas redemander ce qui a déjà été donné, et une consigne d'édition. Le modèle
  * choisit toujours la question suivante — on lui retire seulement celle qui est impossible.
  */
+/**
+ * Régénère une réponse quand la correction exige un OUTIL (preview_cart), pas une réécriture.
+ *
+ * Défaut réel corrigé ici (production, 12/08/2026) : l'ancienne version ne lisait que
+ * `.choices[0].message.content`. Or, invité à recalculer un total, le modèle répond
+ * naturellement par un tool_call — dont le `content` est vide. Le code concluait
+ * « reformulation sans texte (appel d'outil seul), réponse initiale conservée » et gardait
+ * la réponse fautive. Le garde-fou ne pouvait donc jamais rien réparer : il constatait le
+ * problème, le journalisait, et laissait partir le message tel quel.
+ *
+ * On exécute donc les outils demandés, on réinjecte leurs résultats, et on redemande la
+ * réponse finale — exactement la boucle du tour normal. Le second appel se fait SANS outils :
+ * à ce stade preview_cart a déjà répondu, on veut du texte, pas une nouvelle demande d'outil.
+ */
+async function regenerateThroughTools({
+    openai, model, maxTokens, temperature, systemPrompt, messages, toolsConfig, correction, runToolCall,
+}) {
+    const correctedHistory = [
+        { role: 'system', content: `${systemPrompt}\n\n${correction}` },
+        ...messages.slice(1),
+    ]
+
+    const first = await callOpenAIWithRetry(openai, {
+        model,
+        messages: correctedHistory,
+        max_tokens: maxTokens,
+        temperature,
+        ...toolsConfig,
+    })
+
+    const firstMessage = first.choices[0]?.message
+    if (!firstMessage) return null
+    if (!firstMessage.tool_calls || firstMessage.tool_calls.length === 0) {
+        return firstMessage.content || null
+    }
+
+    const withToolResults = [...correctedHistory, firstMessage]
+    for (const rawToolCall of firstMessage.tool_calls) {
+        const { toolCall, result } = await runToolCall(rawToolCall)
+        withToolResults.push({ role: 'tool', tool_call_id: toolCall.id, content: result })
+    }
+
+    const second = await callOpenAIWithRetry(openai, {
+        model,
+        messages: withToolResults,
+        max_tokens: maxTokens,
+        temperature,
+    })
+
+    return second.choices[0]?.message?.content || null
+}
+
 async function rewriteWithoutImpossibleQuestion(openai, model, content, leadState, recentMessages, reason, offendingSentence) {
     const facts = []
     for (const item of leadState?.items || []) {
@@ -379,7 +443,7 @@ function collectDeliveryZoneNames(agent) {
         .filter(name => name.length >= 3)
 }
 
-function findInventedDeliveryFee(content, agent, conversationHistory) {
+function findInventedDeliveryFee(content, agent, conversationHistory, userMessage = '') {
     if (!content || agent?.delivery_fee_mode !== 'zones') return null
     const announcement = content.match(FEE_ANNOUNCEMENT)
     if (!announcement) return null
@@ -389,8 +453,19 @@ function findInventedDeliveryFee(content, agent, conversationHistory) {
 
     // Le lieu peut avoir été donné plusieurs tours plus tôt ("Koumassi"), pas forcément
     // dans le message qui annonce le tarif — on balaie donc la conversation récente.
+    //
+    // ⚠️ userMessage est INDISPENSABLE et séparé de conversationHistory : l'appelant
+    // (generateAIResponse) ne pousse le message courant du client que dans `messages`,
+    // jamais dans conversationHistory. Or le cas le plus fréquent est justement celui-là —
+    // l'agent demande l'adresse, le client répond "Yopougon maroc", l'agent annonce le
+    // tarif dans la foulée. Sans cette entrée, la commune n'apparaît NULLE PART dans le
+    // foin et une zone parfaitement configurée passe pour une invention.
+    // Mesuré en production le 12/08/2026 : 2 déclenchements, 2 faux positifs (Yopougon et
+    // Marcory, tous deux configurés à 2 000 FCFA). Le garde-fou faisait supprimer une ligne
+    // de frais correcte, et le client recevait un total sans livraison.
     const haystack = normalizeText([
         ...(conversationHistory || []).slice(-8).map(m => m?.content || ''),
+        userMessage || '',
         content,
     ].join(' '))
     // Le tiret compte comme séparateur des deux côtés : "Port-Bouët" (nom de zone
@@ -429,6 +504,38 @@ function findMissingDeliveryFee(content, leadState, agent) {
     if (/frais de livraison/i.test(content)) return null
 
     return { sentence: (content.match(/[^\n]*TOTAL\s*:[^\n]*/i) || [''])[0].trim() }
+}
+
+/**
+ * Liste d'articles écrite à la main, sans prix ni total.
+ *
+ * Cas réel (12/08/2026) :
+ *   « Voici le récapitulatif de votre demande :
+ *       · Goube enfant (Rouge) x 5
+ *     Vous passez en boutique ou vous souhaitez être livré ? »
+ *
+ * Aucun prix, aucun total : le modèle a rédigé le récap lui-même au lieu d'appeler
+ * preview_cart. L'ÉTAPE 2 du workflow l'interdit explicitement, avec cet exemple précis —
+ * la règle de prompt ne suffit pas. Et ce n'est pas un défaut cosmétique : le marchand a
+ * observé qu'à chaque fois que ce récap apparaît, la suite de la conversation déraille
+ * (le total ne sera jamais recalculé par l'outil, donc la livraison ne s'y ajoutera pas).
+ *
+ * Détection volontairement étroite, pour ne jamais toucher un message légitime : il faut
+ * UNE ligne à puce se terminant par une quantité ("… x 5"), ET aucun montant nulle part
+ * dans le message. Un vrai récap, une liste de couleurs ou le catalogue d'accueil portent
+ * tous des montants — ils sont donc hors de portée par construction.
+ */
+const ITEM_LINE_WITHOUT_PRICE = /^[^\S\n]*[•·*\-–—][^\S\n]*\S.*?[^\S\n][x×][^\S\n]*\d+[^\S\n]*$/m
+const ANY_AMOUNT = /\d[\d\s.,  ]*(?:FCFA|XOF|€|\$)/i
+
+function findPricelessRecap(content, isLeadOnlyMode) {
+    if (!isLeadOnlyMode || !content) return null
+    if (ANY_AMOUNT.test(content)) return null
+
+    const line = content.match(ITEM_LINE_WITHOUT_PRICE)
+    if (!line) return null
+
+    return { sentence: line[0].trim() }
 }
 
 /**
@@ -1128,7 +1235,8 @@ async function generateAIResponse(options, dependencies) {
             const staleQuantity = findStaleQuantityQuestion(content, leadState)
             const falseUnavailable = findFalseUnavailabilityClaim(content, products || [])
             const missingFee = findMissingDeliveryFee(content, leadState, agent)
-            const inventedFee = findInventedDeliveryFee(content, agent, conversationHistory)
+            const inventedFee = findInventedDeliveryFee(content, agent, conversationHistory, userMessage)
+            const pricelessRecap = findPricelessRecap(content, isLeadOnlyMode)
             const stale = staleQuantity
                 || (falseUnavailable && {
                     sentence: falseUnavailable.sentence,
@@ -1144,6 +1252,11 @@ async function generateAIResponse(options, dependencies) {
                     sentence: missingFee.sentence,
                     item: { product_name: 'livraison', quantity: null },
                     missingFee: true,
+                })
+                || (pricelessRecap && {
+                    sentence: pricelessRecap.sentence,
+                    item: { product_name: 'récapitulatif', quantity: null },
+                    pricelessRecap: true,
                 })
             if (!stale) break
             {
@@ -1162,24 +1275,40 @@ async function generateAIResponse(options, dependencies) {
                         ? '⚠️ [lead_only] Tarif de livraison annoncé pour un lieu hors zones configurées — reformulation demandée'
                         : stale.missingFee
                         ? '⚠️ [lead_only] Récap de livraison sans frais de livraison — reformulation demandée'
+                        : stale.pricelessRecap
+                        ? '⚠️ [lead_only] Récap d\'articles écrit à la main, sans prix ni total — reformulation demandée'
                         : stale.unavailable
                             ? `⚠️ [lead_only] Variante du catalogue annoncée indisponible à tort (${stale.unavailable.product} / ${stale.unavailable.variant}) — reformulation demandée`
                             : `⚠️ [lead_only] Question sur une quantité déjà connue (${stale.item.product_name} = ${stale.item.quantity}) — reformulation demandée`)
                     console.log(`   ↳ phrase fautive : "${stale.sentence.slice(0, 160)}"`)
-                    // Les frais de livraison manquants sont le seul cas qui exige un OUTIL
-                    // (preview_cart recalcule le total) : une réécriture de texte ne peut pas
-                    // inventer le montant. Ce cas garde donc la régénération complète.
-                    const rewritten = stale.missingFee
-                        ? (await callOpenAIWithRetry(openai, {
+                    // Deux cas exigent un OUTIL et non une réécriture de texte : les frais de
+                    // livraison manquants et le récap sans prix. Dans les deux, seul
+                    // preview_cart connaît les montants — une réécriture ne peut que les
+                    // inventer, ce qui est précisément ce qu'on cherche à empêcher.
+                    const rewritten = (stale.missingFee || stale.pricelessRecap)
+                        ? await regenerateThroughTools({
+                            openai,
                             model: modelToUse,
-                            messages: [
-                                { role: 'system', content: `${systemPrompt}\n\n🚨 CORRECTION IMMÉDIATE : ta réponse précédente affichait un total sans ligne "Frais de livraison" alors que le client a choisi la LIVRAISON. Rappelle preview_cart avec la liste complète des articles ET delivery_fee = le tarif exact de sa commune, puis reproduis le nouveau recap_text.` },
-                                ...messages.slice(1),
-                            ],
-                            max_tokens: agent.max_tokens || 500,
+                            maxTokens: agent.max_tokens || 500,
                             temperature: agent.temperature || 0.7,
-                            ...toolsConfig,
-                        })).choices[0]?.message?.content
+                            systemPrompt,
+                            messages,
+                            toolsConfig,
+                            correction: stale.missingFee
+                                ? `🚨 CORRECTION IMMÉDIATE : ta réponse précédente affichait un total sans ligne "Frais de livraison" alors que le client a choisi la LIVRAISON. Rappelle preview_cart avec la liste complète des articles ET delivery_fee = le tarif exact de sa commune, puis reproduis le nouveau recap_text.`
+                                : `🚨 CORRECTION IMMÉDIATE : ta réponse précédente listait des articles SANS AUCUN PRIX ni total (« ${stale.sentence.slice(0, 120)} »). Une liste d'articles sans prix n'existe pas dans ce mode. Appelle preview_cart avec la liste complète des articles (et delivery_fee si le client a déjà choisi la livraison), puis reproduis son recap_text EXACTEMENT, avant de poser ta question suivante.`,
+                            runToolCall: async (rawToolCall) => {
+                                const toolCall = hydrateToolCallArguments(
+                                    rawToolCall, checkoutState, cartState, bookingState, restaurantState, customerPhone
+                                )
+                                console.log(`   ↳ 🔧 outil rappelé pour la correction : ${toolCall.function.name}`)
+                                const result = await handleToolCall(
+                                    toolCall, agent.id, customerPhone, products, conversationId, supabase,
+                                    { relevantDocs, userMessage }
+                                )
+                                return { toolCall, result }
+                            },
+                        })
                         // Réécriture ciblée, sans le prompt métier : voir
                         // rewriteWithoutImpossibleQuestion pour la raison détaillée.
                         : await rewriteWithoutImpossibleQuestion(
@@ -1196,7 +1325,8 @@ async function generateAIResponse(options, dependencies) {
                         const stillStale = findStaleQuantityQuestion(content, leadState)
                             || findFalseUnavailabilityClaim(content, products || [])
                             || findMissingDeliveryFee(content, leadState, agent)
-                            || findInventedDeliveryFee(content, agent, conversationHistory)
+                            || findInventedDeliveryFee(content, agent, conversationHistory, userMessage)
+                            || findPricelessRecap(content, isLeadOnlyMode)
                         console.log(stillStale
                             ? `   ↳ ❌ reformulation INSUFFISANTE, l'erreur persiste : "${stillStale.sentence.slice(0, 160)}"`
                             : '   ↳ ✅ reformulation OK, la question a disparu')
@@ -1282,4 +1412,4 @@ async function generateAIResponse(options, dependencies) {
 
 // stripLeadOnlyUnfilledRecap est exporté uniquement pour être testable unitairement :
 // son déclenchement dépend d'une sortie du modèle, impossible à provoquer autrement.
-module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion, findFalseUnavailabilityClaim, stripLeadOnlyNarration, findInventedDeliveryFee }
+module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion, findFalseUnavailabilityClaim, stripLeadOnlyNarration, findInventedDeliveryFee, findMissingDeliveryFee, findPricelessRecap }
