@@ -554,7 +554,7 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
 
             const followupState = getFollowupState(conversation.metadata)
             if (followupState) {
-                const decision = decideFollowupAction(followupState, message.text, orderableProducts)
+                const decision = decideFollowupAction(followupState, message.text)
                 console.log(`🔁 [${agentId}] Relance lead (${followupState.stage}) → ${decision.action} — ${decision.reason}`)
 
                 if (decision.action === 'handover') {
@@ -595,6 +595,28 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             const locationLinkMatch = message.text.match(/^Ma position\s*:.*\((https?:\/\/[^\s)]+)\)/)
             if (locationLinkMatch) {
                 await conversation.updateMetadata({ last_location_link: locationLinkMatch[1] })
+            }
+        }
+
+        // Adresse de livraison : mémorisée TELLE QUE DONNÉE par le client, par code.
+        //
+        // Observé en production (13/08/2026) : le client écrit « Adjame bracoddi non loin du
+        // black » d'un seul trait ; le modèle a appelé capture_lead avec lead_location =
+        // "Adjamé" et lead_address = "Bracoddi non loin du black". Le tableau de bord affiche
+        // donc une adresse SANS SA COMMUNE — celle-là même qui justifie les 2 000 FCFA de
+        // livraison facturés. Le garde-fou existant ne rattrapait que le cas où les deux
+        // champs sont identiques, pas celui où ce sont deux moitiés de la même phrase.
+        //
+        // Règle tranchée par le marchand : « on ne se fatigue pas, on prend l'adresse telle
+        // qu'elle a été donnée par le client — de toute façon le client sera appelé. »
+        if (
+            isLeadOnlyMode && message.text &&
+            !/^Ma position\s*:/.test(message.text) &&
+            /adresse\s+(?:de\s+livraison|compl[èe]te|exacte)|votre\s+adresse/i.test(previousAssistantMessage || '')
+        ) {
+            const rawAddress = message.text.trim()
+            if (rawAddress) {
+                await conversation.updateMetadata({ lead_address_raw: rawAddress })
             }
         }
 
@@ -1062,6 +1084,9 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                     featureFlags,
                     leadStateSummary,
                     leadState: leadStateForGuard,
+                    // Coordonnées d'une demande précédente déjà close, à PROPOSER au client
+                    // au lieu de les réutiliser en silence (voir la clôture du cycle).
+                    leadKnownContact: conversation.metadata?.lead_known_contact || null,
                     supabase,
                     activeSessions,
                     CinetPay
@@ -1107,50 +1132,6 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
                 }
             } catch (recapErr) {
                 console.error(`⚠️ [${agentId}] mémorisation des totaux du récap échouée (non-bloquant):`, recapErr?.message || recapErr)
-            }
-        }
-
-        // ── CLÔTURE DU CYCLE LEAD ─────────────────────────────────────────────────────
-        // Le repère est le bloc "*Vos coordonnées :*" du récap de clôture (ÉTAPE 5 du
-        // workflow) — le MÊME que celui qui déclenche le filet capture_lead dans
-        // generator.js, donc sa présence garantit qu'un lead a bien été enregistré à ce tour.
-        //
-        // On archive le cycle exactement comme le flux normal le fait après une commande :
-        //   • session_anchor_at coupe l'historique lu par l'IA (message.js#getHistory) — sans
-        //     ça, une nouvelle demande se mélangerait à celle qu'on vient de clore ;
-        //   • la mémoire des articles, le panier et les totaux vus sont vidés ;
-        //   • lead_followup passe en attente : le prochain message du client déclenchera la
-        //     relance « souhaitez-vous passer une nouvelle commande ? » (voir plus haut).
-        //
-        // Posé APRÈS l'envoi, volontairement : le récap final part normalement, seul le
-        // message SUIVANT est concerné.
-        //
-        // Écriture par relecture fraîche puis fusion (PAS conversation.updateMetadata) :
-        // preview_cart et capture_lead écrivent metadata par leurs propres appels Supabase,
-        // donc this.metadata en mémoire peut être périmé ici.
-        if (isLeadOnlyMode && aiResponse.content && aiResponse.content.includes('*Vos coordonnées :*')) {
-            try {
-                const { FOLLOWUP_KEY } = require('../services/lead-followup.service')
-                const { data: freshConv } = await supabase
-                    .from('conversations')
-                    .select('metadata')
-                    .eq('id', conversation.id)
-                    .single()
-                const mergedMetadata = {
-                    ...(freshConv?.metadata || conversation.metadata || {}),
-                    session_anchor_at: new Date().toISOString(),
-                    lead_state: null,
-                    lead_cart: null,
-                    lead_last_seen_totals: null,
-                    lead_instruction_answer: null,
-                    last_location_link: null,
-                    [FOLLOWUP_KEY]: { stage: 'pending', unclassified: 0 },
-                }
-                await supabase.from('conversations').update({ metadata: mergedMetadata }).eq('id', conversation.id)
-                conversation.metadata = mergedMetadata
-                console.log(`🔒 [${agentId}] Cycle lead clos — ardoise effacée, relance armée pour le prochain message`)
-            } catch (closeErr) {
-                console.error(`⚠️ [${agentId}] clôture du cycle lead échouée (non-bloquant):`, closeErr?.message || closeErr)
             }
         }
 
@@ -1332,6 +1313,81 @@ async function handleMessage(context, agentId, message, isVoiceMessage = false) 
             tokens_used: aiResponse.tokensUsed,
             status: 'sent'
         })
+
+        // ── CLÔTURE DU CYCLE LEAD ─────────────────────────────────────────────────────
+        // Le repère est le bloc "*Vos coordonnées :*" du récap de clôture (ÉTAPE 5 du
+        // workflow) — le MÊME que celui qui déclenche le filet capture_lead dans
+        // generator.js, donc sa présence garantit qu'un lead a bien été enregistré à ce tour.
+        //
+        // On archive le cycle comme le flux normal le fait après une commande :
+        //   • session_anchor_at coupe l'historique lu par l'IA (message.js#getHistory) — sans
+        //     ça, une nouvelle demande se mélangerait à celle qu'on vient de clore ;
+        //   • la mémoire des articles, le panier et les totaux vus sont vidés ;
+        //   • lead_followup passe en attente : le prochain message du client déclenchera la
+        //     relance « souhaitez-vous passer une nouvelle commande ? » (voir plus haut) ;
+        //   • SEULES les coordonnées survivent, dans un champ dédié — voir plus bas.
+        //
+        // ⚠️ EMPLACEMENT CRITIQUE : ce bloc doit rester APRÈS l'enregistrement du message
+        // ci-dessus. Placé avant (première version), l'ancre était antérieure de deux
+        // secondes au récap de clôture, qui restait donc DANS la fenêtre d'historique du
+        // cycle suivant : l'agent y relisait les articles, les montants et l'adresse de la
+        // commande précédente, et a fini par afficher une adresse de livraison sur une
+        // commande à retirer en boutique (13/08/2026). Il faut aussi qu'il reste après les
+        // `return` de la phase 6 : si l'envoi est annulé, le cycle ne doit pas se clore.
+        //
+        // Écriture par relecture fraîche puis fusion (PAS conversation.updateMetadata) :
+        // preview_cart et capture_lead écrivent metadata par leurs propres appels Supabase,
+        // donc this.metadata en mémoire peut être périmé ici.
+        if (isLeadOnlyMode && aiResponse.content && aiResponse.content.includes('*Vos coordonnées :*')) {
+            try {
+                const { FOLLOWUP_KEY } = require('../services/lead-followup.service')
+
+                // Coordonnées lues dans la LIGNE EN BASE, jamais dans le texte du message :
+                // c'est la seule version dont on sait qu'elle a été réellement enregistrée.
+                // Elles survivent volontairement à l'effacement pour être PROPOSÉES au client
+                // au cycle suivant — jamais réutilisées en silence (voir le bloc COORDONNÉES
+                // DÉJÀ CONNUES injecté dans le prompt).
+                const { data: closedLead } = await supabase
+                    .from('leads')
+                    .select('lead_name, lead_phone, lead_email, lead_address')
+                    .eq('conversation_id', conversation.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+
+                const knownContact = closedLead && (closedLead.lead_name || closedLead.lead_phone)
+                    ? {
+                        name: closedLead.lead_name || null,
+                        phone: closedLead.lead_phone || null,
+                        email: closedLead.lead_email || null,
+                        address: closedLead.lead_address || null,
+                    }
+                    : (conversation.metadata?.lead_known_contact || null)
+
+                const { data: freshConv } = await supabase
+                    .from('conversations')
+                    .select('metadata')
+                    .eq('id', conversation.id)
+                    .single()
+                const mergedMetadata = {
+                    ...(freshConv?.metadata || conversation.metadata || {}),
+                    session_anchor_at: new Date().toISOString(),
+                    lead_state: null,
+                    lead_cart: null,
+                    lead_last_seen_totals: null,
+                    lead_instruction_answer: null,
+                    last_location_link: null,
+                    lead_address_raw: null,
+                    lead_known_contact: knownContact,
+                    [FOLLOWUP_KEY]: { stage: 'pending', unclassified: 0 },
+                }
+                await supabase.from('conversations').update({ metadata: mergedMetadata }).eq('id', conversation.id)
+                conversation.metadata = mergedMetadata
+                console.log(`🔒 [${agentId}] Cycle lead clos — ardoise effacée, relance armée${knownContact ? ', coordonnées mémorisées' : ''}`)
+            } catch (closeErr) {
+                console.error(`⚠️ [${agentId}] clôture du cycle lead échouée (non-bloquant):`, closeErr?.message || closeErr)
+            }
+        }
 
         // ═══════════════════════════════════════════════════════════
         // PHASE 7 : MISE À JOUR STATS & CRÉDITS

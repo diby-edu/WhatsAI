@@ -42,6 +42,7 @@ function buildTransactionalMetadataReset(metadata = {}, options = {}) {
         lead_state: null,
         lead_cart: null,
         lead_last_seen_totals: null,
+        lead_address_raw: null,
     }
 }
 

@@ -122,3 +122,27 @@ describe('AIService.generate — traversée du contexte vers le générateur', (
         expect(options.customerPhone).toBe('+2250700000000')
     })
 })
+
+/**
+ * Les coordonnées d'un cycle lead déjà clos suivent le même chemin que le résumé d'articles :
+ * message.js → ai.service.js (liste blanche) → generator.js. La liste blanche est le point
+ * où `leadState` s'était déjà perdu une fois, rendant son garde-fou inerte sans qu'aucun log
+ * ne le signale — d'où cette vérification nommée en plus du contrôle structurel ci-dessus.
+ */
+describe('acheminement des coordonnées connues', () => {
+    const fs = require('fs')
+    const path = require('path')
+    const read = p => fs.readFileSync(path.join(__dirname, '../../../src/lib/whatsapp', p), 'utf8')
+
+    test('message.js les transmet', () => {
+        expect(read('handlers/message.js')).toMatch(/leadKnownContact:\s*conversation\.metadata\?\.lead_known_contact/)
+    })
+
+    test('ai.service.js les recopie dans les options du générateur', () => {
+        expect(read('services/ai.service.js')).toMatch(/leadKnownContact:\s*context\.leadKnownContact/)
+    })
+
+    test('generator.js les consomme', () => {
+        expect(read('ai/generator.js')).toMatch(/leadKnownContact = null/)
+    })
+})

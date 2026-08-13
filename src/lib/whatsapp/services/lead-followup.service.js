@@ -30,15 +30,16 @@
  *
  *   [clôture]  ──────────────────────────────▶  pending
  *   pending    ── message quelconque ────────▶  asked          (envoie la relance)
- *   pending    ── message nommant un article ▶  (effacé)       → l'IA reprend, nouveau cycle
  *   asked      ── accord ────────────────────▶  (effacé)       → l'IA reprend, nouveau cycle
- *   asked      ── article nommé ─────────────▶  (effacé)       → l'IA reprend, nouveau cycle
  *   asked      ── refus ─────────────────────▶  pending        (accuse réception)
  *   asked      ── non classé (1re fois) ─────▶  asked          (redirige vers le conseiller)
  *   asked      ── non classé (2e fois) ──────▶  escalade       (prévient un humain)
+ *
+ * AUCUNE exception au premier passage : quoi qu'écrive le client après le récap final, il
+ * reçoit la question. Voir plus bas pourquoi l'exception « article nommé » a été retirée.
  */
 
-const { normalizeText, singularize, fuzzyDistanceOk } = require('./lead-state.service')
+const { normalizeText } = require('./lead-state.service')
 
 const FOLLOWUP_KEY = 'lead_followup'
 
@@ -143,26 +144,25 @@ function classifyFollowupReply(text) {
 }
 
 /**
- * Le message nomme-t-il un article du catalogue ?
+ * ⚠️ EXCEPTION RETIRÉE — « le message nomme un article du catalogue → passe la main ».
  *
- * Quand c'est le cas, la relance est INUTILE et même nuisible : le client a déjà exprimé son
- * intention. Lui demander « souhaitez-vous passer une nouvelle commande ? » l'obligerait à
- * répondre « oui », puis à retaper sa commande — l'ardoise ayant été effacée à la clôture.
+ * Elle a existé ici et elle a été supprimée après son premier test réel (13/08/2026). Son
+ * intention : épargner deux messages au client qui énonce déjà sa commande (« je veux ajouter
+ * 3 sacs »), puisque l'ardoise est effacée et qu'il devrait la retaper.
  *
- * Comparaison tolérante empruntée au moteur d'état (fautes, pluriels) : le catalogue dit
- * « goube enfant », les clients écrivent « gourde ». On compare sur le premier mot
- * significatif du nom, comme le fait déjà generator.js.
+ * Ce qu'elle a produit : le client a écrit « Je veux **changer** le sac » — une demande de
+ * MODIFICATION. Le mot « sac » est au catalogue, l'exception a tiré, la relance n'a jamais
+ * été posée, et l'agent a démarré une commande entière. Deux leads contradictoires en base
+ * (10 sacs noirs livrés à Adjamé, puis 6 sacs jaunes à retirer en boutique) et un client
+ * persuadé d'avoir modifié la sienne.
+ *
+ * Le défaut n'est pas un cas limite : dans une conversation de catalogue, presque tout
+ * message de suite nomme un article (« le sac », « la gourde », « le prix du sac »).
+ * L'exception ne se déclenchait pas de temps en temps — elle neutralisait la relance.
+ *
+ * Ne pas la réintroduire sous une forme « mieux bordée ». Le coût de son absence est deux
+ * messages ; le coût de sa présence était deux commandes contradictoires.
  */
-function mentionsCatalogProduct(text, products = []) {
-    const words = normalizeText(text).split(/\s+/).filter(Boolean)
-    if (words.length === 0) return false
-
-    return (products || []).some(product => {
-        const head = singularize(normalizeText(String(product?.name || '').trim().split(/\s+/)[0] || ''))
-        if (head.length < 3) return false
-        return words.some(word => fuzzyDistanceOk(singularize(word.replace(/[^\p{L}\p{N}]/gu, '')), head))
-    })
-}
 
 function phoneLine(escalationPhone, label) {
     return escalationPhone ? `\n\n📞 ${label} ${escalationPhone}` : ''
@@ -215,14 +215,8 @@ function getFollowupState(metadata) {
  * @returns {{action: 'ask'|'decline'|'redirect'|'escalate'|'handover', nextState: object|null, reason: string}}
  *   - `handover` = effacer l'état et laisser l'IA traiter le message normalement.
  */
-function decideFollowupAction(followupState, text, products = []) {
+function decideFollowupAction(followupState, text) {
     if (!followupState) return { action: 'handover', nextState: null, reason: 'aucune relance en cours' }
-
-    // Un article nommé vaut intention certaine, à n'importe quel stade : on ne fait pas
-    // perdre deux messages à un client qui vient d'énoncer sa commande.
-    if (mentionsCatalogProduct(text, products)) {
-        return { action: 'handover', nextState: null, reason: 'le message nomme un article du catalogue' }
-    }
 
     if (followupState.stage === 'pending') {
         return { action: 'ask', nextState: { stage: 'asked', unclassified: 0 }, reason: 'premier message après la clôture' }
@@ -252,7 +246,6 @@ module.exports = {
     FOLLOWUP_KEY,
     UNCLASSIFIED_ESCALATION_THRESHOLD,
     classifyFollowupReply,
-    mentionsCatalogProduct,
     buildFollowupMessages,
     getFollowupState,
     decideFollowupAction,

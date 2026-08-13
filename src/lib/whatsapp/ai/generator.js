@@ -423,6 +423,110 @@ async function rewriteWithoutImpossibleQuestion(openai, model, content, leadStat
 }
 
 /**
+ * Coordonnées d'une demande précédente déjà close, à PROPOSER au client — jamais à
+ * réutiliser en silence.
+ *
+ * Avant ce bloc, l'agent les reprenait de lui-même parce qu'il voyait encore le récap du
+ * cycle précédent dans son historique. Le client découvrait ses anciennes coordonnées dans
+ * le récapitulatif final, sans avoir jamais eu l'occasion de dire qu'elles avaient changé —
+ * et le même mécanisme a fini par afficher une adresse de livraison sur une commande à
+ * retirer en boutique (13/08/2026).
+ *
+ * Le système fournit une DONNÉE ; c'est l'agent qui formule la proposition et interprète la
+ * réponse. Même principe que le bloc "CLIENT CONNU" du flux de commande normal, qui propose
+ * de réutiliser les informations d'une commande passée.
+ */
+function buildKnownContactSection(leadKnownContact) {
+    if (!leadKnownContact || (!leadKnownContact.name && !leadKnownContact.phone)) return ''
+
+    const champs = [
+        leadKnownContact.name ? `• Nom : ${leadKnownContact.name}` : null,
+        leadKnownContact.phone ? `• Téléphone : ${leadKnownContact.phone}` : null,
+        leadKnownContact.email ? `• Email : ${leadKnownContact.email}` : null,
+        leadKnownContact.address ? `• Adresse de livraison : ${leadKnownContact.address}` : null,
+    ].filter(Boolean).join('\n')
+
+    return `\n\n👤 COORDONNÉES DÉJÀ CONNUES (source système — demande précédente de ce même client, déjà close) :
+${champs}
+
+Au moment de collecter les coordonnées (ÉTAPE 4), ne pose PAS les questions une par une : propose d'abord ces informations en UN SEUL message et laisse le client trancher.
+✅ "Je reprends vos coordonnées :
+${champs}
+
+C'est toujours bon, ou souhaitez-vous changer quelque chose ?"
+    - S'il confirme → enchaîne directement sur le récapitulatif de clôture avec ces valeurs.
+    - S'il corrige UN SEUL champ → garde les autres tels quels, ne les redemande pas.
+    - ⛔ N'affiche PAS la ligne Adresse s'il a choisi le RETRAIT EN BOUTIQUE — une commande à retirer n'a pas d'adresse de livraison.
+    - ⛔ Ne propose ce bloc qu'une fois le récapitulatif chiffré affiché et le mode de récupération connu, jamais avant.
+    - ⛔ Ces valeurs viennent d'une demande PRÉCÉDENTE et déjà enregistrée : ne les mentionne jamais comme si elles appartenaient à la demande en cours tant que le client ne les a pas confirmées.`
+}
+
+/**
+ * Un article que le catalogue ne vend pas, passé sous silence.
+ *
+ * Cas réel (13/08/2026) : « juste 5 sacs enfant noir, 16 ardoise. Je veux être livré a
+ * adjame. Je me nom Coulibaly fatou ». L'agent a répondu par un récapitulatif chiffré
+ * complet — articles, frais de livraison, total — SANS un mot sur les 16 ardoises. Le client
+ * a dû relancer lui-même (« Et les ardoises ») pour obtenir la réponse. Entre les deux, rien
+ * ne lui disait qu'elles n'étaient pas dans sa commande.
+ *
+ * Le prompt l'interdit déjà, et l'agent l'avait d'ailleurs respecté cinq minutes plus tôt sur
+ * une autre conversation. La différence : ici le message empilait une négation, deux
+ * articles, un mode de livraison, une commune et un nom — l'agent a foncé au récap.
+ *
+ * Vérifiable sans jugement : le moteur a enregistré une mention non reconnue, le message
+ * conclut (récap chiffré ou demande de coordonnées), et le nom de cet article n'y figure pas.
+ */
+const UNKNOWN_ITEM_TRIGGER = /TOTAL\s*:|num[ée]ro\s+de\s+t[ée]l[ée]phone|pr[ée]nom\s+et\s+nom|vos\s+coordonn[ée]es/i
+
+function findUnannouncedUnknownItem(content, leadState) {
+    if (!content || !leadState || !Array.isArray(leadState.unmatched_mentions)) return null
+    // `announced` est posé par le moteur dès qu'un message de l'agent a nommé l'article —
+    // sans quoi le constat se répéterait à chaque récap suivant et l'agent radoterait.
+    const pending = leadState.unmatched_mentions.filter(m => m && m.text && m.announced !== true)
+    if (pending.length === 0) return null
+    if (!UNKNOWN_ITEM_TRIGGER.test(content)) return null
+
+    const words = normalizeText(content).split(/\s+/).filter(Boolean)
+    for (const mention of pending) {
+        const head = singularize(normalizeText(String(mention.text).trim().split(/\s+/)[0] || ''))
+        if (head.length < 3) continue
+        const named = words.some(word => fuzzyDistanceOk(singularize(word.replace(/[^\p{L}\p{N}]/gu, '')), head))
+        if (!named) return { mention }
+    }
+
+    return null
+}
+
+/**
+ * Réécriture par AJOUT, et non par suppression : ici le message n'affirme rien de faux, il
+ * omet. rewriteWithoutImpossibleQuestion ne sait que retirer une phrase citée — d'où cette
+ * variante, volontairement minimale pour ne pas défaire un récapitulatif correct.
+ */
+async function rewriteAddingUnknownItemNotice(openai, model, content, mention) {
+    const completion = await callOpenAIWithRetry(openai, {
+        model,
+        temperature: 0,
+        max_tokens: 500,
+        messages: [
+            {
+                role: 'system',
+                content: [
+                    "Tu réécris un message WhatsApp déjà rédigé. Tu ne conseilles pas un client, tu édites un texte.",
+                    `Ta tâche : AJOUTER UNE PHRASE COURTE indiquant que "${mention.text}" ne fait pas partie du catalogue et ne peut pas être vendu.`,
+                    'Place-la en TÊTE du message, avant le reste.',
+                    "Ne touche à RIEN d'autre : ni les articles listés, ni les montants, ni les totaux, ni la question finale, ni les emojis, ni la mise en forme.",
+                    "N'invente aucun prix et ne propose aucun article de remplacement.",
+                    'Réponds UNIQUEMENT par le message réécrit, sans commentaire ni guillemets.',
+                ].join('\n'),
+            },
+            { role: 'user', content: `MESSAGE À RÉÉCRIRE :\n${content}` },
+        ],
+    })
+    return (completion.choices[0]?.message?.content || '').trim()
+}
+
+/**
  * L'agent annonce-t-il un tarif de livraison pour un lieu qui n'est pas dans tes zones ?
  *
  * Cas réel (12/08/2026) : le client répond « Angré château ». Angré est un quartier de
@@ -868,7 +972,8 @@ async function generateAIResponse(options, dependencies) {
             restaurantQuestionDetected = false,
             hasKnowledgeBase = false,
             leadStateSummary = null,
-            leadState = null
+            leadState = null,
+            leadKnownContact = null
         } = options
 
         // RAG - Documents pertinents
@@ -1008,6 +1113,16 @@ async function generateAIResponse(options, dependencies) {
             effectiveHasKnowledgeBase,
             activeEngineHint
         )
+        // Coordonnées d'une demande précédente déjà close. Elles ne sont PAS réinjectées
+        // comme des acquis : le client doit pouvoir dire qu'elles ont changé. Avant ce bloc,
+        // l'agent les reprenait en silence — parce qu'il voyait encore le récap du cycle
+        // précédent — et le client découvrait ses anciennes coordonnées dans le récap final,
+        // sans avoir jamais eu l'occasion de les corriger.
+        if (isLeadOnlyMode) {
+            const knownContactSection = buildKnownContactSection(leadKnownContact)
+            if (knownContactSection) systemPrompt += knownContactSection
+        }
+
         if (isLeadOnlyMode && leadStateSummary) {
             systemPrompt += `\n\nARTICLES DÉJÀ IDENTIFIÉS (source système, prioritaire — ne redemande jamais une quantité ou variante déjà connue ici, ne recalcule rien toi-même, utilise ces valeurs exactes dans preview_cart) :\n${leadStateSummary}`
         }
@@ -1237,6 +1352,7 @@ async function generateAIResponse(options, dependencies) {
             const missingFee = findMissingDeliveryFee(content, leadState, agent)
             const inventedFee = findInventedDeliveryFee(content, agent, conversationHistory, userMessage)
             const pricelessRecap = findPricelessRecap(content, isLeadOnlyMode)
+            const unknownItem = findUnannouncedUnknownItem(content, leadState)
             const stale = staleQuantity
                 || (falseUnavailable && {
                     sentence: falseUnavailable.sentence,
@@ -1258,6 +1374,11 @@ async function generateAIResponse(options, dependencies) {
                     item: { product_name: 'récapitulatif', quantity: null },
                     pricelessRecap: true,
                 })
+                || (unknownItem && {
+                    sentence: unknownItem.mention.text,
+                    item: { product_name: unknownItem.mention.text, quantity: unknownItem.mention.quantity },
+                    unknownItem: unknownItem.mention,
+                })
             if (!stale) break
             {
                 try {
@@ -1277,6 +1398,8 @@ async function generateAIResponse(options, dependencies) {
                         ? '⚠️ [lead_only] Récap de livraison sans frais de livraison — reformulation demandée'
                         : stale.pricelessRecap
                         ? '⚠️ [lead_only] Récap d\'articles écrit à la main, sans prix ni total — reformulation demandée'
+                        : stale.unknownItem
+                        ? `⚠️ [lead_only] Article hors catalogue passé sous silence (${stale.unknownItem.text} × ${stale.unknownItem.quantity}) — reformulation demandée`
                         : stale.unavailable
                             ? `⚠️ [lead_only] Variante du catalogue annoncée indisponible à tort (${stale.unavailable.product} / ${stale.unavailable.variant}) — reformulation demandée`
                             : `⚠️ [lead_only] Question sur une quantité déjà connue (${stale.item.product_name} = ${stale.item.quantity}) — reformulation demandée`)
@@ -1285,7 +1408,9 @@ async function generateAIResponse(options, dependencies) {
                     // livraison manquants et le récap sans prix. Dans les deux, seul
                     // preview_cart connaît les montants — une réécriture ne peut que les
                     // inventer, ce qui est précisément ce qu'on cherche à empêcher.
-                    const rewritten = (stale.missingFee || stale.pricelessRecap)
+                    const rewritten = stale.unknownItem
+                        ? await rewriteAddingUnknownItemNotice(openai, modelToUse, content, stale.unknownItem)
+                        : (stale.missingFee || stale.pricelessRecap)
                         ? await regenerateThroughTools({
                             openai,
                             model: modelToUse,
@@ -1327,6 +1452,7 @@ async function generateAIResponse(options, dependencies) {
                             || findMissingDeliveryFee(content, leadState, agent)
                             || findInventedDeliveryFee(content, agent, conversationHistory, userMessage)
                             || findPricelessRecap(content, isLeadOnlyMode)
+                            || findUnannouncedUnknownItem(content, leadState)
                         console.log(stillStale
                             ? `   ↳ ❌ reformulation INSUFFISANTE, l'erreur persiste : "${stillStale.sentence.slice(0, 160)}"`
                             : '   ↳ ✅ reformulation OK, la question a disparu')
@@ -1412,4 +1538,4 @@ async function generateAIResponse(options, dependencies) {
 
 // stripLeadOnlyUnfilledRecap est exporté uniquement pour être testable unitairement :
 // son déclenchement dépend d'une sortie du modèle, impossible à provoquer autrement.
-module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion, findFalseUnavailabilityClaim, stripLeadOnlyNarration, findInventedDeliveryFee, findMissingDeliveryFee, findPricelessRecap }
+module.exports = { generateAIResponse, stripLeadOnlyUnfilledRecap, findStaleQuantityQuestion, findFalseUnavailabilityClaim, stripLeadOnlyNarration, findInventedDeliveryFee, findMissingDeliveryFee, findPricelessRecap, findUnannouncedUnknownItem, buildKnownContactSection }

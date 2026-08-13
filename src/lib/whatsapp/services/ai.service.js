@@ -56,6 +56,10 @@ class AIService {
             // connue" de generator.js. Oublier cette ligne le rend silencieusement inerte :
             // c'est arrivé, le bug est repassé en production sans qu'aucun log ne le signale.
             leadState: context.leadState || null,
+            // Coordonnées d'un cycle lead déjà clos, pour que l'agent les propose au client
+            // plutôt que de les supposer. Même remarque que ci-dessus : oublier cette ligne
+            // rend la proposition silencieusement inopérante.
+            leadKnownContact: context.leadKnownContact || null,
             justOrdered // Signal pour le prompt builder
         }
 

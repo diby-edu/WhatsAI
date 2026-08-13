@@ -12,13 +12,11 @@
 
 const {
     classifyFollowupReply,
-    mentionsCatalogProduct,
     buildFollowupMessages,
     getFollowupState,
     decideFollowupAction,
 } = require('../../../src/lib/whatsapp/services/lead-followup.service')
 
-const PRODUCTS = [{ name: 'goube enfant' }, { name: 'sac enfant' }]
 const PENDING = { stage: 'pending', unclassified: 0 }
 const ASKED = { stage: 'asked', unclassified: 0 }
 
@@ -89,50 +87,45 @@ describe('classifyFollowupReply', () => {
     })
 })
 
-describe('mentionsCatalogProduct', () => {
-    test('reconnaît un article, avec la tolérance du moteur d\'état', () => {
-        expect(mentionsCatalogProduct('Je veux ajouter 3 sacs enfant noir', PRODUCTS)).toBe(true)
-        // Le catalogue dit « goube », les clients écrivent « gourde ».
-        expect(mentionsCatalogProduct('je veux 5 gourdes rouges', PRODUCTS)).toBe(true)
-    })
-
-    test('ne se déclenche pas sur une réponse ordinaire', () => {
-        for (const t of ['Merci', 'ok', "mon numéro c'est 0748229901", 'Oui']) {
-            expect(mentionsCatalogProduct(t, PRODUCTS)).toBe(false)
-        }
-    })
-
-    test('catalogue vide ou absent', () => {
-        expect(mentionsCatalogProduct('3 sacs', [])).toBe(false)
-        expect(mentionsCatalogProduct('3 sacs', undefined)).toBe(false)
-    })
-})
-
 describe('decideFollowupAction', () => {
     test('aucune relance en cours : l\'IA garde la main', () => {
-        expect(decideFollowupAction(null, 'Bonjour', PRODUCTS).action).toBe('handover')
+        expect(decideFollowupAction(null, 'Bonjour').action).toBe('handover')
     })
 
     test('premier message après la clôture, quel qu\'il soit → la question', () => {
         for (const t of ['Merci', 'bonjour', 'vous êtes là ?', 'ok']) {
-            const d = decideFollowupAction(PENDING, t, PRODUCTS)
+            const d = decideFollowupAction(PENDING, t)
             expect(d.action).toBe('ask')
             expect(d.nextState).toEqual({ stage: 'asked', unclassified: 0 })
         }
     })
 
     /**
-     * Le client qui énonce déjà sa commande ne doit pas avoir à répondre « oui » puis à la
-     * retaper — l'ardoise ayant été effacée à la clôture, il perdrait deux messages sur le
-     * cas le plus rentable.
+     * RÉGRESSION DE PRODUCTION (13/08/2026) — l'exception qui a neutralisé la relance.
+     *
+     * Le code court-circuitait la question dès que le message nommait un article du
+     * catalogue, pour épargner deux messages au client énonçant déjà sa commande. Au premier
+     * test réel, le client a écrit « Je veux CHANGER le sac » : « sac » est au catalogue,
+     * l'exception a tiré, la relance n'a jamais été posée, et l'agent a démarré une commande
+     * entière. Deux leads contradictoires en base, et un client persuadé d'avoir modifié le
+     * sien.
+     *
+     * Dans une conversation de catalogue, presque tout message de suite nomme un article :
+     * l'exception ne ratait pas un cas limite, elle annulait la fonctionnalité.
      */
-    test('un article nommé court-circuite la relance, à tout stade', () => {
-        expect(decideFollowupAction(PENDING, 'Je veux 3 sacs enfant noir', PRODUCTS).action).toBe('handover')
-        expect(decideFollowupAction(ASKED, 'finalement 5 gourdes rouges', PRODUCTS).action).toBe('handover')
+    test('un message nommant un article reçoit la relance comme les autres', () => {
+        for (const t of [
+            'Je veux changer le sac',
+            'Je veux ajouter 3 sacs enfant noir',
+            'le prix du sac ?',
+            'finalement 5 gourdes rouges',
+        ]) {
+            expect(decideFollowupAction(PENDING, t).action).toBe('ask')
+        }
     })
 
     test('accord → l\'IA reprend sur un cycle vierge', () => {
-        const d = decideFollowupAction(ASKED, 'Oui', PRODUCTS)
+        const d = decideFollowupAction(ASKED, 'Oui')
         expect(d.action).toBe('handover')
         expect(d.nextState).toBeNull()
     })
@@ -140,25 +133,25 @@ describe('decideFollowupAction', () => {
     // Retour en attente et non état terminal : s'il réécrit dans deux jours, il retrouve la
     // question au lieu d'un catalogue surgi de nulle part.
     test('refus → accusé de réception, puis retour en attente', () => {
-        const d = decideFollowupAction(ASKED, 'Non merci', PRODUCTS)
+        const d = decideFollowupAction(ASKED, 'Non merci')
         expect(d.action).toBe('decline')
         expect(d.nextState).toEqual({ stage: 'pending', unclassified: 0 })
     })
 
     test('premier message non classé → redirection vers le conseiller', () => {
-        const d = decideFollowupAction(ASKED, 'Je veux juste changer mon numéro', PRODUCTS)
+        const d = decideFollowupAction(ASKED, 'Je veux juste changer mon numéro')
         expect(d.action).toBe('redirect')
         expect(d.nextState).toEqual({ stage: 'asked', unclassified: 1 })
     })
 
     test('deuxième message non classé consécutif → escalade', () => {
-        const d = decideFollowupAction({ stage: 'asked', unclassified: 1 }, "Mais c'est urgent", PRODUCTS)
+        const d = decideFollowupAction({ stage: 'asked', unclassified: 1 }, "Mais c'est urgent")
         expect(d.action).toBe('escalate')
         expect(d.nextState).toBeNull()
     })
 
     test('le compteur repart de zéro après un refus', () => {
-        const afterDecline = decideFollowupAction({ stage: 'asked', unclassified: 1 }, 'Non merci', PRODUCTS)
+        const afterDecline = decideFollowupAction({ stage: 'asked', unclassified: 1 }, 'Non merci')
         expect(afterDecline.nextState.unclassified).toBe(0)
     })
 })
@@ -171,7 +164,7 @@ describe('parcours de bout en bout', () => {
         let state = PENDING
         const actions = []
         for (const m of messages) {
-            const d = decideFollowupAction(state, m, PRODUCTS)
+            const d = decideFollowupAction(state, m)
             actions.push(d.action)
             state = d.nextState
             if (d.action === 'handover') break
@@ -187,8 +180,19 @@ describe('parcours de bout en bout', () => {
         expect(run(['Merci', 'Non merci'])).toEqual(['ask', 'decline'])
     })
 
-    test('commande directe → aucune relance', () => {
-        expect(run(['Je veux ajouter 3 sacs enfant noir'])).toEqual(['handover'])
+    /**
+     * Le parcours exact de la conversation du 13/08/2026, celui qui a produit deux leads
+     * contradictoires. Il doit désormais s'arrêter à la question — le client y lit le numéro
+     * à appeler pour modifier sa demande, et rien n'est enregistré tant qu'il n'a pas
+     * confirmé vouloir une NOUVELLE commande.
+     */
+    test('« Je veux changer le sac » → la question, plus de commande fantôme', () => {
+        expect(run(['Je veux changer le sac'])).toEqual(['ask'])
+    })
+
+    // Le client qui voulait bien une seconde commande la confirme, puis elle démarre.
+    test('commande directe → question, puis nouvelle commande après confirmation', () => {
+        expect(run(['Je veux ajouter 3 sacs enfant noir', 'Oui'])).toEqual(['ask', 'handover'])
     })
 
     test('correction insistante → question, redirection, escalade', () => {

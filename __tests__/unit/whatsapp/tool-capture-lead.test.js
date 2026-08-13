@@ -267,3 +267,91 @@ describe('tool-capture-lead — un lead par cycle', () => {
         expect(getInsertedRow()).toBeNull()
     })
 })
+
+/**
+ * Adresse et localisation — régressions réelles du 13/08/2026.
+ *
+ * Le client a écrit « Adjame bracoddi non loin du black » d'un seul trait. Le modèle a
+ * appelé capture_lead avec lead_location = "Adjamé" et lead_address = "Bracoddi non loin du
+ * black" : le marchand voyait une adresse SANS SA COMMUNE, celle-là même qui justifiait les
+ * 2 000 FCFA de livraison facturés. Le garde-fou de doublon ne voyait rien — les deux
+ * valeurs ne sont pas identiques, ce sont deux moitiés complémentaires.
+ *
+ * Règle tranchée par le marchand : on prend l'adresse telle qu'elle a été donnée.
+ */
+describe('tool-capture-lead — adresse et localisation', () => {
+    beforeEach(() => { mockNotify.mockClear() })
+
+    test('l\'adresse brute du client écrase la découpe du modèle', async () => {
+        const { supabase, getInsertedRow } = createSupabase({
+            metadata: {
+                lead_address_raw: 'Adjame bracoddi non loin du black',
+                lead_state: { fulfillment_mode: 'delivery' },
+            },
+        })
+
+        await handleCaptureLead(
+            { lead_name: 'Koffi Kadis', lead_location: 'Adjamé', lead_address: 'Bracoddi non loin du black' },
+            'agent-1', '+2250000000', 'conv-1', supabase
+        )
+
+        const row = getInsertedRow()
+        expect(row.lead_address).toBe('Adjame bracoddi non loin du black')
+        expect(row.lead_location).toBeNull()
+    })
+
+    test('sans adresse brute mémorisée, le comportement d\'origine est conservé', async () => {
+        const { supabase, getInsertedRow } = createSupabase({
+            metadata: { lead_state: { fulfillment_mode: 'delivery' } },
+        })
+
+        await handleCaptureLead(
+            { lead_location: 'Cocody', lead_address: 'Riviera 3, rue des jardins' },
+            'agent-1', '+2250000000', 'conv-1', supabase
+        )
+
+        const row = getInsertedRow()
+        expect(row.lead_address).toBe('Riviera 3, rue des jardins')
+        expect(row.lead_location).toBe('Cocody')
+    })
+
+    /**
+     * Second lead du 13/08/2026 : commande à RETIRER EN BOUTIQUE, et pourtant
+     * lead_location = « Adjamé Bracoddi non loin du black » — l'adresse de livraison du cycle
+     * précédent, qui avait survécu dans le champ localisation.
+     */
+    test('retrait en boutique : ni adresse ni localisation', async () => {
+        const { supabase, getInsertedRow } = createSupabase({
+            metadata: {
+                lead_address_raw: 'Adjame bracoddi non loin du black',
+                lead_state: { fulfillment_mode: 'pickup' },
+            },
+        })
+
+        await handleCaptureLead(
+            { lead_name: 'Koffi Kadis', lead_location: 'Adjamé Bracoddi non loin du black' },
+            'agent-1', '+2250000000', 'conv-1', supabase
+        )
+
+        const row = getInsertedRow()
+        expect(row.fulfillment_mode).toBe('pickup')
+        expect(row.lead_address).toBeNull()
+        expect(row.lead_location).toBeNull()
+        // Le reste du lead n'est pas affecté.
+        expect(row.lead_name).toBe('Koffi Kadis')
+    })
+
+    test('la déduplication location/adresse reste active', async () => {
+        const { supabase, getInsertedRow } = createSupabase({
+            metadata: { lead_state: { fulfillment_mode: 'delivery' } },
+        })
+
+        await handleCaptureLead(
+            { lead_location: 'Port Bouët', lead_address: 'Port Bouët' },
+            'agent-1', '+2250000000', 'conv-1', supabase
+        )
+
+        expect(getInsertedRow().lead_location).toBeNull()
+        expect(getInsertedRow().lead_address).toBe('Port Bouët')
+    })
+})

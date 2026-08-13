@@ -100,6 +100,8 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
         let leadState = null
         // Début du cycle courant : borne l'idempotence du lead (voir plus bas).
         let cycleStartedAt = null
+        // Adresse telle que le client l'a écrite, captée par message.js.
+        let addressRaw = null
         if (conversationId) {
             const { data: conversation } = await supabase
                 .from('conversations')
@@ -112,6 +114,7 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             lastSeenTotals = conversation?.metadata?.lead_last_seen_totals || null
             leadState = conversation?.metadata?.lead_state || null
             cycleStartedAt = conversation?.metadata?.session_anchor_at || null
+            addressRaw = conversation?.metadata?.lead_address_raw || null
         }
 
         // preview_cart jamais appelé → on reconstruit depuis l'état du moteur plutôt que
@@ -194,6 +197,39 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             console.log('ℹ️ [capture_lead] lead_location identique à lead_address — localisation ignorée')
         }
 
+        // L'adresse écrite par le client fait foi, jamais la découpe du modèle.
+        //
+        // Observé le 13/08/2026 : « Adjame bracoddi non loin du black », dit d'un seul trait,
+        // est arrivé en base coupé en deux — lead_location = "Adjamé", lead_address =
+        // "Bracoddi non loin du black". Le marchand voyait donc une adresse SANS SA COMMUNE,
+        // celle qui justifie pourtant les frais de livraison facturés. Le garde-fou
+        // ci-dessus ne voit pas ce cas : les deux valeurs ne sont pas identiques, ce sont
+        // deux moitiés complémentaires.
+        //
+        // On réinjecte donc la phrase brute mémorisée par message.js et on écarte la
+        // localisation : elle ne peut plus rien apporter que l'adresse ne contienne déjà.
+        let finalAddress = lead_address || null
+        let finalLocation = locationDuplicatesAddress ? null : (lead_location || null)
+        if (addressRaw) {
+            if (normalizeForCompare(addressRaw) !== normalizeForCompare(lead_address)) {
+                console.log(`ℹ️ [capture_lead] adresse reprise telle que donnée par le client : "${addressRaw}"`)
+            }
+            finalAddress = addressRaw
+            finalLocation = null
+        }
+
+        // Retrait en boutique : aucune adresse de livraison n'a de sens. Sans cette remise à
+        // zéro, l'adresse du cycle PRÉCÉDENT se logeait dans la localisation d'une commande à
+        // retirer — constaté sur le second lead du 13/08/2026, qui portait « Adjamé Bracoddi
+        // non loin du black » alors que le client avait choisi la boutique.
+        if (fulfillmentMode === 'pickup') {
+            if (finalAddress || finalLocation) {
+                console.log('ℹ️ [capture_lead] retrait en boutique — adresse et localisation écartées')
+            }
+            finalAddress = null
+            finalLocation = null
+        }
+
         const leadRow = {
             agent_id:          agentId,
             user_id:           agent.user_id,
@@ -202,8 +238,8 @@ async function handleCaptureLead(args, agentId, customerPhone, conversationId, s
             lead_name:         lead_name        || null,
             lead_phone:        lead_phone       || null,
             lead_email:        lead_email       || null,
-            lead_location:     locationDuplicatesAddress ? null : (lead_location || null),
-            lead_address:      lead_address     || null,
+            lead_location:     finalLocation,
+            lead_address:      finalAddress,
             lead_company:      lead_company     || null,
             interest:          interest         || null,
             fulfillment_mode:  fulfillmentMode,
