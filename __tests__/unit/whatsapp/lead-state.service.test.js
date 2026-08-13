@@ -770,3 +770,93 @@ describe('lead-state.service', () => {
         })
     })
 })
+
+/**
+ * Régressions réelles de la conversation du 13/08/2026 (Madame Koné).
+ *
+ * Séquence : « je veux 5 sac bleu, 2 sac jaune, 4 ardoise et 6 gourde », puis — invitée à
+ * choisir la couleur des gourdes — « 3 rouge et 4 bleu ».
+ *
+ * Deux défauts s'y cachaient. Le second morceau de la répartition, « 4 bleu », était
+ * enregistré comme un ARTICLE INCONNU nommé "bleu" : le premier morceau rendait la ligne en
+ * attente valide, donc vidait la liste des lignes en attente, et « 4 bleu » se retrouvait
+ * sans produit ni ancre. Et la somme donnée (7) contredisait la quantité annoncée (6) sans
+ * que rien ne le signale.
+ */
+describe('lead-state — répartition sur plusieurs couleurs (13/08/2026)', () => {
+    const PRODUITS = [
+        {
+            id: 'p-sac', name: 'sac enfant', price_fcfa: 5000,
+            variants: [{ name: 'Couleur', type: 'fixed', options: [
+                { value: 'Bleu', price: 5000 }, { value: 'Jaune', price: 6000 }, { value: 'Noir', price: 7000 },
+            ] }],
+        },
+        {
+            id: 'p-goube', name: 'goube enfant', price_fcfa: 6500,
+            variants: [{ name: 'Couleur', type: 'fixed', options: [
+                { value: 'Rouge', price: 9000 }, { value: 'Bleu', price: 6500 },
+            ] }],
+        },
+    ]
+
+    const rejouer = () => {
+        let state = {}
+        state = updateLeadStateFromUserMessage(state, 'Je suis Madame Koné mawa, j\'habite à Cocody. Je veux 5 sac bleu, 2 sac jaune, 4 ardoise et 6 gourde.', PRODUITS)
+        state = updateLeadStateFromUserMessage(state, 'Couleur verte', PRODUITS, {
+            lastAssistantMessage: 'Pour les 6 gourdes, quelle couleur souhaitez-vous ?',
+        })
+        return updateLeadStateFromUserMessage(state, '3 rouge et 4 bleu', PRODUITS, {
+            lastAssistantMessage: 'La couleur verte n\'existe pas. Pour vos 6 gourdes, quelle couleur : Rouge ou Bleu ?',
+        })
+    }
+
+    test('les deux couleurs de la répartition deviennent deux lignes réelles', () => {
+        const state = rejouer()
+        const goubes = state.items.filter(it => it.product_name === 'goube enfant')
+        expect(goubes).toHaveLength(2)
+        expect(goubes.find(it => it.variant === 'Rouge').quantity).toBe(3)
+        expect(goubes.find(it => it.variant === 'Bleu').quantity).toBe(4)
+    })
+
+    test('« bleu » n\'est plus pris pour un article inconnu', () => {
+        const state = rejouer()
+        const textes = state.unmatched_mentions.map(m => m.text.toLowerCase())
+        expect(textes).not.toContain('bleu')
+        // L'ardoise, elle, reste bien signalée comme inconnue.
+        expect(textes).toContain('ardoise')
+    })
+
+    test('l\'écart entre la quantité annoncée et la répartition est constaté', () => {
+        const state = rejouer()
+        expect(state.quantity_drift).toEqual({
+            product_name: 'goube enfant', announced: 6, distributed: 7,
+        })
+        expect(buildLeadStateSummary(state)).toMatch(/annoncé 6 goube enfant.*totalise 7/s)
+    })
+
+    test('une répartition qui tombe juste ne déclenche aucun constat', () => {
+        let state = updateLeadStateFromUserMessage({}, 'je veux 7 gourdes', PRODUITS)
+        state = updateLeadStateFromUserMessage(state, '3 rouge et 4 bleu', PRODUITS, {
+            lastAssistantMessage: 'Pour vos 7 gourdes, quelle couleur : Rouge ou Bleu ?',
+        })
+        expect(state.quantity_drift).toBeNull()
+        expect(buildLeadStateSummary(state)).not.toMatch(/totalise/)
+    })
+
+    // Le constat vit exactement le tour où il est fait : cloneState ne le recopie pas.
+    test('le constat ne survit pas au tour suivant', () => {
+        const state = rejouer()
+        expect(state.quantity_drift).not.toBeNull()
+        const suivant = updateLeadStateFromUserMessage(state, 'Livré', PRODUITS)
+        expect(suivant.quantity_drift).toBeNull()
+    })
+
+    test('un article inconnu nommé par l\'agent est marqué comme signalé', () => {
+        let state = updateLeadStateFromUserMessage({}, 'je veux 5 sacs noir et 16 ardoise', PRODUITS)
+        expect(state.unmatched_mentions[0].announced).toBeUndefined()
+        state = updateLeadStateFromUserMessage(state, 'oui', PRODUITS, {
+            lastAssistantMessage: 'Nous ne vendons pas d\'ardoises, désolé.',
+        })
+        expect(state.unmatched_mentions[0].announced).toBe(true)
+    })
+})

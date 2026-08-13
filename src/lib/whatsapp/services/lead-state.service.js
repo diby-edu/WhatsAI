@@ -606,6 +606,21 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
     const fulfillment = detectFulfillmentMode(text)
     if (fulfillment) state.fulfillment_mode = fulfillment
 
+    // Article hors catalogue déjà signalé au client : on le note, pour que le garde-fou qui
+    // veille à ce qu'aucune ligne ne soit passée sous silence (generator.js#
+    // findUnannouncedUnknownItem) cesse d'insister une fois la chose dite. Sans ce marqueur,
+    // l'agent répéterait « nous ne vendons pas d'ardoises » à chaque récapitulatif suivant.
+    if (options.lastAssistantMessage) {
+        const saidByAgent = normalizeText(options.lastAssistantMessage).split(/\s+/).filter(Boolean)
+        for (const mention of state.unmatched_mentions) {
+            if (mention.announced === true) continue
+            const head = singularize(normalizeText(String(mention.text || '').trim().split(/\s+/)[0] || ''))
+            if (head.length < 3) continue
+            const named = saidByAgent.some(word => fuzzyDistanceOk(singularize(word.replace(/[^\p{L}\p{N}]/gu, '')), head))
+            if (named) mention.announced = true
+        }
+    }
+
     // Ce que l'agent a acté au tour précédent fait partie de l'état de la conversation.
     applyAssistantConfirmations(state, options.lastAssistantMessage, products)
 
@@ -724,6 +739,16 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
                             existingByKey.delete(keyOf(pendingItem))
                             applyStatus(pendingItem, 'valid', pendingResult.variantOptionName, quantity)
                             existingByKey.set(keyOf(pendingItem), pendingItem)
+                            // Le produit est désormais connu pour la SUITE du message : sans ça,
+                            // le second morceau d'une répartition n'avait plus aucune ancre.
+                            // Bug réel (13/08/2026) : le client annonce 6 gourdes, l'agent
+                            // demande la couleur, il répond « 3 rouge et 4 bleu ». Le premier
+                            // morceau se rattachait bien à la ligne en attente — ce qui la
+                            // rendait valide, donc vidait la liste des lignes en attente — et le
+                            // second, « 4 bleu », se retrouvait sans produit ni ancre : il
+                            // finissait enregistré comme un ARTICLE INCONNU nommé "bleu", et le
+                            // résumé ordonnait à l'IA d'annoncer au client qu'on n'en vend pas.
+                            messageAnchorProduct = pendingProduct
                             continue
                         }
 
@@ -756,6 +781,9 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
                                 existingByKey.delete(keyOf(pendingItem))
                                 applyStatus(pendingItem, 'invalid', cleaned, quantity)
                                 existingByKey.set(keyOf(pendingItem), pendingItem)
+                                // Même raison que ci-dessus : la suite du message peut porter
+                                // le second morceau d'une répartition ("verte et 4 bleu").
+                                messageAnchorProduct = pendingProduct
                                 continue
                             }
                         }
@@ -929,7 +957,62 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
         }
     }
 
+    state.quantity_drift = detectQuantityDrift(previousState, state)
+
     return state
+}
+
+/**
+ * La répartition que le client vient de donner contredit-elle la quantité qu'il avait
+ * annoncée ?
+ *
+ * Cas réel (13/08/2026) : « je veux 6 gourdes », puis — invité à choisir la couleur —
+ * « 3 rouge et 4 bleu », soit SEPT. L'agent a enregistré 7 sans un mot. Le client se
+ * souvient d'avoir dit 6, le vendeur en livrera 7, et rien dans la conversation ne signale
+ * l'écart.
+ *
+ * Ce n'est pas forcément une erreur : le client a pu changer d'avis en cours de phrase.
+ * D'où le choix de ne RIEN trancher ici — on constate l'écart, on le remonte dans le résumé,
+ * et c'est l'IA qui décide comment le faire confirmer.
+ *
+ * Calculé par comparaison avant/après plutôt qu'en instrumentant la découpe : la répartition
+ * peut arriver par des chemins très différents (ancre de message, réponse nue, produit
+ * renommé), et un seul point de contrôle en sortie les couvre tous.
+ *
+ * Non persisté : cloneState ne recopie pas cette clé, donc le constat vit exactement le tour
+ * où il est fait. Un marqueur stocké survivrait à la situation qu'il décrit — même
+ * raisonnement que detectPendingVariantAssignment.
+ */
+function totalsByProduct(items = []) {
+    const totals = new Map()
+    for (const item of items) {
+        if (!item?.product_name) continue
+        const current = totals.get(item.product_name) || { lines: 0, total: 0, complete: true }
+        current.lines += 1
+        if (item.quantity === null) current.complete = false
+        else current.total += item.quantity
+        totals.set(item.product_name, current)
+    }
+    return totals
+}
+
+function detectQuantityDrift(previousState, nextState) {
+    const before = totalsByProduct(previousState?.items || [])
+    const after = totalsByProduct(nextState?.items || [])
+
+    for (const [productName, next] of after) {
+        const prev = before.get(productName)
+        if (!prev) continue
+        // Une seule ligne annoncée AVANT, plusieurs APRÈS : c'est bien une répartition de la
+        // quantité initiale, et non l'ajout d'un article sans rapport.
+        if (prev.lines !== 1 || next.lines < 2) continue
+        if (!prev.complete || !next.complete) continue
+        if (prev.total === next.total) continue
+
+        return { product_name: productName, announced: prev.total, distributed: next.total }
+    }
+
+    return null
 }
 
 /**
@@ -1017,6 +1100,14 @@ function buildLeadStateSummary(state, options = {}) {
         lines.push('- Mode de récupération : RETRAIT EN BOUTIQUE ✅ déjà choisi par le client — ne le redemande JAMAIS, ne demande aucune adresse, aucun frais de livraison.')
     } else if (state.fulfillment_mode === 'delivery') {
         lines.push('- Mode de récupération : LIVRAISON ✅ déjà choisi par le client — ne le redemande JAMAIS. Le récap chiffré DOIT porter les frais de livraison de sa commune.')
+    }
+
+    // Écart entre la quantité annoncée et la répartition donnée ensuite (6 gourdes → 3 + 4).
+    // Énoncé comme un FAIT chiffré : le système ne tranche pas lequel des deux nombres fait
+    // foi, seul le client le sait.
+    if (state.quantity_drift) {
+        const { product_name, announced, distributed } = state.quantity_drift
+        lines.push(`⚠️ Le client avait annoncé ${announced} ${product_name} ; la répartition qu'il vient de donner en totalise ${distributed}. Le système ne tranche pas — signale-lui l'écart et fais-lui confirmer le total avant d'aller plus loin.`)
     }
 
     const pending = detectPendingVariantAssignment(state, options.lastUserMessage, options.products)
