@@ -93,3 +93,49 @@ describe('findPricelessRecap', () => {
         })
     })
 })
+
+/**
+ * Deuxième forme du MÊME défaut, observée le 13/08/2026 à 22:34 :
+ *
+ *   « Merci ! Voici ce que j'ai pour le moment :
+ *       - 10 sacs enfant (Noir)
+ *       - 5 gourdes (Orange)
+ *     Vous passez en boutique ou vous souhaitez être livré ? »
+ *
+ * Le détecteur est resté muet parce qu'il exigeait « … x N » EN FIN de ligne — la syntaxe du
+ * seul échantillon dont je disposais en l'écrivant. Ici la quantité est en tête.
+ *
+ * La leçon est dans le test : ce qu'on cherche n'est pas une syntaxe mais une PROPRIÉTÉ —
+ * une liste d'articles sans le moindre montant. Ces cas verrouillent les deux formes connues
+ * et, surtout, les messages légitimes qui portent eux aussi des chiffres.
+ */
+describe('findPricelessRecap — quantité en tête de ligne (13/08/2026)', () => {
+    const MESSAGE_REEL = 'Merci ! Voici ce que j\'ai pour le moment :\n\n- 10 sacs enfant (Noir)\n- 5 gourdes (Orange) \n\nVous passez en boutique ou vous souhaitez être livré ?'
+
+    test('cas exact de production', () => {
+        const found = findPricelessRecap(MESSAGE_REEL, true)
+        expect(found).not.toBeNull()
+        expect(found.sentence).toBe('- 10 sacs enfant (Noir)')
+    })
+
+    test('les deux formes connues sont couvertes', () => {
+        expect(findPricelessRecap('Récapitulatif :\n· Goube enfant (Rouge) x 5', true)).not.toBeNull()
+        expect(findPricelessRecap('Récapitulatif :\n· 5 Goube enfant (Rouge)', true)).not.toBeNull()
+    })
+
+    /**
+     * Le bloc de coordonnées porte lui aussi des chiffres — le téléphone. Et le gras WhatsApp
+     * place son astérisque AVANT la puce, ce qu'une lecture trop littérale manquait : le bloc
+     * passait alors pour une liste d'articles sans prix.
+     */
+    test('le bloc de coordonnées n\'est jamais pris pour une liste d\'articles', () => {
+        const gras = '*Vos coordonnées :*\n*• Nom : Koffi Kadis*\n*• Téléphone : 0987543257*\n*• Adresse : Adjamé*'
+        const simple = 'Vos coordonnées :\n• Nom : Koffi Kadis\n• Téléphone : 0987543257'
+        expect(findPricelessRecap(gras, true)).toBeNull()
+        expect(findPricelessRecap(simple, true)).toBeNull()
+    })
+
+    test('une date ou une heure en puce ne déclenche rien', () => {
+        expect(findPricelessRecap('Votre demande :\n• Date : 14/08\n• Heure : 10h', true)).toBeNull()
+    })
+})

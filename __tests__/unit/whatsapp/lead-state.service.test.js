@@ -860,3 +860,84 @@ describe('lead-state — répartition sur plusieurs couleurs (13/08/2026)', () =
         expect(state.unmatched_mentions[0].announced).toBe(true)
     })
 })
+
+/**
+ * DÉFAUT SYSTÉMATIQUE trouvé le 13/08/2026 — un article voisin pris pour une couleur.
+ *
+ * Quand un message nomme un produit en attente de variante ET un article inconnu, l'article
+ * inconnu était absorbé comme la « couleur » du produit, et sa quantité écrasait celle du
+ * produit. Mesuré sur corpus : 5 cas sur 5.
+ *
+ *   « 5 gourde, 14 ardoise »              → 14 gourdes couleur "ardoise"
+ *   « 5 gourde et 3 chaises »             → 3 gourdes couleur "chaises"
+ *   « 10 sac noir, 5 gourde, 7 tabouret » → 7 gourdes couleur "tabouret"
+ *
+ * Trois dégâts d'un coup : la quantité devient fausse, l'article inconnu disparaît (donc
+ * n'est jamais signalé au client), et le résumé ordonne à l'IA de refuser une couleur que le
+ * client n'a jamais demandée. C'était la cause d'une bonne partie des symptômes observés.
+ *
+ * Le discriminant retenu est la QUANTITÉ PROPRE du morceau : « 14 ardoise » compte ses
+ * unités, c'est un article ; « verte » n'en a pas, c'est un qualificatif.
+ */
+describe('lead-state — un article voisin n\'est pas une couleur (13/08/2026)', () => {
+    const PRODUITS = [
+        {
+            id: 'p-sac', name: 'sac enfant', price_fcfa: 5000,
+            variants: [{ name: 'Couleur', type: 'fixed', options: [
+                { value: 'Bleu', price: 5000 }, { value: 'Noir', price: 7000 },
+            ] }],
+        },
+        {
+            id: 'p-goube', name: 'goube enfant', price_fcfa: 6500,
+            variants: [{ name: 'Couleur', type: 'fixed', options: [
+                { value: 'Rouge', price: 9000 }, { value: 'Bleu', price: 6500 },
+            ] }],
+        },
+    ]
+
+    const goube = state => state.items.find(it => it.product_name === 'goube enfant')
+    const inconnus = state => state.unmatched_mentions.map(m => m.text.toLowerCase())
+
+    test.each([
+        ['10 sac enfant noir et 5 gourde, 14 ardoise', 5, 'ardoise'],
+        ['5 gourde et 3 chaises', 5, 'chaises'],
+        ['10 sac noir, 5 gourde, 7 tabouret', 5, 'tabouret'],
+    ])('« %s » garde la quantité et signale l\'intrus', (message, quantiteAttendue, intrus) => {
+        const state = updateLeadStateFromUserMessage({}, message, PRODUITS)
+        expect(goube(state).quantity).toBe(quantiteAttendue)
+        expect(goube(state).variant_status).toBe('missing')
+        expect(inconnus(state)).toContain(intrus)
+    })
+
+    test('plusieurs intrus dans le même message sont tous conservés', () => {
+        const state = updateLeadStateFromUserMessage({}, '5 gourde, 2 ardoise, 4 craie', PRODUITS)
+        expect(goube(state).quantity).toBe(5)
+        expect(inconnus(state)).toEqual(expect.arrayContaining(['ardoise', 'craie']))
+    })
+
+    // L'autre moitié du discriminant : une réponse SANS quantité propre, à une question posée
+    // au tour précédent, doit continuer d'être lue comme une couleur invalide.
+    test('une réponse nue à une question de couleur reste une couleur invalide', () => {
+        let state = updateLeadStateFromUserMessage({}, 'je veux 5 gourdes', PRODUITS)
+        state = updateLeadStateFromUserMessage(state, 'Orange', PRODUITS, {
+            lastAssistantMessage: 'Quelle couleur souhaitez-vous pour les 5 gourdes ?',
+        })
+        expect(goube(state).variant_status).toBe('invalid')
+        expect(goube(state).requested_variant).toBe('Orange')
+        expect(goube(state).quantity).toBe(5)
+    })
+
+    // La séquence complète du 13/08 22:33, telle qu'elle s'est produite.
+    test('séquence réelle : rien n\'est perdu ni inventé', () => {
+        let state = updateLeadStateFromUserMessage({}, 'Bonjour je veux 10 sac enfant noir et 2 chaises, 5 gourde, 14 ardoise, 5 bâton de craie', PRODUITS)
+        state = updateLeadStateFromUserMessage(state, 'Orange', PRODUITS, {
+            lastAssistantMessage: 'Pour les 10 sacs enfant noir et 5 gourdes, quelle couleur souhaitez-vous pour les gourdes ?',
+        })
+        const sac = state.items.find(it => it.product_name === 'sac enfant')
+        expect(sac.quantity).toBe(10)
+        expect(sac.variant).toBe('Noir')
+        expect(goube(state).quantity).toBe(5)
+        expect(goube(state).requested_variant).toBe('Orange')
+        expect(inconnus(state)).toEqual(expect.arrayContaining(['chaises', 'ardoise']))
+    })
+})

@@ -632,14 +632,32 @@ function findMissingDeliveryFee(content, leadState, agent) {
 const ITEM_LINE_WITHOUT_PRICE = /^[^\S\n]*[•·*\-–—][^\S\n]*\S.*?[^\S\n][x×][^\S\n]*\d+[^\S\n]*$/m
 const ANY_AMOUNT = /\d[\d\s.,  ]*(?:FCFA|XOF|€|\$)/i
 
+// Ligne à puce portant un chiffre — la quantité, où qu'elle soit placée dans la ligne.
+//
+// ⚠️ La première version exigeait « … x N » EN FIN de ligne, parce que c'était la forme du
+// seul échantillon dont je disposais (« · Goube enfant (Rouge) x 5 »). Le 13/08/2026 le même
+// défaut est réapparu sous une autre forme — « · 10 sacs enfant (Noir) », quantité en tête —
+// et le détecteur est resté muet. La leçon vaut d'être écrite : ce qu'on cherche n'est pas
+// une syntaxe, c'est une PROPRIÉTÉ — une liste d'articles sans le moindre montant.
+const BULLET_LINE_WITH_DIGIT = /^[^\S\n]*[•·*\-–—][^\S\n]*[^\n]*\d[^\n]*$/
+// Les lignes du bloc de coordonnées portent elles aussi des chiffres (le téléphone) : ce sont
+// des paires « libellé : valeur », jamais des articles.
+// Préfixe volontairement permissif : le gras WhatsApp place son astérisque AVANT la puce
+// (« *• Téléphone : 0987543257* »), ce qu'une lecture trop littérale de la ligne manquait —
+// le bloc de coordonnées passait alors pour une liste d'articles sans prix.
+const CONTACT_FIELD_LINE = /^[\s*•·\-–—]+\*?\s*(?:nom|pr[ée]nom|t[ée]l[ée]phone|adresse|e-?mail|entreprise|pr[ée]cision|date|heure)\b/i
+
 function findPricelessRecap(content, isLeadOnlyMode) {
     if (!isLeadOnlyMode || !content) return null
     if (ANY_AMOUNT.test(content)) return null
 
-    const line = content.match(ITEM_LINE_WITHOUT_PRICE)
-    if (!line) return null
+    for (const line of content.split('\n')) {
+        if (!BULLET_LINE_WITH_DIGIT.test(line)) continue
+        if (CONTACT_FIELD_LINE.test(line)) continue
+        return { sentence: line.trim() }
+    }
 
-    return { sentence: line[0].trim() }
+    return null
 }
 
 /**

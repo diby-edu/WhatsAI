@@ -638,6 +638,10 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
     // contrairement à anchorProduct qui est réinitialisé à chaque segment. Sert aux
     // énumérations elliptiques coupées par une virgule ou un " et ".
     let messageAnchorProduct = null
+    // Lignes créées ou mises à jour pendant le traitement de CE message. Sert à distinguer
+    // une énumération (« 5 gourde, 14 ardoise » — le client liste) d'une réponse à une
+    // question posée au tour précédent (« Orange » — le client répond). Voir plus bas.
+    const touchedThisMessage = new Set()
 
     for (const segment of segments) {
         // Produit identifié plus tôt DANS CE MÊME SEGMENT (ex: "Gourde" dans "Gourde 5
@@ -768,7 +772,27 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
                         const cleaned = cleanCandidateVariantText(rest)
                         const cleanedWordCount = cleaned ? cleaned.split(/\s+/).filter(Boolean).length : 0
 
-                        if (productHasRealVariants(pendingProduct) && pendingItem.variant_status === 'missing') {
+                        // ⛔ UN ARTICLE VOISIN N'EST PAS UNE COULEUR.
+                        //
+                        // Défaut systématique constaté le 13/08/2026 (5 cas sur 5 en corpus) :
+                        // quand le MÊME message nomme un produit en attente de variante ET un
+                        // article inconnu, l'article inconnu était absorbé comme la « couleur »
+                        // du produit — et sa quantité écrasait celle du produit.
+                        //   « 5 gourde, 14 ardoise »   → 14 gourdes couleur "ardoise"
+                        //   « 5 gourde et 3 chaises »  → 3 gourdes couleur "chaises"
+                        //   « 10 sac noir, 5 gourde, 7 tabouret » → 7 gourdes couleur "tabouret"
+                        // Trois dégâts d'un coup : la quantité est fausse, l'article inconnu
+                        // disparaît (jamais signalé au client), et le résumé ordonne à l'IA de
+                        // refuser une couleur que le client n'a jamais demandée.
+                        //
+                        // Le discriminant est la QUANTITÉ PROPRE du morceau, pas sa longueur :
+                        // « 14 ardoise » compte ses propres unités, c'est un article ; « verte »
+                        // n'en a pas, c'est un qualificatif. Combiné au fait que la ligne vient
+                        // d'être créée dans CE message (donc le client énumère, il ne répond pas
+                        // à une question), le cas est tranché sans ambiguïté.
+                        const chunkIsNeighbouringItem = quantity !== null && touchedThisMessage.has(pendingItem)
+
+                        if (!chunkIsNeighbouringItem && productHasRealVariants(pendingProduct) && pendingItem.variant_status === 'missing') {
                             // LIMITE CONNUE : ce plafond de 3 mots laisse passer une phrase sans
                             // rapport comme couleur invalide ("je suis a cocody riviera 3" →
                             // couleur "cocody riviera"). Le resserrer à 1 mot a été essayé et
@@ -940,12 +964,15 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
                     if (revived) {
                         applyStatus(revived, status, value, quantity)
                         existingByKey.set(key, revived)
+                        touchedThisMessage.add(revived)
                     } else {
                         const newItem = makeItem(product, status, value, quantity)
                         state.items.push(newItem)
                         existingByKey.set(key, newItem)
+                        touchedThisMessage.add(newItem)
                     }
                 } else {
+                    touchedThisMessage.add(existing)
                     applyStatus(existing, status, value, quantity)
                     existingByKey.set(key, existing)
                 }
@@ -953,6 +980,7 @@ function updateLeadStateFromUserMessage(previousState, text, products = [], opti
                 const newItem = makeItem(product, status, value, quantity)
                 state.items.push(newItem)
                 existingByKey.set(key, newItem)
+                touchedThisMessage.add(newItem)
             }
         }
     }
