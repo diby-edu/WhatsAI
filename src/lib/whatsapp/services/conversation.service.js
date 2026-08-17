@@ -46,10 +46,30 @@ function buildTransactionalMetadataReset(metadata = {}, options = {}) {
     }
 }
 
+// Résilient aux collisions d'identifiant : si deux contacts distincts se retrouvent
+// normalisés vers la même valeur (ex: deux JID @lid dont normalizeWhatsAppContact fait
+// converger le contact_phone), .maybeSingle() plantait dès que 2+ lignes matchaient — et
+// rendait CE contact durablement muet, puisque CHAQUE nouveau message retombait sur la même
+// erreur (bug réel constaté le 17/08/2026 : plus aucune réponse de l'agent pour ce contact).
+// On prend la plus ancienne ligne plutôt que d'échouer : une conversation existante, même
+// mal identifiée par une collision en amont, vaut toujours mieux qu'un silence total.
+async function findConversationByField(supabase, agentId, field, value) {
+    const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('agent_id', agentId)
+        .eq(field, value)
+        .order('created_at', { ascending: true })
+        .limit(1)
+
+    if (error) throw error
+    return data?.[0] || null
+}
+
 class ConversationService {
     /**
      * Récupère une conversation existante ou en crée une nouvelle
-     * 
+     *
      * @param {Object} supabase - Client Supabase
      * @param {string} agentId - ID de l'agent
      * @param {string} contactPhone - Numéro du contact
@@ -71,17 +91,7 @@ class ConversationService {
             let existing = null
 
             for (const strategy of lookupStrategies) {
-                const { data, error } = await supabase
-                    .from('conversations')
-                    .select('*')
-                    .eq('agent_id', agentId)
-                    .eq(strategy.field, strategy.value)
-                    .maybeSingle()
-
-                if (error) {
-                    throw error
-                }
-
+                const data = await findConversationByField(supabase, agentId, strategy.field, strategy.value)
                 if (data) {
                     existing = data
                     break
@@ -152,13 +162,7 @@ class ConversationService {
                 // a bloqué notre insert -> on relit la ligne gagnante au lieu d'échouer.
                 console.warn(`⚠️ Conflit de création détecté pour ${rawContact}, relecture de la conversation existante`)
                 for (const strategy of lookupStrategies) {
-                    const { data: raced } = await supabase
-                        .from('conversations')
-                        .select('*')
-                        .eq('agent_id', agentId)
-                        .eq(strategy.field, strategy.value)
-                        .maybeSingle()
-
+                    const raced = await findConversationByField(supabase, agentId, strategy.field, strategy.value)
                     if (raced) {
                         return new Conversation(raced, supabase)
                     }
@@ -508,4 +512,7 @@ class Conversation {
     }
 }
 
-module.exports = { ConversationService, Conversation }
+// findConversationByField exportée uniquement pour être testable unitairement sur le cas de
+// collision (2+ lignes matchant le même champ) — impossible à provoquer via getOrCreate seul
+// sans reproduire tout son mock.
+module.exports = { ConversationService, Conversation, findConversationByField }

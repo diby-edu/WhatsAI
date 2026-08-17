@@ -1,4 +1,4 @@
-const { ConversationService } = require('../../../src/lib/whatsapp/services/conversation.service')
+const { ConversationService, findConversationByField } = require('../../../src/lib/whatsapp/services/conversation.service')
 
 jest.mock('../../../src/lib/notifications/admin-notify', () => ({
     notifyAdmins: jest.fn(() => Promise.resolve()),
@@ -49,23 +49,30 @@ function createGetOrCreateSupabaseMock({ existingByField = {}, initialConversati
     const conversationsTable = {
         select: jest.fn(() => {
             const filters = {}
-            return {
+            const chain = {
                 eq(field, value) {
                     filters[field] = value
-                    return this
+                    return chain
                 },
-                maybeSingle: jest.fn(async () => {
+                // findConversationByField trie par created_at — le mock l'ignore et renvoie
+                // les lignes telles que fournies par le test (déjà dans l'ordre voulu).
+                order() {
+                    return chain
+                },
+                limit: jest.fn(async () => {
                     if (insertAttempted && racedConversation) {
-                        return { data: racedConversation, error: null }
+                        return { data: [racedConversation], error: null }
                     }
                     const lookupKey = `${filters.agent_id || ''}:${filters.contact_phone || filters.contact_jid || ''}`
-                    const data = existingByField[lookupKey] || null
-                    return { data, error: null }
+                    const found = existingByField[lookupKey] || null
+                    const rows = Array.isArray(found) ? found : (found ? [found] : [])
+                    return { data: rows.slice(0, 1), error: null }
                 }),
                 single: jest.fn(async () => {
                     return { data: currentConversation, error: null }
                 }),
             }
+            return chain
         }),
         update: jest.fn((payload) => ({
             eq: jest.fn(() => ({
@@ -275,6 +282,89 @@ describe('ConversationService cycle management', () => {
         )
 
         expect(conversation.id).toBe('conv_raced')
+        expect(createdRows).toHaveLength(0)
+    })
+
+    /**
+     * Régression réelle (17/08/2026) : deux JID @lid distincts normalisés par erreur vers le
+     * même contact_phone ont produit 2 lignes `conversations` pour ce champ. .maybeSingle()
+     * plantait dessus (PGRST116, "2 rows"), et CHAQUE message suivant de ce contact retombait
+     * sur la même erreur — silence total, pas seulement une mauvaise ligne choisie.
+     *
+     * findConversationByField ne doit plus jamais planter sur une collision : elle choisit la
+     * plus ancienne ligne plutôt que d'échouer.
+     */
+    describe('findConversationByField — résilience aux collisions', () => {
+        test('deux lignes matchant le même champ : la plus ancienne est retenue, pas d\'erreur', async () => {
+            const ancienne = { id: 'conv_ancien', created_at: '2026-08-17T10:00:00.000Z' }
+            const recente = { id: 'conv_recent', created_at: '2026-08-17T10:00:00.140Z' }
+            const supabase = {
+                from: jest.fn(() => ({
+                    select: jest.fn(() => ({
+                        eq: jest.fn(function () { return this }),
+                        order: jest.fn(function () { return this }),
+                        // Le vrai client Supabase trierait par created_at ; le mock renvoie
+                        // directement les 2 lignes de collision, plus ancienne en premier —
+                        // c'est justement l'ordre que .limit(1) doit préserver.
+                        limit: jest.fn(async () => ({ data: [ancienne, recente], error: null })),
+                    })),
+                })),
+            }
+
+            const result = await findConversationByField(supabase, 'agent_1', 'contact_phone', '+22500000000')
+            expect(result.id).toBe('conv_ancien')
+        })
+
+        test('aucune ligne : retourne null sans planter', async () => {
+            const supabase = {
+                from: jest.fn(() => ({
+                    select: jest.fn(() => ({
+                        eq: jest.fn(function () { return this }),
+                        order: jest.fn(function () { return this }),
+                        limit: jest.fn(async () => ({ data: [], error: null })),
+                    })),
+                })),
+            }
+            expect(await findConversationByField(supabase, 'agent_1', 'contact_phone', '+22500000000')).toBeNull()
+        })
+
+        test('une vraie erreur Supabase (pas une collision) reste propagée', async () => {
+            const supabase = {
+                from: jest.fn(() => ({
+                    select: jest.fn(() => ({
+                        eq: jest.fn(function () { return this }),
+                        order: jest.fn(function () { return this }),
+                        limit: jest.fn(async () => ({ data: null, error: { message: 'connection refused' } })),
+                    })),
+                })),
+            }
+            await expect(findConversationByField(supabase, 'agent_1', 'contact_phone', '+22500000000'))
+                .rejects.toEqual({ message: 'connection refused' })
+        })
+    })
+
+    test('getOrCreate ne plante plus quand le lookup initial rencontre une collision', async () => {
+        // Même contexte que le bug réel : 2 lignes déjà en base pour le même champ de
+        // recherche. getOrCreate doit continuer à répondre (pas de CONVERSATION_GET_FAILED),
+        // en se rattachant à la plus ancienne plutôt que d'échouer.
+        const ancienne = {
+            id: 'conv_ancien', agent_id: 'agent_1', user_id: 'user_1',
+            contact_phone: '+22500000000', contact_jid: null, status: 'active', metadata: {},
+        }
+        const recente = {
+            id: 'conv_recent', agent_id: 'agent_1', user_id: 'user_1',
+            contact_phone: '+22500000000', contact_jid: null, status: 'active', metadata: {},
+        }
+        const { supabase, createdRows } = createGetOrCreateSupabaseMock({
+            existingByField: { 'agent_1:+22500000000': [ancienne, recente] },
+            initialConversation: ancienne,
+        })
+
+        const conversation = await ConversationService.getOrCreate(
+            supabase, 'agent_1', 'user_1', '+22500000000', {}
+        )
+
+        expect(conversation.id).toBe('conv_ancien')
         expect(createdRows).toHaveLength(0)
     })
 })
