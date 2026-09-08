@@ -1,13 +1,17 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, errorResponse, successResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 
-// GET - List all subscription plans
+// GET - List all subscription plans (admin only)
+// Audit F-09 : cette route servait toutes les colonnes de configuration des plans
+// à n'importe quel utilisateur connecté (aucun garde). L'affichage public des tarifs
+// passe par /api/plans ; on réserve donc /api/admin/plans aux administrateurs.
 export async function GET() {
-    const supabase = await createApiClient()
+    const { adminSupabase, response } = await requireAdminAccess()
+    if (response || !adminSupabase) return response!
 
     try {
-        const { data: plans, error } = await supabase
+        const { data: plans, error } = await adminSupabase
             .from('subscription_plans')
             .select('*')
             .order('price_fcfa', { ascending: true })

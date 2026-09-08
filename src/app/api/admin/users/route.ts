@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { errorResponse, successResponse, getPagination, paginatedResponse } from '@/lib/api-utils'
+import { errorResponse, successResponse, getPagination, paginatedResponse, sanitizePostgrestSearch } from '@/lib/api-utils'
 import { requireAdminAccess } from '@/lib/admin/auth'
 
 // GET /api/admin/users - Get all users (Admin only) with pagination
@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    // Audit F-05 : plafonner pageSize pour éviter la lecture de plages arbitrairement grandes.
+    const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '20') || 20), 100)
     const { from, to } = getPagination(page, pageSize)
     const search = searchParams.get('search')?.trim() || ''
 
@@ -44,8 +45,12 @@ export async function GET(request: NextRequest) {
             .not('role', 'in', '("admin","superadmin")')
 
         // Server-side search across name, email and phone
+        // Audit F-05 : neutraliser les métacaractères PostgREST avant interpolation.
         if (search) {
-            query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+            const safe = sanitizePostgrestSearch(search)
+            if (safe) {
+                query = query.or(`full_name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`)
+            }
         }
 
         const { data: profiles, error, count } = await query

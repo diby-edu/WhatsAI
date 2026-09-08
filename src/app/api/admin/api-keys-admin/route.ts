@@ -28,13 +28,16 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
 
     try {
+        // Audit F-06 : api_keys.user_id référence auth.users (et non public.profiles),
+        // donc l'embed PostgREST `profiles:user_id(...)` échouait systématiquement en
+        // 500 — l'UI affichait alors "Aucune clé API" (faux état vide). On récupère
+        // désormais les clés puis les profils séparément avant de fusionner.
         let query = adminSupabase
             .from('api_keys')
             .select(`
                 id, name, key_prefix, environment, is_active,
                 rate_limit_per_minute, allowed_agent_ids,
-                last_used_at, created_at, expires_at, user_id,
-                profiles:user_id (full_name, email)
+                last_used_at, created_at, expires_at, user_id
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1)
@@ -46,7 +49,23 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error
 
-        return successResponse({ data: keys || [], total: count || 0 })
+        const rows = (keys || []) as any[]
+        const userIds = [...new Set(rows.map((k) => k.user_id).filter(Boolean))]
+        const profilesById: Record<string, { full_name: string | null; email: string | null }> = {}
+
+        if (userIds.length > 0) {
+            const { data: profs } = await adminSupabase
+                .from('profiles')
+                .select('id, full_name, email')
+                .in('id', userIds)
+            for (const p of (profs || []) as any[]) {
+                profilesById[p.id] = { full_name: p.full_name ?? null, email: p.email ?? null }
+            }
+        }
+
+        const enriched = rows.map((k) => ({ ...k, profiles: profilesById[k.user_id] || null }))
+
+        return successResponse({ data: enriched, total: count || 0 })
     } catch (err) {
         console.error('Admin api-keys error:', err)
         return errorResponse('Erreur serveur', 500)

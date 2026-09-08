@@ -58,10 +58,20 @@ export async function GET(request: NextRequest) {
 // POST /api/leads — créer un lead et notifier le propriétaire de l'agent
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json()
-        const { agent_id, user_id, name, phone, email, notes, source } = body
+        // Sécurité (audit F-01) : cet endpoint créait des leads via le client
+        // service_role SANS authentification, permettant à n'importe qui de
+        // polluer le dashboard d'un marchand et de déclencher ses notifications
+        // et webhooks avec des données arbitraires. On exige désormais une session
+        // et la propriété de l'agent ciblé. Le bot WhatsApp, lui, insère les leads
+        // directement en base (tool-capture-lead.js) et n'utilise pas cette route.
+        const supabase = await createApiClient()
+        const { user, error: authError } = await getAuthUser(supabase)
+        if (authError || !user) return errorResponse('Non autorisé', 401)
 
-        if (!agent_id || !user_id) return errorResponse('agent_id et user_id requis', 400)
+        const body = await request.json()
+        const { agent_id, name, phone, email, notes, source } = body
+
+        if (!agent_id) return errorResponse('agent_id requis', 400)
 
         const adminSupabase = createAdminClient()
 
@@ -73,6 +83,9 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (!agent) return errorResponse('Agent introuvable', 404)
+
+        // L'appelant doit être le propriétaire de l'agent
+        if (agent.user_id !== user.id) return errorResponse('Accès refusé', 403)
 
         // Insérer le lead
         const { data: lead, error } = await adminSupabase

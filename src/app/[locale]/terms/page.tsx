@@ -1,8 +1,14 @@
 import { Metadata } from 'next'
+import { pageAlternates } from '@/lib/seo'
 
-export const metadata: Metadata = {
-    title: "Conditions Générales d'Utilisation - WazzapAI",
-    description: "Conditions générales d'utilisation, de vente, de livraison et de remboursement du service WazzapAI.",
+// Audit F-13 : canonical + hreflang fr/en
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params
+    return {
+        title: "Conditions Générales d'Utilisation - WazzapAI",
+        description: "Conditions générales d'utilisation, de vente, de livraison et de remboursement du service WazzapAI.",
+        alternates: pageAlternates(locale, '/terms'),
+    }
 }
 
 const section: React.CSSProperties = { marginBottom: 36 }

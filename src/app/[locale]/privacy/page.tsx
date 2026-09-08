@@ -1,8 +1,14 @@
 import { Metadata } from 'next'
+import { pageAlternates } from '@/lib/seo'
 
-export const metadata: Metadata = {
-    title: 'Politique de Confidentialité - WazzapAI',
-    description: 'Découvrez comment WazzapAI protège vos données personnelles.',
+// Audit F-13 : canonical + hreflang fr/en
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params
+    return {
+        title: 'Politique de Confidentialité - WazzapAI',
+        description: 'Découvrez comment WazzapAI protège vos données personnelles.',
+        alternates: pageAlternates(locale, '/privacy'),
+    }
 }
 
 export default function PrivacyPage() {

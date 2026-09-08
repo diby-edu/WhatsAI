@@ -1,8 +1,14 @@
 import { Metadata } from 'next'
+import { pageAlternates } from '@/lib/seo'
 
-export const metadata: Metadata = {
-    title: 'RGPD - WazzapAI',
-    description: 'Informations sur la conformité RGPD de WazzapAI.',
+// Audit F-13 : canonical + hreflang fr/en
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params
+    return {
+        title: 'RGPD - WazzapAI',
+        description: 'Informations sur la conformité RGPD de WazzapAI.',
+        alternates: pageAlternates(locale, '/gdpr'),
+    }
 }
 
 export default function GDPRPage() {

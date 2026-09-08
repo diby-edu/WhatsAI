@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse } from '@/lib/api-utils'
+import { createApiClient, createAdminClient, getAuthUser, errorResponse, successResponse, sanitizePostgrestSearch } from '@/lib/api-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1)
 
-        if (search) query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`)
+        if (search) {
+            const safe = sanitizePostgrestSearch(search) // Audit F-05
+            if (safe) query = query.or(`full_name.ilike.%${safe}%,email.ilike.%${safe}%`)
+        }
         if (accessFilter === 'enabled') query = query.eq('api_access_enabled', true)
         if (accessFilter === 'disabled') query = query.eq('api_access_enabled', false)
 

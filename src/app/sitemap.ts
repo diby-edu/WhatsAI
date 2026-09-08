@@ -1,23 +1,25 @@
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
+// Audit F-11 : /sitemap.xml renvoyait un 404. On liste ici les pages publiques
+// pour les deux locales, avec les alternates hreflang fr/en (voir aussi F-13).
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://wazzapai.com'
+    const base = process.env.NEXT_PUBLIC_APP_URL || 'https://wazzapai.com'
+    const publicPaths = ['', '/about', '/contact', '/privacy', '/terms', '/gdpr', '/download-app']
+    const locales = ['fr', 'en'] as const
+    const now = new Date()
 
-    // Pages statiques principales
-    const routes = [
-        '',
-        '/about',
-        '/features',
-        '/pricing',
-        '/contact',
-        '/login',
-        '/register',
-    ].map((route) => ({
-        url: `${baseUrl}${route}`,
-        lastModified: new Date(),
-        changeFrequency: 'weekly' as const,
-        priority: route === '' ? 1 : 0.8,
-    }))
-
-    return routes
+    return locales.flatMap((locale) =>
+        publicPaths.map((path) => ({
+            url: `${base}/${locale}${path}`,
+            lastModified: now,
+            changeFrequency: 'weekly' as const,
+            priority: path === '' ? 1 : 0.6,
+            alternates: {
+                languages: {
+                    fr: `${base}/fr${path}`,
+                    en: `${base}/en${path}`,
+                },
+            },
+        }))
+    )
 }

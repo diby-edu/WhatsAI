@@ -257,9 +257,14 @@ export default function AdminDiagnosticsPage() {
                 {
                     name: 'Variables d environnement',
                     category: 'Configuration',
-                    status: (env.data?.missing || []).length === 0 ? 'ok' : 'warning',
-                    message: (env.data?.missing || []).length === 0 ? 'Toutes configurees' : `${env.data?.missing?.length || 0} manquante(s)`,
-                    details: env.data?.missing?.join(', ') || undefined,
+                    // Audit F-03 : l'API /diagnostics/env renvoie `missing` comme un
+                    // NOMBRE (compteur), pas un tableau. L'ancien code appelait
+                    // `missing.join()` → TypeError qui cassait toute la page.
+                    status: env.data?.allConfigured ? 'ok' : 'warning',
+                    message: env.data?.allConfigured ? 'Toutes configurees' : `${env.data?.missing ?? 0} manquante(s)`,
+                    details: env.data?.allConfigured
+                        ? `${env.data?.configured ?? 0}/${env.data?.total ?? 0} requises configurees`
+                        : `${env.data?.missing ?? 0} variable(s) requise(s) manquante(s) sur ${env.data?.total ?? 0}`,
                     utility: 'Epargne les bugs silencieux lies a une config manquante entre local, build et prod.',
                     icon: Key,
                 },

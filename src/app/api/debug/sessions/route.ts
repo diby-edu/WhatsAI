@@ -52,9 +52,14 @@ export async function GET(request: NextRequest) {
             })),
         })
     } catch (error: any) {
+        // Audit F-07 : ne pas renvoyer le message d'erreur brut (fuite de schéma DB,
+        // ex. "column whatsapp_sessions.agent_id does not exist"). Détail loggué côté
+        // serveur uniquement. NB : ce 500 signale aussi une divergence schéma prod/
+        // migrations à réaligner (la colonne agent_id existe dans les migrations).
+        console.error('[debug/sessions] error:', error?.message || error)
         return NextResponse.json({
             success: false,
-            error: error.message,
+            error: 'Erreur serveur',
         }, { status: 500 })
     }
 }

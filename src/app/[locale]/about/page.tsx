@@ -1,8 +1,14 @@
 import { Metadata } from 'next'
+import { pageAlternates } from '@/lib/seo'
 
-export const metadata: Metadata = {
-    title: 'À propos - WazzapAI',
-    description: 'Découvrez WazzapAI, la solution d\'automatisation WhatsApp propulsée par l\'intelligence artificielle.',
+// Audit F-13 : canonical + hreflang fr/en
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params
+    return {
+        title: 'À propos - WazzapAI',
+        description: 'Découvrez WazzapAI, la solution d\'automatisation WhatsApp propulsée par l\'intelligence artificielle.',
+        alternates: pageAlternates(locale, '/about'),
+    }
 }
 
 export default function AboutPage() {

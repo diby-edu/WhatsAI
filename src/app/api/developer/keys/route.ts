@@ -111,6 +111,24 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient()
+
+    // Audit F-15 : cohérence avec public-auth.ts qui refuse toute requête si
+    // api_access_enabled est faux. On empêche donc aussi la CRÉATION d'une clé
+    // tant que l'accès API n'est pas activé (sinon l'utilisateur obtient une clé
+    // "active" mais inerte — expérience trompeuse).
+    const { data: accessProfile } = await admin
+        .from('profiles')
+        .select('api_access_enabled')
+        .eq('id', user.id)
+        .single()
+
+    if (accessProfile && accessProfile.api_access_enabled === false) {
+        return NextResponse.json(
+            { error: "L'accès API n'est pas activé sur votre compte. Contactez le support." },
+            { status: 403 }
+        )
+    }
+
     const scopedAgents = await normalizeAllowedAgentIds(admin, user.id, allowed_agent_ids)
 
     if (scopedAgents.error) {

@@ -239,6 +239,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
     matcher: [
-        '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        // Audit F-11 : exclure robots.txt et sitemap.xml pour que les routes
+        // metadata Next.js les servent sans être happées par le préfixe de locale.
+        '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

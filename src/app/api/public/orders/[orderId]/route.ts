@@ -8,6 +8,7 @@ import {
     listFeexPayCountries,
     normalizeFeexPayNetwork,
 } from '@/lib/payments/feexpay-networks'
+import { checkRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
 const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,6 +20,15 @@ export async function GET(
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     const { orderId } = await params
+
+    // Audit F-04 : cet endpoint public expose des données client (téléphone,
+    // adresse de livraison). Rate-limit par IP pour empêcher la moisson en masse
+    // d'UUID de commande. (Suivi recommandé : exiger provider_notify_token pour
+    // restreindre l'accès au seul destinataire du lien de paiement.)
+    const rl = await checkRateLimit(getClientIdentifier(request), RATE_LIMITS.api)
+    if (!rl.success) {
+        return rateLimitResponse(rl.resetTime)
+    }
 
     try {
         const { data: order, error } = await getSupabase()

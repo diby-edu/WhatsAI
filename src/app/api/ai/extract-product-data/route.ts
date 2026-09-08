@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getOpenAIClient } from '@/lib/ai/openai'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,12 +12,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
+    // Audit F-12 : cet endpoint IA (complétion OpenAI) était accessible à tout
+    // compte authentifié — même gratuit, expiré ou à 0 crédit — sans rate-limit
+    // ni facturation, permettant de consommer le budget OpenAI à volonté. On
+    // applique désormais un rate-limit par utilisateur puis un débit de crédit,
+    // aligné sur /api/ai/generate.
+    const rateLimit = await checkRateLimit(`extract-product:${user.id}`, RATE_LIMITS.ai)
+    if (!rateLimit.success) {
+      return rateLimitResponse(rateLimit.resetTime)
+    }
+
     const { description, existingData, product_type } = await request.json()
 
     if (!description || description.trim().length < 10) {
       return NextResponse.json({
         error: 'Description trop courte (minimum 10 caractères)'
       }, { status: 400 })
+    }
+
+    // Débit d'un crédit (après validation, pour ne pas facturer une entrée invalide).
+    // deduct_credits LÈVE une exception si le solde est insuffisant (voir F-14).
+    const { error: creditError } = await supabase
+      .rpc('deduct_credits', { p_user_id: user.id, p_amount: 1 })
+
+    if (creditError) {
+      const msg = (creditError.message || '').toLowerCase()
+      if (msg.includes('insufficient') || msg.includes('insuffisant')) {
+        return NextResponse.json({ error: 'Credits insuffisants. Rechargez votre compte.' }, { status: 402 })
+      }
+      if (msg.includes('not found') || msg.includes('introuvable')) {
+        return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 })
+      }
+      console.error('extract-product-data credit deduction error:', creditError)
+      return NextResponse.json({ error: 'Erreur lors du debit de credit' }, { status: 500 })
     }
 
     const isPhysical = product_type === 'product'

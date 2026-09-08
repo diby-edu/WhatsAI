@@ -20,18 +20,29 @@ export async function POST(request: NextRequest) {
         }
 
         // Atomic deduction to avoid race conditions.
+        // Audit F-14 : la fonction deduct_credits (migration 20260115) LÈVE une
+        // exception en cas de solde insuffisant / profil absent au lieu de renvoyer
+        // les sentinelles -1/-2. On mappe donc l'erreur PostgreSQL vers un statut
+        // métier explicite (402/404) plutôt qu'un 500 générique trompeur.
         const { data: newBalance, error: creditError } = await supabase
             .rpc('deduct_credits', { p_user_id: user.id, p_amount: 1 })
 
         if (creditError) {
+            const msg = (creditError.message || '').toLowerCase()
+            if (msg.includes('insufficient') || msg.includes('insuffisant')) {
+                return errorResponse('Credits insuffisants. Rechargez votre compte.', 402)
+            }
+            if (msg.includes('not found') || msg.includes('introuvable')) {
+                return errorResponse('Profil introuvable', 404)
+            }
             console.error('Credit deduction error:', creditError)
             return errorResponse('Erreur lors du debit de credit', 500)
         }
 
+        // Rétro-compat : anciennes versions de la RPC renvoyaient des sentinelles.
         if (newBalance === -1) {
             return errorResponse('Credits insuffisants. Rechargez votre compte.', 402)
         }
-
         if (newBalance === -2) {
             return errorResponse('Profile not found', 404)
         }

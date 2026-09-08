@@ -1,9 +1,15 @@
 import { Metadata } from 'next'
 import { Mail, MapPin, MessageCircle } from 'lucide-react'
+import { pageAlternates } from '@/lib/seo'
 
-export const metadata: Metadata = {
-    title: 'Contact - WazzapAI',
-    description: 'Contactez l\'équipe WazzapAI pour toute question ou demande.',
+// Audit F-13 : canonical + hreflang fr/en
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params
+    return {
+        title: 'Contact - WazzapAI',
+        description: 'Contactez l\'équipe WazzapAI pour toute question ou demande.',
+        alternates: pageAlternates(locale, '/contact'),
+    }
 }
 
 export default function ContactPage() {

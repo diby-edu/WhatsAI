@@ -19,6 +19,11 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // Audit F-13 : metadataBase permet de résoudre les URLs (og:image, canonical)
+  // en absolu, et og:image/twitter:image donnent un visuel au partage social
+  // (WhatsApp, Facebook, LinkedIn…). Remplacer /logo.png par une vraie bannière
+  // 1200×630 pour un rendu optimal.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://wazzapai.com"),
   title: "WazzapAI - The Ultimate WhatsApp Automation Platform powered by AI",
   description: "Transform your WhatsApp into a 24/7 Sales Machine. Automate conversations, qualify leads, and close deals globally with our advanced AI Agents. Works in any country.",
   keywords: ["WhatsApp Automation", "AI Chatbot", "WhatsApp CRM", "Sales Automation", "Lead Generation", "Customer Service AI", "Business WhatsApp"],
@@ -29,11 +34,13 @@ export const metadata: Metadata = {
     url: "https://wazzapai.com",
     siteName: "WazzapAI",
     type: "website",
+    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "WazzapAI" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "WazzapAI - WhatsApp Automation Platform",
     description: "Automate your sales and support on WhatsApp. AI-powered agents for your business.",
+    images: ["/logo.png"],
   },
 };
 

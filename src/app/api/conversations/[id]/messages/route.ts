@@ -38,6 +38,13 @@ export async function POST(
             return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
         }
 
+        // Audit F-10 : contrôle d'appartenance explicite, en plus de la RLS.
+        // Les handlers voisins (GET/DELETE) vérifient déjà agent.user_id ; on ne veut
+        // pas que l'envoi de message dépende uniquement de la configuration RLS.
+        if (conversation.user_id && conversation.user_id !== user.id) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+
         // Store message in database with 'pending' status for the worker to pick up
         const { data: newMessage, error: msgError } = await supabase
             .from('messages')

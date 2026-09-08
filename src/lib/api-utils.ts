@@ -57,6 +57,17 @@ export function isAdminRole(role?: string | null): boolean {
     return role === 'admin' || role === 'superadmin'
 }
 
+/**
+ * Sécurité (audit F-05) : neutralise les métacaractères de la syntaxe de filtre
+ * PostgREST (`,` `(` `)` et `\`) dans une saisie de recherche interpolée dans un
+ * appel `.or(...)`. Sans cela, une virgule ou une parenthèse permet à l'entrée
+ * de s'échapper de la structure du filtre (injection de filtre → conditions
+ * arbitraires / 500). À utiliser pour toute valeur passée à un `ilike`.
+ */
+export function sanitizePostgrestSearch(value: string): string {
+    return String(value ?? '').replace(/[,()\\]/g, ' ').trim()
+}
+
 // Get authenticated user or return error
 export async function getAuthUser(supabase: Awaited<ReturnType<typeof createApiClient>>) {
     const { data: { user }, error } = await supabase.auth.getUser()
