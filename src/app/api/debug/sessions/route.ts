@@ -27,28 +27,34 @@ export async function GET(request: NextRequest) {
             }, { status: 403 })
         }
 
-        const { data: sessions, error } = await adminSupabase
-            .from('whatsapp_sessions')
-            .select('agent_id, phone_number, status, last_connected_at, updated_at')
+        // Audit F-07 : en production, la table `whatsapp_sessions` est le magasin
+        // de credentials Baileys (session_id, key_id, data) — elle ne contient PAS
+        // le statut des sessions. L'ancienne requête (agent_id, status, ...) plantait
+        // donc en 500. Le vrai statut WhatsApp vit sur la table `agents`.
+        const { data: agents, error } = await adminSupabase
+            .from('agents')
+            .select('id, name, whatsapp_phone, whatsapp_status, whatsapp_connected, whatsapp_ever_connected, updated_at')
             .order('updated_at', { ascending: false })
 
         if (error) {
             throw error
         }
 
-        const rows = sessions || []
+        const rows = agents || []
 
         return NextResponse.json({
             success: true,
-            active_sessions_count: rows.filter((session) => session.status === 'connected').length,
-            active_sessions_ids: rows.map((session) => session.agent_id),
-            details: rows.map((session) => ({
-                id: session.agent_id,
-                has_socket: session.status === 'connected',
-                phoneNumber: session.phone_number,
-                status: session.status,
-                lastConnectedAt: session.last_connected_at,
-                updatedAt: session.updated_at,
+            active_sessions_count: rows.filter((a) => a.whatsapp_connected === true).length,
+            active_sessions_ids: rows.filter((a) => a.whatsapp_connected === true).map((a) => a.id),
+            details: rows.map((a) => ({
+                id: a.id,
+                name: a.name,
+                has_socket: a.whatsapp_connected === true,
+                phoneNumber: a.whatsapp_phone,
+                status: a.whatsapp_status,
+                connected: a.whatsapp_connected === true,
+                everConnected: a.whatsapp_ever_connected === true,
+                updatedAt: a.updated_at,
             })),
         })
     } catch (error: any) {
