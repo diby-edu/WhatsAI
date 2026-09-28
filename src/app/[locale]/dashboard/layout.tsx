@@ -374,13 +374,16 @@ export default function DashboardLayout({
             backgroundColor: '#0f172a',
             display: 'flex',
             position: 'relative',
-            // Correctif scroll : 'overflow: hidden' coupait le bas du contenu — tout
-            // ce qui dépassait la hauteur du conteneur était masqué sans pouvoir
-            // défiler jusqu'en bas (desktop ET mobile, toutes les pages du dashboard).
-            // On ne clippe plus que l'horizontal ; le vertical défile via <main>
-            // (desktop, overflow:auto) ou via le body (mobile). Le 'height: 100%'
-            // ambigu est retiré au profit de minHeight: 100vh (grandit avec le contenu).
-            overflowX: 'hidden'
+            // Correctif scroll (une seule barre de défilement) :
+            // - Desktop : overflow 'hidden' → la racine ne défile pas, c'est <main>
+            //   (height:100vh, overflow:auto) qui est l'unique zone de défilement.
+            // - Mobile  : overflow 'visible' → c'est le body qui défile (main est en
+            //   height:auto), sans clip et sans créer de 2e conteneur scrollable.
+            // On utilise le mot-clé complet (jamais overflowX seul, qui force
+            // overflowY:auto et provoquait une double barre). Le 'height: 100%'
+            // ambigu reste retiré au profit de minHeight: 100vh (coupait le bas).
+            // L'overflow-x est déjà géré globalement par html/body.
+            overflow: isMobile ? 'visible' : 'hidden'
         }}>
             {/* Mobile header */}
             {isMobile && (
