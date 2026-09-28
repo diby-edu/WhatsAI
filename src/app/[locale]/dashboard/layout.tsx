@@ -371,11 +371,16 @@ export default function DashboardLayout({
     return (
         <div style={{
             minHeight: '100vh',
-            height: '100%',
             backgroundColor: '#0f172a',
             display: 'flex',
             position: 'relative',
-            overflow: 'hidden'
+            // Correctif scroll : 'overflow: hidden' coupait le bas du contenu — tout
+            // ce qui dépassait la hauteur du conteneur était masqué sans pouvoir
+            // défiler jusqu'en bas (desktop ET mobile, toutes les pages du dashboard).
+            // On ne clippe plus que l'horizontal ; le vertical défile via <main>
+            // (desktop, overflow:auto) ou via le body (mobile). Le 'height: 100%'
+            // ambigu est retiré au profit de minHeight: 100vh (grandit avec le contenu).
+            overflowX: 'hidden'
         }}>
             {/* Mobile header */}
             {isMobile && (
