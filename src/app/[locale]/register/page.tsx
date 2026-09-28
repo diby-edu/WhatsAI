@@ -8,6 +8,7 @@ import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff, Check, Sparkles,
 import { createClient } from '@/lib/supabase/client'
 import { resolvePostAuthPath } from '@/lib/auth/post-auth'
 import { GA } from '@/lib/analytics'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 import { useTranslations } from 'next-intl'
 
 function RegisterForm() {
@@ -25,6 +26,9 @@ function RegisterForm() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    // Audit F-08 : jeton CAPTCHA Turnstile transmis à Supabase.
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+    const [captchaResetSignal, setCaptchaResetSignal] = useState(0)
     const [success, setSuccess] = useState(false)
     const [registrationsOpen, setRegistrationsOpen] = useState(true)
     const [refCode, setRefCode] = useState('')
@@ -100,6 +104,7 @@ function RegisterForm() {
                 email,
                 password,
                 options: {
+                    captchaToken: captchaToken || undefined,
                     data: {
                         full_name: fullName,
                         selected_plan: selectedPlan,
@@ -110,6 +115,9 @@ function RegisterForm() {
             })
 
             if (error) {
+                // Jeton CAPTCHA à usage unique : en régénérer un pour la tentative suivante.
+                setCaptchaToken(null)
+                setCaptchaResetSignal((n) => n + 1)
                 setError(error.message)
             } else {
                 GA.userRegistered('email')
@@ -739,6 +747,14 @@ function RegisterForm() {
                                     +10 crédits offerts après votre premier paiement
                                 </p>
                             )}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <TurnstileWidget
+                                onVerify={setCaptchaToken}
+                                onExpire={() => setCaptchaToken(null)}
+                                resetSignal={captchaResetSignal}
+                            />
                         </div>
 
                         <motion.button

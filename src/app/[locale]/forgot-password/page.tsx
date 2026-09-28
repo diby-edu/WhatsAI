@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { MessageCircle, Mail, Loader2, ArrowLeft, Check, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations } from 'next-intl'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 export default function ForgotPasswordPage() {
     const t = useTranslations('Auth.ForgotPassword')
@@ -13,6 +14,9 @@ export default function ForgotPasswordPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+    // Audit F-08 : jeton CAPTCHA Turnstile transmis à Supabase.
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+    const [captchaResetSignal, setCaptchaResetSignal] = useState(0)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -23,9 +27,13 @@ export default function ForgotPasswordPage() {
             const supabase = createClient()
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
                 redirectTo: `${window.location.origin}/reset-password`,
+                captchaToken: captchaToken || undefined,
             })
 
             if (error) {
+                // Jeton CAPTCHA à usage unique : en régénérer un pour la tentative suivante.
+                setCaptchaToken(null)
+                setCaptchaResetSignal((n) => n + 1)
                 setError(error.message)
             } else {
                 setSuccess(true)
@@ -252,6 +260,14 @@ export default function ForgotPasswordPage() {
                                 }}
                             />
                         </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <TurnstileWidget
+                            onVerify={setCaptchaToken}
+                            onExpire={() => setCaptchaToken(null)}
+                            resetSignal={captchaResetSignal}
+                        />
                     </div>
 
                     <motion.button

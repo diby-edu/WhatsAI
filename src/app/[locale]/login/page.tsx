@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { MessageCircle, Mail, Lock, Loader2, Eye, EyeOff, Sparkles, ArrowRight, Zap, Shield, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolvePostAuthPath } from '@/lib/auth/post-auth'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 const LOGIN_GUARD_KEY = 'wazzapai_login_guard_v1'
 const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000
@@ -94,6 +95,9 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    // Audit F-08 : jeton CAPTCHA Turnstile transmis à Supabase.
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+    const [captchaResetSignal, setCaptchaResetSignal] = useState(0)
     const [showResend, setShowResend] = useState(false)
     const [resendLoading, setResendLoading] = useState(false)
     const [resendSent, setResendSent] = useState(false)
@@ -178,9 +182,13 @@ export default function LoginPage() {
             const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
+                options: { captchaToken: captchaToken || undefined },
             })
 
             if (error) {
+                // Jeton CAPTCHA à usage unique : en régénérer un pour la tentative suivante.
+                setCaptchaToken(null)
+                setCaptchaResetSignal((n) => n + 1)
                 const failureState = registerLoginFailure(attemptKey, authPolicy.maxLoginAttempts)
 
                 if (failureState.lockedUntil) {
@@ -715,6 +723,14 @@ export default function LoginPage() {
                                     }
                                 </button>
                             </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <TurnstileWidget
+                                onVerify={setCaptchaToken}
+                                onExpire={() => setCaptchaToken(null)}
+                                resetSignal={captchaResetSignal}
+                            />
                         </div>
 
                         <motion.button
