@@ -150,6 +150,26 @@ export default function DashboardLayout({
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
+    // Correctif "double barre de scroll" (desktop).
+    // Le body porte un padding-bottom de 20px (safe-area APK : max(20px, env(...)))
+    // et html est en `overflow-y: scroll !important` (global). Sur desktop, le shell
+    // fait 100vh → il dépasse de ces 20px → la barre de html s'active EN PLUS de
+    // celle de <main> (qui est l'unique zone de défilement voulue). Sur desktop, la
+    // page ne doit pas défiler : on force html en overflow:hidden (setProperty avec
+    // 'important' pour battre le !important global). Sur mobile, on laisse la page
+    // défiler (main est en hauteur auto). Restauré au démontage / passage mobile.
+    useEffect(() => {
+        const html = document.documentElement
+        if (!isMobile) {
+            html.style.setProperty('overflow', 'hidden', 'important')
+        } else {
+            html.style.removeProperty('overflow')
+        }
+        return () => {
+            html.style.removeProperty('overflow')
+        }
+    }, [isMobile])
+
     // Lock body scroll when mobile menu is open (prevents background page scrolling)
     useEffect(() => {
         if (mobileMenuOpen) {
